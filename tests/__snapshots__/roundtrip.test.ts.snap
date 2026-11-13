@@ -66,6 +66,7 @@ exports[`round-trip > basic.mmd 1`] = `
   C(Done)
   D([Retry])
   E((Circle))
+  %% a comment
   F
   A --> B
   B -->|yes| C
@@ -85,6 +86,31 @@ exports[`round-trip > chain.mmd 1`] = `
   step1 --> step2
   step2 -->|yes| done
   step2 -->|no| step1
+"
+`;
+
+exports[`round-trip > comments.mmd 1`] = `
+"flowchart LR
+  start([Start])
+  check{Valid?}
+  %% A node on its own
+  fail[Fail]
+  subgraph team [Team]
+    %% Inside the subgraph
+    work[Do the work]
+    %% Before end
+  end
+  %% The entry point
+  start --> check
+  %% Happy path
+  check -->|yes| work
+  %% Two lines
+  %% about the error path
+  check -->|no| fail
+  %% Before styling
+  classDef bad fill:#fdd
+  class fail bad
+  %% The very end
 "
 `;
 
@@ -174,6 +200,7 @@ exports[`round-trip > interaction.mmd 1`] = `
   F
   x
   subgraph one [My Group]
+    %% click A not-this-one
     a1[click a1 is a label, not a statement]
     a2
     subgraph inner

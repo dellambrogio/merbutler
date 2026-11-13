@@ -108,7 +108,7 @@ export const GALLERY: GalleryGroup[] = [
       { id: 'dir-rl', title: 'Direction RL', code: fc('  Start --> Stop\n', 'RL') },
       { id: 'graph-keyword', title: '`graph` keyword', code: 'graph LR\n  A --> B\n' },
       { id: 'semicolons', title: 'Trailing semicolons', code: fc('  A --> B;\n  B --> C;\n') },
-      { id: 'comments', title: 'Comments', code: fc('  %% this is a comment\n  A -- text --> B{node}\n'), caveat: 'Canvas edits remove comments after the flowchart line.' },
+      { id: 'comments', title: 'Comments', code: fc('  %% this is a comment\n  A -- text --> B{node}\n') },
       { id: 'front-matter-title', title: 'Front matter title', code: '---\ntitle: Node\n---\nflowchart LR\n  id\n' },
     ],
   },

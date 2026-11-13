@@ -130,12 +130,15 @@ function treeLines(items: TreeItem[], depth: number, out: string[]): void {
   const pad = INDENT.repeat(depth);
   for (const item of items) {
     if (item.kind === 'node') {
+      for (const comment of item.node.comments ?? []) out.push(`${pad}${comment}`);
       out.push(`${pad}${nodeLine(item.node)}`);
       continue;
     }
+    for (const comment of item.subgraph.comments ?? []) out.push(`${pad}${comment}`);
     out.push(`${pad}${subgraphHeader(item.subgraph)}`);
     if (item.subgraph.direction) out.push(`${pad}${INDENT}direction ${item.subgraph.direction}`);
     treeLines(item.children, depth + 1, out);
+    for (const comment of item.subgraph.endComments ?? []) out.push(`${pad}${INDENT}${comment}`);
     out.push(`${pad}end`);
   }
 }
@@ -144,7 +147,10 @@ export function serialize(model: FlowModel): string {
   const lines = model.preamble ? [model.preamble] : [];
   lines.push(`flowchart ${model.direction}`);
   treeLines(buildTree(model), 1, lines);
-  for (const edge of model.edges) lines.push(`${INDENT}${edgeLine(edge)}`);
+  for (const edge of model.edges) {
+    for (const comment of edge.comments ?? []) lines.push(`${INDENT}${comment}`);
+    lines.push(`${INDENT}${edgeLine(edge)}`);
+  }
   for (const edge of model.edges) {
     const options = edgeOptionsLine(edge);
     if (options) lines.push(`${INDENT}${options}`);
@@ -152,10 +158,12 @@ export function serialize(model: FlowModel): string {
   for (const subgraph of model.subgraphs) {
     if (subgraph.view) lines.push(`${INDENT}${subgraph.id}@{ view: ${subgraph.view} }`);
   }
+  for (const comment of model.tailComments ?? []) lines.push(`${INDENT}${comment}`);
   for (const line of stylingLines(model)) lines.push(`${INDENT}${line}`);
   for (const node of model.nodes) {
     if (node.click) lines.push(`${INDENT}click ${node.id} ${node.click}`);
   }
+  for (const comment of model.endComments ?? []) lines.push(`${INDENT}${comment}`);
   return `${lines.join('\n')}\n`;
 }
 

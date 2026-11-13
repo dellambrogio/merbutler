@@ -26,6 +26,8 @@ import {
   STROKES,
   addNode,
   addSubgraph,
+  commentsFromText,
+  commentsToText,
   connect,
   diagramTitle,
   nextEdgeId,
@@ -270,6 +272,25 @@ function AssetFields({ id, asset, onChange }: { id: string; asset: Asset; onChan
         </label>
       )}
     </>
+  );
+}
+
+/** `%%` comment lines above a node, edge or subgraph. */
+function CommentField({ comments, onCommit }: { id: string; comments: readonly string[] | undefined; onCommit: (comments: string[]) => void }): JSX.Element {
+  const value = commentsToText(comments);
+  const [draft, setDraft] = useState(value);
+  return (
+    <label title="Written as %% lines above it in the code">
+      Comment
+      <textarea
+        value={draft}
+        rows={Math.max(1, draft.split('\n').length)}
+        spellCheck={false}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => draft !== value && onCommit(commentsFromText(draft))}
+        onKeyDown={(e) => e.key === 'Escape' && setDraft(value)}
+      />
+    </label>
   );
 }
 
@@ -548,6 +569,12 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             onSelect={(parent) => onChange(setParent(model, node.id, parent))}
           />
           <ClickField id={node.id} value={node.click ?? ''} onCommit={(click) => onChange(updateNode(model, node.id, { click }))} />
+          <CommentField
+            key={`${node.id}:${commentsToText(node.comments)}`}
+            id={node.id}
+            comments={node.comments}
+            onCommit={(comments) => onChange(updateNode(model, node.id, { comments }))}
+          />
           <StyleFields
             id={node.id}
             item={node}
@@ -605,6 +632,12 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             />
             Collapsed
           </label>
+          <CommentField
+            key={`${subgraph.id}:${commentsToText(subgraph.comments)}`}
+            id={subgraph.id}
+            comments={subgraph.comments}
+            onCommit={(comments) => onChange(updateSubgraph(model, subgraph.id, { comments }))}
+          />
           <StyleFields
             id={subgraph.id}
             item={subgraph}
@@ -682,6 +715,12 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             />
             Both ends
           </label>
+          <CommentField
+            key={`${edge.id}:${commentsToText(edge.comments)}`}
+            id={edge.id}
+            comments={edge.comments}
+            onCommit={(comments) => onChange(updateEdge(model, edge.id, { comments }))}
+          />
           <StyleFields
             id={edge.id}
             item={edge}

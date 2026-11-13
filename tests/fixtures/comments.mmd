@@ -1,0 +1,19 @@
+flowchart LR
+  %% The entry point
+  start([Start]) --> check{Valid?}
+  %% Happy path
+  check -->|yes| work
+  %% Two lines
+  %% about the error path
+  check -->|no| fail[Fail]
+  subgraph team [Team]
+    %% Inside the subgraph
+    work[Do the work]
+    %% Before end
+  end
+  %% A node on its own
+  fail
+  %% Before styling
+  classDef bad fill:#fdd
+  class fail bad
+  %% The very end

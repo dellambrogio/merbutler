@@ -8,7 +8,7 @@ exports[`gallery > support status 1`] = `
   "classic-shapes": "editable",
   "click-callback": "editable",
   "click-link": "editable",
-  "comments": "editable, lossy",
+  "comments": "editable",
   "config-look": "editable",
   "decision": "editable",
   "diagram-curve": "editable",

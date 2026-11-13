@@ -175,32 +175,119 @@ function usesAtSyntax(text: string, id: string): boolean {
   return new RegExp(`(?:^|[^\\w-])${escaped}@\\{`, 'm').test(text);
 }
 
+/** A statement or a `%%` comment line of the code, in order. */
+export type CodeItem = { kind: 'statement' | 'comment'; text: string };
+
 /**
- * The statements of the code (split at newlines and `;`), outside quotes and `%%` comments.
- * Enough to find `click` statements, which Mermaid's DB does not keep as written: with
- * securityLevel 'strict' a callback leaves no trace, and links are rewritten (sanitized).
+ * Statements (split at newlines and `;`) and `%%` comments of the code, outside quotes.
+ * Used for what Mermaid's DB does not keep as written: `click` statements (with securityLevel
+ * 'strict' a callback leaves no trace, and links are rewritten) and comments.
  */
-export function statements(text: string): string[] {
-  const out: string[] = [];
+export function scan(text: string): CodeItem[] {
+  const out: CodeItem[] = [];
   let current = '';
   let quoted = false;
+  const flush = (): void => {
+    if (current.trim() !== '') out.push({ kind: 'statement', text: current.trim() });
+    current = '';
+  };
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (c === '"') quoted = !quoted;
     if (!quoted && c === '%' && text[i + 1] === '%') {
-      while (i < text.length && text[i] !== '\n') i++;
-      i--;
+      const end = text.indexOf('\n', i);
+      const comment = text.slice(i, end < 0 ? text.length : end).trimEnd();
+      flush();
+      out.push({ kind: 'comment', text: comment });
+      i = end < 0 ? text.length : end;
       continue;
     }
     if (!quoted && (c === '\n' || c === ';')) {
-      out.push(current.trim());
-      current = '';
+      flush();
       continue;
     }
     current += c;
   }
-  out.push(current.trim());
-  return out.filter((s) => s !== '');
+  flush();
+  return out;
+}
+
+/** The statements of the code, without comments. */
+export function statements(text: string): string[] {
+  return scan(text).flatMap((item) => (item.kind === 'statement' ? [item.text] : []));
+}
+
+/** Leading node or edge id of a statement: `A` in `A[x] --> B`, `e1` in `e1@{ … }`. */
+const LEADING_ID = /^([\p{L}\p{N}_][\p{L}\p{N}_.$-]*?)(?=$|[\s[({>@:&|]|-[-.>xo]|==|~~)/u;
+const EDGE_OPERATOR = /--|==|-\.|~~~|<-|<=/;
+
+/**
+ * Attaches each comment after the `flowchart` line to the statement after it, so a canvas
+ * edit writes it back above the same node, edge or subgraph. Comments before `classDef`,
+ * `class`, `style`, `linkStyle`, `click` and at the end are kept as tail comments.
+ */
+function attachComments(model: FlowModel, text: string): void {
+  const items = scan(text.slice(preambleOf(text).length));
+  const header = items.findIndex((item) => item.kind === 'statement');
+  const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
+  const subgraphById = new Map(model.subgraphs.map((s) => [s.id, s]));
+  let edgePointer = 0;
+  let pending: string[] = [];
+  /** Subgraphs whose block is open, to keep a comment before `end` in its block. */
+  const open: Array<FlowSubgraph | null> = [];
+  const add = (target: { comments?: string[] }): void => {
+    target.comments = [...(target.comments ?? []), ...pending];
+    pending = [];
+  };
+  for (const item of items.slice(header + 1)) {
+    if (item.kind === 'comment') {
+      pending.push(item.text);
+      continue;
+    }
+    const statement = item.text;
+    const sub = /^subgraph\s+(.+)$/.exec(statement);
+    const subgraph = sub ? findSubgraph(model, subgraphById, sub[1].trim()) : null;
+    if (sub) open.push(subgraph);
+    if (statement === 'end') {
+      const closing = open.pop();
+      if (closing && pending.length > 0) {
+        closing.endComments = [...(closing.endComments ?? []), ...pending];
+        pending = [];
+      }
+      continue;
+    }
+    if (pending.length === 0) continue;
+    if (/^(classDef|class|style|linkStyle|click)\b/.test(statement)) {
+      model.tailComments = [...(model.tailComments ?? []), ...pending];
+      pending = [];
+      continue;
+    }
+    if (sub) {
+      if (subgraph) add(subgraph);
+      continue;
+    }
+    const id = LEADING_ID.exec(statement)?.[1];
+    if (!id) continue;
+    if (EDGE_OPERATOR.test(statement.slice(id.length))) {
+      // Mermaid creates edges in the order of the statements: take the next one from this id.
+      const index = model.edges.findIndex((e, i) => i >= edgePointer && e.source === id);
+      if (index >= 0) {
+        add(model.edges[index]);
+        edgePointer = index + 1;
+      }
+      continue;
+    }
+    const edge = model.edges.find((e) => e.ref === id);
+    const target = nodeById.get(id) ?? subgraphById.get(id) ?? edge;
+    if (target) add(target);
+  }
+  if (pending.length > 0) model.endComments = pending;
+}
+
+/** The subgraph of a `subgraph …` statement: by id (`subgraph id [Title]`), else by title. */
+function findSubgraph(model: FlowModel, byId: Map<string, FlowSubgraph>, rest: string): FlowSubgraph | null {
+  const id = /^([\w.$-]+)\s*(\[.*\])?$/.exec(rest)?.[1];
+  return (id ? byId.get(id) : undefined) ?? model.subgraphs.find((s) => s.label === rest.replace(/^"(.*)"$/, '$1')) ?? null;
 }
 
 /** `click id rest` statements by node id (the last one wins, as in Mermaid). */
@@ -354,6 +441,7 @@ export async function parse(text: string): Promise<ParseResult> {
     if (Object.keys(linkDefaults).length > 0) model.linkDefaults = linkDefaults;
     const preamble = preambleOf(text);
     if (preamble) model.preamble = preamble;
+    attachComments(model, text);
     return { ok: true, model: canonicalOrder(model) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

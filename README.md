@@ -151,12 +151,13 @@ flowchart LR
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
 Code the canvas cannot represent shows an error, and the canvas stays read-only. This prevents a canvas edit from
-deleting those parts. Today every example in the Gallery is editable; only comments after the `flowchart` line are
-still lost on a canvas edit (see below).
+deleting those parts. Today every example in the Gallery is editable, and none loses code on a canvas edit.
 
 ## Known limitations
 
-- A canvas edit rewrites the code: comments after the `flowchart` line, formatting, and statement order are not kept.
+- A canvas edit rewrites the code: formatting, blank lines and statement order are not kept. Comments are kept: each
+  `%%` comment goes with the node, edge or subgraph written after it (or before `end`, before the styling statements,
+  or at the end), and is written back there. Deleting the element deletes its comment.
 - `direction` inside a subgraph works as in Mermaid: the canvas uses it only if no edge connects a node inside
   the subgraph to a node outside it. Edges that end at the subgraph itself are allowed.
 - Without an ELK route (dagre, or after you drag a node), edges use handles on fixed sides (for example right → left

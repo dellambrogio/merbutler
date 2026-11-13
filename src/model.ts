@@ -78,6 +78,8 @@ export interface FlowNode {
   styles?: string[];
   /** An icon or image node. `shape` is not used then, and the label may be empty. */
   asset?: Asset;
+  /** `%%` comment lines written above the node. */
+  comments?: string[];
   /**
    * The rest of a `click id …` statement, as written: `href "https://…" "Tooltip" _blank`,
    * `callback "Tooltip"`, `call cb()`. Kept and shown; the canvas never follows or runs it.
@@ -99,6 +101,10 @@ export interface FlowSubgraph {
   styles?: string[];
   /** From `id@{ view: … }` (Mermaid 11.17+). Collapsed: drawn as one box, its contents hidden. */
   view?: 'collapsed' | 'expanded';
+  /** `%%` comment lines written above the subgraph. */
+  comments?: string[];
+  /** `%%` comment lines just before the subgraph's `end`. */
+  endComments?: string[];
 }
 
 export interface FlowEdge {
@@ -125,6 +131,8 @@ export interface FlowEdge {
   classes?: string[];
   /** From `linkStyle n …`. */
   styles?: string[];
+  /** `%%` comment lines written above the edge. */
+  comments?: string[];
 }
 
 export interface FlowModel {
@@ -136,6 +144,10 @@ export interface FlowModel {
   direction: Direction;
   /** `classDef` statements, in order. */
   classDefs?: ClassDef[];
+  /** `%%` comments before the styling statements (`classDef`, `class`, `style`, `linkStyle`, `click`). */
+  tailComments?: string[];
+  /** `%%` comments after the last statement. */
+  endComments?: string[];
   /** `linkStyle default …`: styles and curve for all edges. */
   linkDefaults?: { styles?: string[]; curve?: string };
   nodes: FlowNode[];
@@ -154,12 +166,28 @@ export function sortClasses(classes: readonly string[], classDefs: readonly Clas
   return [...new Set(classes)].sort((a, b) => key(a) - key(b) || (a < b ? -1 : a > b ? 1 : 0));
 }
 
+/** Comment lines from inspector text: one `%% ` line per non-empty line. */
+export function commentsFromText(text: string): string[] {
+  // The space after %% keeps a comment that starts with { from being read as a directive (%%{ … }%%).
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => `%% ${line}`);
+}
+
+/** Inspector text of comment lines, without the `%%`. */
+export function commentsToText(comments: readonly string[] | undefined): string {
+  return (comments ?? []).map((c) => c.replace(/^%%\s?/, '')).join('\n');
+}
+
 /** Drops empty `classes` and `styles` lists, so a cleared field leaves no statement in the code. */
 function withoutEmpty<T extends Styled>(item: T, classDefs?: readonly ClassDef[]): T {
   const next = { ...item };
   if (next.classes) next.classes = sortClasses(next.classes, classDefs);
   if (next.classes?.length === 0) delete next.classes;
   if (next.styles?.length === 0) delete next.styles;
+  if ((next as { comments?: string[] }).comments?.length === 0) delete (next as { comments?: string[] }).comments;
   for (const key of ['click', 'view', 'asset'] as const) {
     if (key in next && (next as Record<string, unknown>)[key] === undefined) delete (next as Record<string, unknown>)[key];
   }
@@ -254,7 +282,7 @@ export function normalizeNode(node: FlowNode): FlowNode {
 export function updateNode(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles' | 'click' | 'asset'>>,
+  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles' | 'click' | 'asset' | 'comments'>>,
 ): FlowModel {
   return {
     ...model,
@@ -279,7 +307,7 @@ export function updateNode(
 export function updateSubgraph(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown' | 'classes' | 'styles' | 'view'>>,
+  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown' | 'classes' | 'styles' | 'view' | 'comments'>>,
 ): FlowModel {
   return {
     ...model,

@@ -38,6 +38,16 @@ export const SHAPES: readonly Shape[] = [
 ];
 export const STROKES: readonly Stroke[] = ['normal', 'dotted', 'thick'];
 export const EDGE_ENDS: readonly EdgeEnd[] = ['none', 'arrow', 'circle', 'cross'];
+/** Minimum edge length in ranks: 1 for `-->`, 2 for `--->`, 3 for `---->`. */
+export const EDGE_LENGTHS: readonly number[] = [1, 2, 3];
+
+/** Settings from an `id@{ … }` statement for an edge. Kept in the code; the canvas does not draw them yet. */
+export interface EdgeOptions {
+  animate?: boolean;
+  animation?: 'fast' | 'slow';
+  step?: number;
+  curve?: string;
+}
 
 export interface FlowNode {
   id: string;
@@ -72,9 +82,20 @@ export interface FlowEdge {
   end: EdgeEnd;
   /** True: the same marker also at the source (`<-->`, `o--o`, `x--x`). Always false when `end` is 'none'. */
   bothEnds: boolean;
+  /** Minimum length in ranks (see EDGE_LENGTHS). Missing means 1. */
+  length?: number;
+  /** The id written in the code (`A e1@--> B`). Missing when the code gives none. */
+  ref?: string;
+  /** Settings from `ref@{ … }`. Only an edge with a `ref` can have them. */
+  options?: EdgeOptions;
 }
 
 export interface FlowModel {
+  /**
+   * Text before the `flowchart` line: front matter, `%%{init}%%` directives, comments.
+   * Kept as it is. Missing when there is none.
+   */
+  preamble?: string;
   direction: Direction;
   nodes: FlowNode[];
   subgraphs: FlowSubgraph[];

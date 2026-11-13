@@ -78,6 +78,49 @@ exports[`round-trip > edge-ends.mmd 1`] = `
 "
 `;
 
+exports[`round-trip > edge-ids.mmd 1`] = `
+"flowchart LR
+  client
+  api
+  db
+  cache
+  log
+  client e1@--> api
+  api e2@==>|cache miss| db
+  api e3@---> cache
+  api --> log
+  e1@{ animate: true }
+  e2@{ animation: slow, step: 2 }
+  e3@{ step: 1, curve: linear }
+"
+`;
+
+exports[`round-trip > edge-lengths.mmd 1`] = `
+"flowchart TB
+  A
+  B
+  C
+  D
+  E
+  F
+  G
+  H
+  I
+  J
+  K
+  A ---> B
+  A ----> C
+  A ---- D
+  A -..-> E
+  A -...- F
+  A ===> G
+  A <===> H
+  A --o I
+  A ---x J
+  A --->|long| K
+"
+`;
+
 exports[`round-trip > graph-td.mmd 1`] = `
 "flowchart TB
   a
@@ -99,6 +142,22 @@ exports[`round-trip > open-edges.mmd 1`] = `
   x -.- y
   y === z
   z ---|plain label| x
+"
+`;
+
+exports[`round-trip > preamble.mmd 1`] = `
+"---
+title: Checkout
+config:
+  look: classic
+  flowchart:
+    curve: stepBefore
+---
+%% Kept: comments before the flowchart line
+flowchart LR
+  cart
+  pay
+  cart --> pay
 "
 `;
 

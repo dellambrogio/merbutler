@@ -132,6 +132,7 @@ function Card({ example, onOpen }: { example: GalleryExample; onOpen: (code: str
       </span>
       {status && !status.editable && <span className="gallery-note no">{status.reason}</span>}
       {caveat && <span className="gallery-note warn">{caveat}</span>}
+      {example.note && <span className="gallery-note muted">{example.note}</span>}
       <pre className="gallery-code">{example.code}</pre>
     </button>
   );

@@ -1,0 +1,8 @@
+flowchart LR
+  client e1@--> api
+  api e2@==>|cache miss| db
+  api e3@---> cache
+  api --> log
+  e1@{ animate: true }
+  e2@{ animation: slow, step: 2 }
+  e3@{ curve: linear, step: 1 }

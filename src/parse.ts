@@ -6,7 +6,7 @@
  * this API is not public and can change.
  */
 import mermaid from 'mermaid';
-import { canonicalOrder, type Direction, type EdgeEnd, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Shape, type Stroke } from './model';
+import { canonicalOrder, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Shape, type Stroke } from './model';
 
 export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
 
@@ -19,6 +19,8 @@ interface MermaidVertex {
   classes: string[];
   link?: string;
   haveCallback?: boolean;
+  icon?: string;
+  img?: string;
 }
 
 interface MermaidEdge {
@@ -30,6 +32,13 @@ interface MermaidEdge {
   labelType?: string;
   style?: string[];
   classes: string[];
+  length?: number;
+  id?: string;
+  isUserDefinedId?: boolean;
+  animate?: boolean;
+  animation?: string;
+  step?: number;
+  interpolate?: string;
 }
 
 interface MermaidSubgraph {
@@ -150,10 +159,13 @@ function toSubgraph(s: MermaidSubgraph): FlowSubgraph {
 
 function toNode(v: MermaidVertex): FlowNode {
   const shape = v.type == null ? 'rect' : SHAPE_FROM_MERMAID[v.type];
+  if (v.icon) unsupported(`icon shape (node ${v.id})`);
+  if (v.img) unsupported(`image shape (node ${v.id})`);
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
   if (v.styles.length > 0) unsupported(`style on node ${v.id}`);
+  // `click` adds the class "clickable". With securityLevel 'strict' a callback leaves only that class.
+  if (v.link || v.haveCallback || v.classes.includes('clickable')) unsupported(`click on node ${v.id}`);
   if (v.classes.some((c) => c !== 'default')) unsupported(`class on node ${v.id}`);
-  if (v.link || v.haveCallback) unsupported(`click/link on node ${v.id}`);
   return { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
 }
 
@@ -164,7 +176,41 @@ function toEdge(e: MermaidEdge, index: number): FlowEdge {
   const stroke = STROKE_FROM_MERMAID[e.stroke ?? 'normal'];
   if (!stroke) unsupported(`stroke "${e.stroke}" (${where})`);
   if (e.style && e.style.length > 0) unsupported(`linkStyle (${where})`);
-  return { id: `e${index + 1}`, source: e.start, target: e.end, label: decodeEntities(e.text), markdown: e.labelType === 'markdown', stroke, ...ends };
+  const edge: FlowEdge = { id: `e${index + 1}`, source: e.start, target: e.end, label: decodeEntities(e.text), markdown: e.labelType === 'markdown', stroke, ...ends };
+  if (e.length && e.length > 1) edge.length = e.length;
+  if (e.isUserDefinedId && e.id) {
+    edge.ref = e.id;
+    const options = toEdgeOptions(e, where);
+    if (Object.keys(options).length > 0) edge.options = options;
+  }
+  return edge;
+}
+
+function toEdgeOptions(e: MermaidEdge, where: string): EdgeOptions {
+  const options: EdgeOptions = {};
+  if (e.animate !== undefined) options.animate = e.animate;
+  if (e.animation !== undefined) {
+    if (e.animation !== 'fast' && e.animation !== 'slow') unsupported(`animation "${e.animation}" (${where})`);
+    options.animation = e.animation;
+  }
+  if (e.step !== undefined) options.step = e.step;
+  if (e.interpolate !== undefined) options.curve = e.interpolate;
+  return options;
+}
+
+/** Front matter: `---` on the first line, up to the next line that is only `---`. */
+const FRONT_MATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
+const HEADER = /^[ \t]*(?:flowchart|graph)\b/m;
+
+/**
+ * The text before the `flowchart` line (front matter, directives, comments), without trailing
+ * whitespace. Mermaid reads it; the model keeps it so a canvas edit does not drop it.
+ */
+export function preambleOf(text: string): string {
+  const front = FRONT_MATTER.exec(text)?.[0].length ?? 0;
+  const header = HEADER.exec(text.slice(front));
+  const end = header ? front + header.index : front;
+  return text.slice(0, end).trimEnd();
 }
 
 export async function parse(text: string): Promise<ParseResult> {
@@ -197,7 +243,10 @@ export async function parse(text: string): Promise<ParseResult> {
       }
     }
 
-    return { ok: true, model: canonicalOrder({ direction, nodes, subgraphs, edges }) };
+    const model: FlowModel = { direction, nodes, subgraphs, edges };
+    const preamble = preambleOf(text);
+    if (preamble) model.preamble = preamble;
+    return { ok: true, model: canonicalOrder(model) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };

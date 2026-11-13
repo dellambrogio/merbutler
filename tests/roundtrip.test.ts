@@ -359,3 +359,56 @@ describe('rich text labels', () => {
     expect(await parseOk(serialize(model))).toEqual(model);
   });
 });
+
+describe('kept on a canvas edit', () => {
+  test('preamble before the flowchart line', async () => {
+    const text = '%%{init: {"theme": "forest"}}%%\n%% note\ngraph TD\n  a --> b\n';
+    const model = await parseOk(text);
+    expect(model.preamble).toBe('%%{init: {"theme": "forest"}}%%\n%% note');
+    const edited = updateNode(model, 'a', { label: 'A' });
+    expect(serialize(edited)).toBe('%%{init: {"theme": "forest"}}%%\n%% note\nflowchart TB\n  a[A]\n  b\n  a --> b\n');
+  });
+
+  test('no preamble', async () => {
+    expect((await parseOk('flowchart LR\n  a\n')).preamble).toBeUndefined();
+    expect((await parseOk('\n\nflowchart LR\n  a\n')).preamble).toBeUndefined();
+  });
+
+  test('front matter that mentions graph', async () => {
+    const model = await parseOk('---\ntitle: graph LR\n---\nflowchart TB\n  a\n');
+    expect(model.preamble).toBe('---\ntitle: graph LR\n---');
+    expect(model.direction).toBe('TB');
+  });
+
+  test('edge id, settings and length survive other edits', async () => {
+    const model = await parseOk('flowchart LR\n  a e1@---> b\n  e1@{ animation: fast }\n');
+    expect(model.edges[0]).toMatchObject({ ref: 'e1', length: 2, options: { animation: 'fast' } });
+    const edited = connect(addNode(model), 'b', 'n1');
+    expect(serialize(edited)).toBe('flowchart LR\n  a\n  b\n  n1[New node]\n  a e1@---> b\n  b --> n1\n  e1@{ animation: fast }\n');
+  });
+
+  test('a removed edge takes its settings with it', async () => {
+    const model = await parseOk('flowchart LR\n  a e1@--> b\n  e1@{ animate: true }\n');
+    expect(serialize(removeElements(model, [], [model.edges[0].id]))).toBe('flowchart LR\n  a\n  b\n');
+  });
+
+  test('edge length from the inspector', async () => {
+    const model = await parseOk('flowchart LR\n  a -.-> b\n');
+    const id = model.edges[0].id;
+    expect(serialize(updateEdge(model, id, { length: 3 }))).toContain('a -...-> b');
+    expect(serialize(updateEdge(model, id, { length: 3, stroke: 'thick', end: 'none' }))).toContain('a ===== b');
+  });
+});
+
+describe('rejected instead of dropped', () => {
+  test.each([
+    ['icon shape', 'flowchart LR\n  A@{ icon: "fa:user", label: "User" }\n', 'icon shape (node A)'],
+    ['image shape', 'flowchart LR\n  A@{ img: "data:image/png;base64,AAAA", label: "Pic" }\n', 'image shape (node A)'],
+    ['click with a link', 'flowchart LR\n  A --> B\n  click B "https://example.com"\n', 'click on node B'],
+    ['click with a callback', 'flowchart LR\n  A --> B\n  click A callback\n', 'click on node A'],
+  ])('%s', async (_name, text, message) => {
+    const result = await parse(text);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain(message);
+  });
+});

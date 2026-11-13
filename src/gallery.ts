@@ -14,6 +14,8 @@ export interface GalleryExample {
    * feature is kept (see the "silent loss" part of the plan).
    */
   caveat?: string;
+  /** Something the canvas keeps in the code but does not draw (yet). Not a loss. */
+  note?: string;
 }
 
 export interface GalleryGroup {
@@ -106,8 +108,8 @@ export const GALLERY: GalleryGroup[] = [
       { id: 'dir-rl', title: 'Direction RL', code: fc('  Start --> Stop\n', 'RL') },
       { id: 'graph-keyword', title: '`graph` keyword', code: 'graph LR\n  A --> B\n' },
       { id: 'semicolons', title: 'Trailing semicolons', code: fc('  A --> B;\n  B --> C;\n') },
-      { id: 'comments', title: 'Comments', code: fc('  %% this is a comment\n  A -- text --> B{node}\n'), caveat: 'Canvas edits remove comments.' },
-      { id: 'front-matter-title', title: 'Front matter title', code: '---\ntitle: Node\n---\nflowchart LR\n  id\n', caveat: 'Canvas edits remove the front matter.' },
+      { id: 'comments', title: 'Comments', code: fc('  %% this is a comment\n  A -- text --> B{node}\n'), caveat: 'Canvas edits remove comments after the flowchart line.' },
+      { id: 'front-matter-title', title: 'Front matter title', code: '---\ntitle: Node\n---\nflowchart LR\n  id\n', note: 'Kept in the code. The canvas does not show the title.' },
     ],
   },
   {
@@ -145,15 +147,13 @@ export const GALLERY: GalleryGroup[] = [
         id: 'icon-shape',
         title: 'Icon shape',
         code: fc('  A@{ icon: "fa:user", form: "square", label: "User Icon", pos: "t", h: 60 }\n'),
-        caveat: 'The canvas shows a rectangle. Canvas edits remove the icon.',
       },
       {
         id: 'image-shape',
         title: 'Image shape',
         code: fc(`  A@{ img: "${IMAGE}", label: "Image", pos: "t", h: 60, constraint: "on" }\n`),
-        caveat: 'The canvas shows a rectangle. Canvas edits remove the image.',
       },
-      { id: 'fontawesome', title: 'FontAwesome in labels', code: fc('  B["fa:fa-twitter for peace"] --> C[fa:fa-ban forbidden]\n', 'TD'), caveat: 'The canvas shows the icon names as text.' },
+      { id: 'fontawesome', title: 'FontAwesome in labels', code: fc('  B["fa:fa-twitter for peace"] --> C[fa:fa-ban forbidden]\n', 'TD'), note: 'Kept in the code. The canvas shows the icon names as text.' },
     ],
   },
   {
@@ -169,13 +169,13 @@ export const GALLERY: GalleryGroup[] = [
       { id: 'edge-invisible', title: 'Invisible link', code: fc('  A ~~~ B\n') },
       { id: 'edge-chain', title: 'Chaining', code: fc('  A -- text --> B -- text2 --> C\n') },
       { id: 'edge-ampersand', title: 'Many-to-many with &', code: fc('  A & B --> C & D\n', 'TD') },
-      { id: 'edge-length', title: 'Minimum link length', code: fc('  A --> B\n  B ---->|No| E[End]\n  B --> C --> D --> E\n', 'TD'), caveat: 'Canvas edits reset the link length.' },
-      { id: 'edge-id', title: 'Edge ids', code: fc('  A e1@--> B\n'), caveat: 'Canvas edits remove the edge id.' },
-      { id: 'edge-animate', title: 'Edge animation', code: fc('  A e1@==> B\n  e1@{ animate: true }\n'), caveat: 'Canvas edits remove the edge id and animation.' },
-      { id: 'edge-animation-speed', title: 'Animation speed', code: fc('  A e1@--> B\n  e1@{ animation: slow }\n'), caveat: 'Canvas edits remove the edge id and animation.' },
-      { id: 'edge-step', title: 'Step-by-step flow', code: fc('  Client e1@--> API e2@--> Cache\n  e1@{ step: 1 }\n  e2@{ step: 2 }\n'), caveat: 'Canvas edits remove the edge ids and steps.' },
-      { id: 'edge-curve', title: 'Curve per edge', code: fc('  A e1@==> B\n  A e2@--> C\n  e1@{ curve: linear }\n  e2@{ curve: natural }\n'), caveat: 'Canvas edits remove the edge ids and curves.' },
-      { id: 'diagram-curve', title: 'Curve for the diagram', code: '---\nconfig:\n  flowchart:\n    curve: stepBefore\n---\nflowchart LR\n  A --> B\n  A --> C\n', caveat: 'Canvas edits remove the front matter.' },
+      { id: 'edge-length', title: 'Minimum link length', code: fc('  A --> B\n  B ---->|No| E[End]\n  B --> C --> D --> E\n', 'TD') },
+      { id: 'edge-id', title: 'Edge ids', code: fc('  A e1@--> B\n') },
+      { id: 'edge-animate', title: 'Edge animation', code: fc('  A e1@==> B\n  e1@{ animate: true }\n'), note: 'Kept in the code. The canvas does not animate edges.' },
+      { id: 'edge-animation-speed', title: 'Animation speed', code: fc('  A e1@--> B\n  e1@{ animation: slow }\n'), note: 'Kept in the code. The canvas does not animate edges.' },
+      { id: 'edge-step', title: 'Step-by-step flow', code: fc('  Client e1@--> API e2@--> Cache\n  e1@{ step: 1 }\n  e2@{ step: 2 }\n'), note: 'Kept in the code. The canvas does not play the steps.' },
+      { id: 'edge-curve', title: 'Curve per edge', code: fc('  A e1@==> B\n  A e2@--> C\n  e1@{ curve: linear }\n  e2@{ curve: natural }\n'), note: 'Kept in the code. The canvas draws every edge as a curve.' },
+      { id: 'diagram-curve', title: 'Curve for the diagram', code: '---\nconfig:\n  flowchart:\n    curve: stepBefore\n---\nflowchart LR\n  A --> B\n  A --> C\n', note: 'Kept in the code. The canvas draws every edge as a curve.' },
     ],
   },
   {
@@ -253,7 +253,7 @@ export const GALLERY: GalleryGroup[] = [
         id: 'config-look',
         title: 'Classic look and dagre',
         code: '---\nconfig:\n  theme: default\n  look: classic\n  layout: dagre\n---\nflowchart LR\n  A --> B --> C\n',
-        caveat: 'Canvas edits remove the front matter.',
+        note: 'Kept in the code. The canvas uses its own look and the dagre layout.',
       },
     ],
   },

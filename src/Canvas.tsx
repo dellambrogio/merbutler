@@ -19,6 +19,7 @@ import { layoutModel, type CanvasNode } from './layout';
 import {
   DIRECTIONS,
   EDGE_ENDS,
+  EDGE_LENGTHS,
   SHAPES,
   STROKES,
   addNode,
@@ -330,7 +331,8 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
       {!readOnly && edge && (
         <div className="inspector">
           <div className="inspector-title">
-            Edge {edge.source} → {edge.target}
+            Edge {edge.ref ? `${edge.ref}: ` : ''}
+            {edge.source} → {edge.target}
           </div>
           <label>
             Label
@@ -352,6 +354,20 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             >
               {STROKES.map((s) => (
                 <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label title="Minimum length in ranks: --> is 1, ---> is 2, ----> is 3">
+            Length
+            <select
+              value={edge.length ?? 1}
+              onChange={(e) => {
+                const length = Number(e.target.value);
+                onChange(updateEdge(model, edge.id, { length: length === 1 ? undefined : length }));
+              }}
+            >
+              {EDGE_LENGTHS.map((n) => (
+                <option key={n}>{n}</option>
               ))}
             </select>
           </label>

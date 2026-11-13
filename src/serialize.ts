@@ -33,11 +33,14 @@ const SHAPE_BRACKETS: Record<Shape, readonly [string, string]> = {
   'inv-trapezoid': ['[\\', '/]'],
 };
 
-/** Line without markers, and line body to put markers around. */
-const EDGE_LINES: Record<Stroke, { open: string; body: string }> = {
-  normal: { open: '---', body: '--' },
-  dotted: { open: '-.-', body: '-.-' },
-  thick: { open: '===', body: '==' },
+/**
+ * Line without markers, and line body to put markers around, for an edge of length n.
+ * Length 1: `---` / `--`, `-.-` / `-.-`, `===` / `==`. Each extra rank adds one `-`, `.` or `=`.
+ */
+const EDGE_LINES: Record<Stroke, (n: number) => { open: string; body: string }> = {
+  normal: (n) => ({ open: '-'.repeat(n + 2), body: '-'.repeat(n + 1) }),
+  dotted: (n) => ({ open: `-${'.'.repeat(n)}-`, body: `-${'.'.repeat(n)}-` }),
+  thick: (n) => ({ open: '='.repeat(n + 2), body: '='.repeat(n + 1) }),
 };
 
 const END_CHARS: Record<Exclude<EdgeEnd, 'none'>, { start: string; end: string }> = {
@@ -46,9 +49,9 @@ const END_CHARS: Record<Exclude<EdgeEnd, 'none'>, { start: string; end: string }
   cross: { start: 'x', end: 'x' },
 };
 
-/** For example: `-->`, `-.-o`, `<==>`, `x--x`, `---`. */
-export function edgeOperator(edge: Pick<FlowEdge, 'stroke' | 'end' | 'bothEnds'>): string {
-  const line = EDGE_LINES[edge.stroke];
+/** For example: `-->`, `-.-o`, `<==>`, `x--x`, `---`, `--->` (length 2). */
+export function edgeOperator(edge: Pick<FlowEdge, 'stroke' | 'end' | 'bothEnds' | 'length'>): string {
+  const line = EDGE_LINES[edge.stroke](edge.length ?? 1);
   if (edge.end === 'none') return line.open;
   const chars = END_CHARS[edge.end];
   return `${edge.bothEnds ? chars.start : ''}${line.body}${chars.end}`;
@@ -87,7 +90,20 @@ function edgeLine(edge: FlowEdge): string {
   const op = edgeOperator(edge);
   const text = fromEditText(edge.label, edge.markdown);
   const label = text === '' ? '' : `|${quoteText(text, edge.markdown)}|`;
-  return `${edge.source} ${op}${label} ${edge.target}`;
+  const ref = edge.ref ? `${edge.ref}@` : '';
+  return `${edge.source} ${ref}${op}${label} ${edge.target}`;
+}
+
+/** `e1@{ animate: true, step: 2 }`, or null when the edge has no settings. */
+function edgeOptionsLine(edge: FlowEdge): string | null {
+  const options = edge.options;
+  if (!edge.ref || !options) return null;
+  const parts: string[] = [];
+  if (options.animate !== undefined) parts.push(`animate: ${options.animate}`);
+  if (options.animation !== undefined) parts.push(`animation: ${options.animation}`);
+  if (options.step !== undefined) parts.push(`step: ${options.step}`);
+  if (options.curve !== undefined) parts.push(`curve: ${options.curve}`);
+  return parts.length > 0 ? `${edge.ref}@{ ${parts.join(', ')} }` : null;
 }
 
 function treeLines(items: TreeItem[], depth: number, out: string[]): void {
@@ -105,8 +121,13 @@ function treeLines(items: TreeItem[], depth: number, out: string[]): void {
 }
 
 export function serialize(model: FlowModel): string {
-  const lines = [`flowchart ${model.direction}`];
+  const lines = model.preamble ? [model.preamble] : [];
+  lines.push(`flowchart ${model.direction}`);
   treeLines(buildTree(model), 1, lines);
   for (const edge of model.edges) lines.push(`${INDENT}${edgeLine(edge)}`);
+  for (const edge of model.edges) {
+    const options = edgeOptionsLine(edge);
+    if (options) lines.push(`${INDENT}${options}`);
+  }
   return `${lines.join('\n')}\n`;
 }

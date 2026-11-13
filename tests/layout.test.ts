@@ -35,6 +35,21 @@ describe('layoutModel', () => {
     expect(shape(nodes[0]).data.targetPosition).toBe(Position.Left);
   });
 
+  test('a longer edge spans more ranks', () => {
+    const chain: FlowModel = {
+      direction: 'LR',
+      nodes: [model.nodes[0], model.nodes[1]],
+      subgraphs: [],
+      edges: [model.edges[0]],
+    };
+    const gap = (m: FlowModel): number => {
+      const x = Object.fromEntries(layoutModel(m).nodes.map((n) => [n.id, n.position.x]));
+      return x.b - x.a;
+    };
+    const long = { ...chain, edges: [{ ...chain.edges[0], length: 3 }] };
+    expect(gap(long)).toBeGreaterThan(gap(chain) + 100);
+  });
+
   test('maps stroke and arrow to edge style', () => {
     const { edges } = layoutModel(model);
     expect(edges[0].markerEnd).toBeDefined();

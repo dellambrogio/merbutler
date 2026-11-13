@@ -277,7 +277,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     if (source === null || target === null || source === target) continue;
     // Edge labels need room between ranks.
     const label = edge.label ? textSize(edge.label, edge.markdown) : {};
-    g.setEdge(source, target, label, edge.id);
+    g.setEdge(source, target, { ...label, minlen: edge.length ?? 1 }, edge.id);
   }
   dagre.layout(g);
 

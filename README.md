@@ -117,6 +117,9 @@ just dev        # open the URL that Vite prints
 | Edge strokes | normal `--`, dotted `-.-`, thick `==` |
 | Edge ends | `>` arrow, `o` circle, `x` cross or none, on one end (`-->`, `--o`, `-.-x`, `==>`) or both (`<-->`, `o--o`, `x-.-x`, `<==>`) |
 | Edge labels | `-->|label|` or `-- label -->` |
+| Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>` |
+| Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`: kept in the code, not drawn yet |
+| Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are |
 | Labels | quoted text with any characters (`"a & (b)"`), `<br>` line breaks, Markdown strings (`` "`**bold** and *italic*`" ``) on nodes, edges and subgraphs |
 | Subgraphs | `subgraph id [Label] … end`, nested, optional `direction` inside, edges to or from a subgraph (`ingest --> store`) |
 
@@ -139,14 +142,13 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (invisible links `~~~`, `A@{ shape: … }`, `classDef`, `style`, `linkStyle`, `click`,
-other shapes or arrow types) shows an error, and the canvas stays read-only. This prevents a canvas edit from
+Code with other features (invisible links `~~~`, most `A@{ shape: … }` shapes, icon and image shapes, `classDef`, `style`,
+`linkStyle`, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
 
 ## Known limitations
 
-- A canvas edit rewrites the code: comments, formatting, and statement order are not kept.
-- Edge length (`--->`) is not kept.
+- A canvas edit rewrites the code: comments after the `flowchart` line, formatting, and statement order are not kept.
 - `direction` inside a subgraph works as in Mermaid: the canvas uses it only if no edge connects a node inside
   the subgraph to a node outside it. Edges that end at the subgraph itself are allowed.
 - Handles are on fixed sides (for example right → left in LR). An edge that goes against the flow direction

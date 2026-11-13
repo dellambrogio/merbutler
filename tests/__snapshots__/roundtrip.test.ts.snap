@@ -29,6 +29,19 @@ exports[`round-trip > all-shapes.mmd 1`] = `
 "
 `;
 
+exports[`round-trip > assets.mmd 1`] = `
+"flowchart LR
+  user@{ icon: "fa:user", form: "square", label: "User Icon", pos: "t", h: 60 }
+  bare@{ icon: "mdi:cloud" }
+  odd@{ icon: "fa:gear", form: "blob", label: "**Bold** gear" }
+  pic@{ img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E", label: "Inline", w: 80, h: 40, constraint: "on" }
+  remote@{ img: "https://example.com/logo.png", label: "Remote", pos: "b" }
+  user --> pic
+  pic --> remote
+  bare -.-> odd
+"
+`;
+
 exports[`round-trip > at-shapes.mmd 1`] = `
 "flowchart LR
   a@{ shape: diam, label: "Decision" }

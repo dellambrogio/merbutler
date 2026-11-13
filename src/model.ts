@@ -22,6 +22,30 @@ export interface EdgeOptions {
   step?: number;
 }
 
+/** `id@{ icon: "fa:user", form: "square", pos: "t", h: 60 }` (Mermaid 11.3+). */
+export interface IconAsset {
+  kind: 'icon';
+  icon: string;
+  /** Background: `square`, `circle`, `rounded`, or none. Other values are kept as written. */
+  form?: string;
+  /** Label position: `t` (top) or `b` (bottom, the default). */
+  pos?: string;
+  h?: number;
+}
+
+/** `id@{ img: "…", pos: "t", w: 60, h: 60, constraint: "on" }` (Mermaid 11.3+). */
+export interface ImageAsset {
+  kind: 'image';
+  img: string;
+  pos?: string;
+  w?: number;
+  h?: number;
+  /** `on`: keep the aspect ratio. */
+  constraint?: string;
+}
+
+export type Asset = IconAsset | ImageAsset;
+
 /** `classDef name fill:#f96,stroke:#333`. `default` applies to nodes without a class. */
 export interface ClassDef {
   name: string;
@@ -51,6 +75,8 @@ export interface FlowNode {
   classes?: string[];
   /** From `style id …`. */
   styles?: string[];
+  /** An icon or image node. `shape` is not used then, and the label may be empty. */
+  asset?: Asset;
   /**
    * The rest of a `click id …` statement, as written: `href "https://…" "Tooltip" _blank`,
    * `callback "Tooltip"`, `call cb()`. Kept and shown; the canvas never follows or runs it.
@@ -133,7 +159,7 @@ function withoutEmpty<T extends Styled>(item: T, classDefs?: readonly ClassDef[]
   if (next.classes) next.classes = sortClasses(next.classes, classDefs);
   if (next.classes?.length === 0) delete next.classes;
   if (next.styles?.length === 0) delete next.styles;
-  for (const key of ['click', 'view'] as const) {
+  for (const key of ['click', 'view', 'asset'] as const) {
     if (key in next && (next as Record<string, unknown>)[key] === undefined) delete (next as Record<string, unknown>)[key];
   }
   return next;
@@ -227,13 +253,18 @@ export function normalizeNode(node: FlowNode): FlowNode {
 export function updateNode(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles' | 'click'>>,
+  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles' | 'click' | 'asset'>>,
 ): FlowModel {
   return {
     ...model,
     nodes: model.nodes.map((n) => {
       if (n.id !== id) return n;
       const node = withoutEmpty({ ...n, ...patch }, model.classDefs);
+      if (node.asset) {
+        // An icon or image needs no label, and its label is always Markdown (`label:` in `@{}`).
+        node.label = fromEditText(relabel(n, node), node.markdown);
+        return node;
+      }
       node.label = normalizeNodeLabel(relabel(n, node), id, node.markdown);
       // A new shape keeps the syntax the code used, with the short name.
       if (patch.shape && patch.shape !== n.shape && (node.shapeName !== undefined || !SHAPE_INFO[patch.shape].brackets)) {
@@ -378,10 +409,36 @@ export function canonicalOrder(model: FlowModel): FlowModel {
   return { ...model, nodes, subgraphs };
 }
 
+/** Front matter text (between the `---` lines) of the preamble, or ''. */
+function frontMatter(model: FlowModel): string {
+  return /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(model.preamble ?? '')?.[1] ?? '';
+}
+
+/**
+ * The diagram's edge curve from the preamble: `flowchart: curve:` in the front matter config,
+ * or `"curve"` in an `%%{init: …}%%` directive. A small reader, not a YAML parser: it covers the
+ * forms in the Mermaid docs.
+ */
+export function diagramCurve(model: FlowModel): string | null {
+  const lines = frontMatter(model).split(/\r?\n/);
+  const indent = (line: string): number => /^[ \t]*/.exec(line)?.[0].length ?? 0;
+  const start = lines.findIndex((l) => /^[ \t]*flowchart:[ \t]*$/.test(l));
+  if (start >= 0) {
+    // The lines of the `flowchart:` block are indented deeper than it.
+    for (const line of lines.slice(start + 1)) {
+      if (line.trim() === '') continue;
+      if (indent(line) <= indent(lines[start])) break;
+      const curve = /^[ \t]+curve:[ \t]*["']?(\w+)/.exec(line);
+      if (curve) return curve[1];
+    }
+  }
+  const directive = /%%\{[\s\S]*?["']curve["']\s*:\s*["'](\w+)["'][\s\S]*?\}%%/.exec(model.preamble ?? '');
+  return directive ? directive[1] : null;
+}
+
 /** The `title:` from the front matter in the preamble, or null. */
 export function diagramTitle(model: FlowModel): string | null {
-  const front = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(model.preamble ?? '');
-  const line = front ? /^title:[ \t]*(.*?)[ \t]*$/m.exec(front[1]) : null;
+  const line = /^title:[ \t]*(.*?)[ \t]*$/m.exec(frontMatter(model));
   if (!line) return null;
   // A YAML scalar, maybe quoted.
   const title = line[1].replace(/^(["'])(.*)\1$/, '$2');

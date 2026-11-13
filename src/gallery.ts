@@ -146,6 +146,7 @@ export const GALLERY: GalleryGroup[] = [
       {
         id: 'icon-shape',
         title: 'Icon shape',
+        note: 'The canvas draws the background and the icon name: icons need an icon pack registered in Mermaid.',
         code: fc('  A@{ icon: "fa:user", form: "square", label: "User Icon", pos: "t", h: 60 }\n'),
       },
       {
@@ -171,11 +172,11 @@ export const GALLERY: GalleryGroup[] = [
       { id: 'edge-ampersand', title: 'Many-to-many with &', code: fc('  A & B --> C & D\n', 'TD') },
       { id: 'edge-length', title: 'Minimum link length', code: fc('  A --> B\n  B ---->|No| E[End]\n  B --> C --> D --> E\n', 'TD') },
       { id: 'edge-id', title: 'Edge ids', code: fc('  A e1@--> B\n') },
-      { id: 'edge-animate', title: 'Edge animation', code: fc('  A e1@==> B\n  e1@{ animate: true }\n'), note: 'Kept in the code. The canvas does not animate edges.' },
-      { id: 'edge-animation-speed', title: 'Animation speed', code: fc('  A e1@--> B\n  e1@{ animation: slow }\n'), note: 'Kept in the code. The canvas does not animate edges.' },
-      { id: 'edge-step', title: 'Step-by-step flow', code: fc('  Client e1@--> API e2@--> Cache\n  e1@{ step: 1 }\n  e2@{ step: 2 }\n'), note: 'Kept in the code. The canvas does not play the steps.' },
-      { id: 'edge-curve', title: 'Curve per edge', code: fc('  A e1@==> B\n  A e2@--> C\n  e1@{ curve: linear }\n  e2@{ curve: natural }\n'), note: 'Kept in the code. The canvas draws every edge as a curve.' },
-      { id: 'diagram-curve', title: 'Curve for the diagram', code: '---\nconfig:\n  flowchart:\n    curve: stepBefore\n---\nflowchart LR\n  A --> B\n  A --> C\n', note: 'Kept in the code. The canvas draws every edge as a curve.' },
+      { id: 'edge-animate', title: 'Edge animation', code: fc('  A e1@==> B\n  e1@{ animate: true }\n'), },
+      { id: 'edge-animation-speed', title: 'Animation speed', code: fc('  A e1@--> B\n  e1@{ animation: slow }\n'), },
+      { id: 'edge-step', title: 'Step-by-step flow', code: fc('  Client e1@--> API e2@--> Cache\n  e1@{ step: 1 }\n  e2@{ step: 2 }\n'), note: 'The canvas shows the step numbers; it does not play the flow.' },
+      { id: 'edge-curve', title: 'Curve per edge', code: fc('  A e1@==> B\n  A e2@--> C\n  e1@{ curve: linear }\n  e2@{ curve: natural }\n'), note: 'The canvas draws linear and step curves; smooth ones use its own curve.' },
+      { id: 'diagram-curve', title: 'Curve for the diagram', code: '---\nconfig:\n  flowchart:\n    curve: stepBefore\n---\nflowchart LR\n  A --> B\n  A --> C\n' },
     ],
   },
   {

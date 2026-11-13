@@ -8,6 +8,7 @@ import {
   sortClasses,
   normalizeNodeLabel,
   type EdgeEnd,
+  type Asset,
   type FlowEdge,
   type FlowModel,
   type FlowNode,
@@ -74,7 +75,20 @@ function atLabel(text: string): string {
   return `"${escaped}"`;
 }
 
+/** `id@{ icon: "fa:user", form: "square", label: "…", pos: "t", h: 60 }`, fields in the order of the Mermaid docs. */
+function assetLine(node: FlowNode, asset: Asset): string {
+  const fields: string[] = asset.kind === 'icon' ? [`icon: ${atLabel(asset.icon)}`] : [`img: ${atLabel(asset.img)}`];
+  if (asset.kind === 'icon' && asset.form !== undefined) fields.push(`form: ${atLabel(asset.form)}`);
+  if (node.label !== '') fields.push(`label: ${atLabel(node.label)}`);
+  if (asset.pos !== undefined) fields.push(`pos: ${atLabel(asset.pos)}`);
+  if (asset.kind === 'image' && asset.w !== undefined) fields.push(`w: ${asset.w}`);
+  if (asset.h !== undefined) fields.push(`h: ${asset.h}`);
+  if (asset.kind === 'image' && asset.constraint !== undefined) fields.push(`constraint: ${atLabel(asset.constraint)}`);
+  return `${node.id}@{ ${fields.join(', ')} }`;
+}
+
 function nodeLine(node: FlowNode): string {
+  if (node.asset) return assetLine(node, node.asset);
   const label = normalizeNodeLabel(node.label, node.id, node.markdown);
   if (keepsAtSyntax(node)) {
     const fields = [`shape: ${node.shapeName}`];

@@ -6,7 +6,7 @@
  * this API is not public and can change.
  */
 import mermaid from 'mermaid';
-import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
+import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type Asset, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
 import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
 
 export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
@@ -22,6 +22,11 @@ interface MermaidVertex {
   haveCallback?: boolean;
   icon?: string;
   img?: string;
+  form?: string;
+  pos?: string;
+  assetWidth?: number;
+  assetHeight?: number;
+  constraint?: string;
 }
 
 interface MermaidEdge {
@@ -208,12 +213,30 @@ function clickStatements(text: string): Map<string, string> {
   return clicks;
 }
 
+/** `@{ icon: … }` or `@{ img: … }` data, or undefined for a plain node. */
+function toAsset(v: MermaidVertex): Asset | undefined {
+  const common = {
+    ...(v.pos !== undefined ? { pos: v.pos } : {}),
+    ...(v.assetHeight !== undefined ? { h: v.assetHeight } : {}),
+  };
+  if (v.icon !== undefined) return { kind: 'icon', icon: v.icon, ...(v.form !== undefined ? { form: v.form } : {}), ...common };
+  if (v.img !== undefined) {
+    return {
+      kind: 'image',
+      img: v.img,
+      ...common,
+      ...(v.assetWidth !== undefined ? { w: v.assetWidth } : {}),
+      ...(v.constraint !== undefined ? { constraint: v.constraint } : {}),
+    };
+  }
+  return undefined;
+}
+
 function toNode(v: MermaidVertex, text: string, clicks: Map<string, string>): FlowNode {
-  if (v.icon) unsupported(`icon shape (node ${v.id})`);
-  if (v.img) unsupported(`image shape (node ${v.id})`);
+  const asset = toAsset(v);
   // Bracket and `@{ shape }` names overlap (`circle`, `stadium`, …), so look at the code.
   const atSyntax = v.type != null && usesAtSyntax(text, v.id);
-  const shape = v.type == null ? 'rect' : (atSyntax ? SHAPE_FROM_AT_NAME : SHAPE_FROM_BRACKETS).get(v.type);
+  const shape = v.type == null || asset ? 'rect' : (atSyntax ? SHAPE_FROM_AT_NAME : SHAPE_FROM_BRACKETS).get(v.type);
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
   const node: FlowNode = { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
   if (atSyntax && v.type) node.shapeName = v.type;
@@ -223,6 +246,12 @@ function toNode(v: MermaidVertex, text: string, clicks: Map<string, string>): Fl
   if (clickable && !click) unsupported(`click on node ${v.id} (statement not found)`);
   if (click) node.click = click;
   setStyling(node, v.classes.filter((c) => c !== 'default' && c !== 'clickable'), cleanStyles(v.styles));
+  if (asset) {
+    // No label gives an empty text here, not the id.
+    node.asset = asset;
+    node.label = decodeEntities(v.text ?? '');
+    return node;
+  }
   return normalizeNode(node);
 }
 

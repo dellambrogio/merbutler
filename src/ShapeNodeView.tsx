@@ -6,6 +6,7 @@ import { LabelText } from './LabelText';
 import type { Shape } from './model';
 import { SHAPE_INFO, SLANT } from './shapes';
 import { boxVars, textStyle } from './styling';
+import { AssetView } from './AssetView';
 
 /** Lets a node rename itself without passing callbacks through node data. */
 export const RenameContext = createContext<(id: string, label: string) => void>(() => {});
@@ -329,12 +330,16 @@ export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<S
       style={{ width: w, height: h, ...boxVars(data.look) }}
       onDoubleClick={start}
     >
-      <svg className="shape-outline" width={w} height={h}>
-        <ShapeOutline shape={data.shape} width={w} height={h} />
-      </svg>
+      {!data.asset && (
+        <svg className="shape-outline" width={w} height={h}>
+          <ShapeOutline shape={data.shape} width={w} height={h} />
+        </svg>
+      )}
       <Handle type="target" position={data.targetPosition} />
       {draft === null ? (
-        labelPlace !== 'none' && (
+        data.asset ? (
+          <AssetView asset={data.asset} label={data.label} markdown={data.markdown} labelStyle={textStyle(data.look)} />
+        ) : labelPlace !== 'none' && (
           <span className="shape-label" style={{ ...labelPlace, ...textStyle(data.look) }}>
             <LabelText text={data.label} markdown={data.markdown} />
           </span>

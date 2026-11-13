@@ -420,17 +420,6 @@ describe('kept on a canvas edit', () => {
   });
 });
 
-describe('rejected instead of dropped', () => {
-  test.each([
-    ['icon shape', 'flowchart LR\n  A@{ icon: "fa:user", label: "User" }\n', 'icon shape (node A)'],
-    ['image shape', 'flowchart LR\n  A@{ img: "data:image/png;base64,AAAA", label: "Pic" }\n', 'image shape (node A)'],
-  ])('%s', async (_name, text, message) => {
-    const result = await parse(text);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain(message);
-  });
-});
-
 describe('@{ shape } syntax', () => {
   test('aliases map to the bracket shapes and keep the name as written', async () => {
     const model = await parseOk('flowchart LR\n  a@{ shape: decision }\n  b@{ shape: db, label: "Store" }\n  c>Bracket flag]\n  d@{ shape: odd }\n');

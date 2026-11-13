@@ -7,7 +7,9 @@ import { SHAPE_INFO } from './shapes';
 import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
 import {
   buildTree,
+  diagramCurve,
   visibleModel,
+  type Asset,
   type Direction,
   type EdgeEnd,
   type FlowModel,
@@ -24,6 +26,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
   look?: Look;
   /** The rest of the node's `click` statement, shown as a badge. */
   click?: string;
+  /** Icon or image: drawn instead of the shape. */
+  asset?: Asset;
   shape: Shape;
   sourcePosition: Position;
   targetPosition: Position;
@@ -47,6 +51,10 @@ export interface LabelEdgeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
   look?: Look;
+  /** Mermaid curve name (`linear`, `step`, `basis`, …) for this edge. Missing: the default curve. */
+  curve?: string;
+  /** Step number from `id@{ step: n }`, shown on the edge. */
+  step?: number;
 }
 
 export type LabelEdge = Edge<LabelEdgeData, 'label'>;
@@ -80,6 +88,31 @@ export function textSize(label: string, markdown: boolean): { width: number; hei
   const wrapped = lines.reduce((sum, w) => sum + Math.max(1, Math.ceil(w / MAX_TEXT_WIDTH)), 0);
   const width = Math.min(Math.max(...lines, 0), MAX_TEXT_WIDTH);
   return { width, height: wrapped * LINE_HEIGHT, lines: wrapped };
+}
+
+/** Default icon size in Mermaid, and its minimum. */
+export const ICON_SIZE = 48;
+/** Image size when the code gives none (Mermaid uses the natural size of the loaded image). */
+export const IMAGE_SIZE = 80;
+/** Gap between an icon or image and its label. */
+export const ASSET_GAP = 4;
+
+/** Picture size of an icon or image node, from its `w`/`h`. */
+export function assetPicture(asset: Asset): { width: number; height: number } {
+  if (asset.kind === 'icon') {
+    const size = Math.max(asset.h ?? ICON_SIZE, ICON_SIZE);
+    return { width: size, height: size };
+  }
+  const width = asset.w ?? asset.h ?? IMAGE_SIZE;
+  return { width, height: asset.h ?? width };
+}
+
+/** An icon or image with its label above or below it. */
+function assetNodeSize(label: string, markdown: boolean, asset: Asset): { width: number; height: number } {
+  const picture = assetPicture(asset);
+  if (label === '') return picture;
+  const text = textSize(label, markdown);
+  return { width: Math.max(picture.width, text.width + 8), height: picture.height + ASSET_GAP + text.height };
 }
 
 /** Approximate node size from the label. Exact size does not matter: dagre only needs room. */
@@ -220,7 +253,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     ctx.directionOf.set(id, direction);
     const node = model.nodes.find((n) => n.id === id);
     if (node) {
-      g.setNode(id, nodeSize(node.label, node.shape, node.markdown, direction));
+      g.setNode(id, node.asset ? assetNodeSize(node.label, node.markdown, node.asset) : nodeSize(node.label, node.shape, node.markdown, direction));
     } else if (isCluster(id)) {
       g.setNode(id, {}); // A cluster has no own size.
     } else {
@@ -341,6 +374,7 @@ export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: Labe
             shape: item.node.shape,
             ...lookField(nodeLook(model, item.node)),
             ...(item.node.click ? { click: item.node.click } : {}),
+            ...(item.node.asset ? { asset: item.node.asset } : {}),
             sourcePosition: handles.source,
             targetPosition: handles.target,
           },
@@ -364,14 +398,26 @@ export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: Labe
   };
   emit(buildTree(model), null);
 
+  const defaultCurve = model.linkDefaults?.curve ?? diagramCurve(model) ?? undefined;
   const edges: LabelEdge[] = model.edges.map((edge) => {
     const look = edgeLook(model, edge);
+    const curve = edge.curve ?? defaultCurve;
+    const { animate, animation, step } = edge.options ?? {};
+    // Mermaid: `animation: fast|slow` alone also turns the animation on.
+    const animated = animate === true || (animate === undefined && animation !== undefined);
     return {
       id: edge.id,
       type: 'label',
       source: edge.source,
       target: edge.target,
-      data: { label: edge.label, markdown: edge.markdown, ...lookField(look) },
+      data: {
+        label: edge.label,
+        markdown: edge.markdown,
+        ...lookField(look),
+        ...(curve ? { curve } : {}),
+        ...(step !== undefined ? { step } : {}),
+      },
+      ...(animated ? { animated: true, className: `edge-anim-${animation ?? 'fast'}` } : {}),
       // Edges between nodes in different subgraphs must draw above the subgraph boxes.
       zIndex: 1,
       markerEnd: marker(edge.end, look.stroke),

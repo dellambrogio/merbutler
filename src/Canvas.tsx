@@ -38,6 +38,7 @@ import {
   updateSubgraph,
   type Direction,
   type EdgeEnd,
+  type Asset,
   type FlowModel,
   type Shape,
   type Stroke,
@@ -47,6 +48,7 @@ import { RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 import { classesFromText, stylesFromText, stylesToText } from './styling';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
+import { ImageConsentContext } from './AssetView';
 import { checkClick } from './parse';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -197,6 +199,78 @@ function ClickField({ id, value, onCommit }: { id: string; value: string; onComm
   );
 }
 
+/** A positive whole number, or undefined for an empty field. Other text keeps the old value. */
+function sizeFromText(text: string, old: number | undefined): number | undefined {
+  if (text.trim() === '') return undefined;
+  const n = Number(text);
+  return Number.isInteger(n) && n > 0 ? n : old;
+}
+
+/** Fields of an icon (`@{ icon }`) or image (`@{ img }`) node. */
+function AssetFields({ id, asset, onChange }: { id: string; asset: Asset; onChange: (asset: Asset) => void }): JSX.Element {
+  const set = (patch: Partial<Asset>): void => {
+    const next = { ...asset, ...patch } as Asset & Record<string, unknown>;
+    for (const key of Object.keys(next)) if (next[key] === undefined) delete next[key];
+    onChange(next);
+  };
+  const forms = ['', 'square', 'circle', 'rounded'];
+  return (
+    <>
+      {asset.kind === 'icon' ? (
+        <>
+          <label title="Icon name with its pack prefix, for example fa:user. Mermaid needs the pack registered.">
+            Icon
+            <TextField key={`${id}:icon:${asset.icon}`} value={asset.icon} onCommit={(icon) => icon.trim() && set({ icon: icon.trim() })} />
+          </label>
+          <label>
+            Background
+            <select value={asset.form ?? ''} onChange={(e) => set({ form: e.target.value || undefined })}>
+              {[...forms, ...(asset.form && !forms.includes(asset.form) ? [asset.form] : [])].map((f) => (
+                <option key={f} value={f}>
+                  {f || 'none'}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      ) : (
+        <>
+          <label title="data: images are shown at once; images from a server only after you allow that server.">
+            Image URL
+            <TextField key={`${id}:img:${asset.img}`} value={asset.img} onCommit={(img) => img.trim() && set({ img: img.trim() })} />
+          </label>
+          <label>
+            Width
+            <TextField key={`${id}:w:${asset.w}`} value={asset.w?.toString() ?? ''} placeholder="natural" onCommit={(t) => set({ w: sizeFromText(t, asset.w) })} />
+          </label>
+        </>
+      )}
+      <label>
+        Height
+        <TextField
+          key={`${id}:h:${asset.h}`}
+          value={asset.h?.toString() ?? ''}
+          placeholder={asset.kind === 'icon' ? '48' : 'natural'}
+          onCommit={(t) => set({ h: sizeFromText(t, asset.h) })}
+        />
+      </label>
+      <label>
+        Label position
+        <select value={asset.pos === 't' ? 't' : 'b'} onChange={(e) => set({ pos: e.target.value === 't' ? 't' : undefined })}>
+          <option value="b">below</option>
+          <option value="t">above</option>
+        </select>
+      </label>
+      {asset.kind === 'image' && (
+        <label className="checkbox">
+          <input type="checkbox" checked={asset.constraint === 'on'} onChange={(e) => set({ constraint: e.target.checked ? 'on' : undefined })} />
+          Keep aspect ratio
+        </label>
+      )}
+    </>
+  );
+}
+
 /** Checkbox for the Markdown flag of a label. */
 function MarkdownToggle({ checked, onToggle }: { checked: boolean; onToggle: (markdown: boolean) => void }): JSX.Element {
   return (
@@ -309,6 +383,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
     [model, onChange, readOnly],
   );
 
+  /** Hosts the user allowed to load remote images from, for this session. */
+  const [imageHosts, setImageHosts] = useState<ReadonlySet<string>>(new Set());
+  const imageConsent = useMemo(
+    () => ({ allowed: imageHosts, allow: (host: string) => setImageHosts((hosts) => new Set([...hosts, host])) }),
+    [imageHosts],
+  );
+
   const toggleCollapsed = useCallback(
     (id: string): void => {
       const subgraph = model.subgraphs.find((s) => s.id === id);
@@ -379,23 +460,27 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             checked={node.markdown}
             onToggle={(markdown) => onChange(updateNode(model, node.id, { markdown }))}
           />
-          <label>
-            Shape
-            <select
-              value={node.shape}
-              onChange={(e) => onChange(updateNode(model, node.id, { shape: e.target.value as Shape }))}
-            >
-              {SHAPE_GROUPS.map((group) => (
-                <optgroup key={group} label={group}>
-                  {SHAPES.filter((s) => SHAPE_INFO[s].group === group).map((s) => (
-                    <option key={s} value={s}>
-                      {SHAPE_INFO[s].title}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+          {node.asset ? (
+            <AssetFields id={node.id} asset={node.asset} onChange={(asset) => onChange(updateNode(model, node.id, { asset }))} />
+          ) : (
+            <label>
+              Shape
+              <select
+                value={node.shape}
+                onChange={(e) => onChange(updateNode(model, node.id, { shape: e.target.value as Shape }))}
+              >
+                {SHAPE_GROUPS.map((group) => (
+                  <optgroup key={group} label={group}>
+                    {SHAPES.filter((s) => SHAPE_INFO[s].group === group).map((s) => (
+                      <option key={s} value={s}>
+                        {SHAPE_INFO[s].title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
           <ParentSelect
             model={model}
             value={node.parent}
@@ -558,40 +643,42 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             <option key={c.name} value={c.name} />
           ))}
       </datalist>
-      <CollapseContext.Provider value={readOnly ? null : toggleCollapsed}>
-        <RenameContext.Provider value={rename}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={EDGE_TYPES}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onBeforeDelete={onBeforeDelete}
-            onConnect={onConnect}
-            onConnectStart={() => setConnecting(true)}
-            onConnectEnd={() => setConnecting(false)}
-            nodesConnectable={!readOnly}
-            elementsSelectable={!readOnly}
-            deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
-            zoomOnDoubleClick={false}
-            minZoom={0.2}
-          >
-            <Background />
-            <Controls showInteractive={false} />
-            {title && titleAnchor && (
-              <ViewportPortal>
-                <div
-                  className="diagram-title"
-                  style={{ transform: `translate(${titleAnchor.x}px, ${titleAnchor.y}px) translate(-50%, -100%)` }}
-                >
-                  {title}
-                </div>
-              </ViewportPortal>
-            )}
-          </ReactFlow>
-        </RenameContext.Provider>
-      </CollapseContext.Provider>
+      <ImageConsentContext.Provider value={imageConsent}>
+        <CollapseContext.Provider value={readOnly ? null : toggleCollapsed}>
+          <RenameContext.Provider value={rename}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={EDGE_TYPES}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onBeforeDelete={onBeforeDelete}
+              onConnect={onConnect}
+              onConnectStart={() => setConnecting(true)}
+              onConnectEnd={() => setConnecting(false)}
+              nodesConnectable={!readOnly}
+              elementsSelectable={!readOnly}
+              deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+              zoomOnDoubleClick={false}
+              minZoom={0.2}
+            >
+              <Background />
+              <Controls showInteractive={false} />
+              {title && titleAnchor && (
+                <ViewportPortal>
+                  <div
+                    className="diagram-title"
+                    style={{ transform: `translate(${titleAnchor.x}px, ${titleAnchor.y}px) translate(-50%, -100%)` }}
+                  >
+                    {title}
+                  </div>
+                </ViewportPortal>
+              )}
+            </ReactFlow>
+          </RenameContext.Provider>
+        </CollapseContext.Provider>
+      </ImageConsentContext.Provider>
     </div>
   );
 }

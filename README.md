@@ -119,9 +119,10 @@ just dev        # open the URL that Vite prints
 | Edge ends | `>` arrow, `o` circle, `x` cross or none, on one end (`-->`, `--o`, `-.-x`, `==>`) or both (`<-->`, `o--o`, `x-.-x`, `<==>`) |
 | Edge labels | `-->|label|` or `-- label -->` |
 | Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>` |
-| Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`: kept in the code, not drawn yet |
+| Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`. The canvas animates the edge (two speeds; still when the system asks for reduced motion), shows step numbers, and draws `linear` and `step` curves; smooth curves use its own |
 | Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are. The canvas shows the `title` |
 | Styling | `classDef` (also `default`), `class`, `:::`, `style` on nodes and subgraphs, `linkStyle` (by index and `default`, also `interpolate`), classes on edges with an id. The canvas draws fill, stroke, stroke width, dashes, text color and font; other properties are kept in the code. Edit classes and style in the inspector |
+| Icons and images | `A@{ icon: "fa:user", form, label, pos, h }` and `A@{ img: "…", label, pos, w, h, constraint }`. Icons need an icon pack in Mermaid, which the app does not bundle: the canvas draws the background and the icon name. `data:` images are shown at once; images from a server only after you click **Load** for that server (for this session), so a pasted diagram never makes the canvas contact a server on its own |
 | Interaction | `click id …` in every form (link, `href`, callback, `call fn()`, tooltip, target), kept exactly as written and shown as a badge. The canvas never follows a link or runs a callback |
 | Collapsed subgraphs | `id@{ view: collapsed }`: drawn as one box, edges that cross its border end at the box, like Mermaid. Toggle with the arrow in its title or the inspector |
 | Labels | quoted text with any characters (`"a & (b)"`), `<br>` line breaks, Markdown strings (`` "`**bold** and *italic*`" ``) on nodes, edges and subgraphs |
@@ -146,8 +147,9 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (icon and image shapes) shows an error, and the canvas stays read-only. This prevents a canvas edit from
-deleting those parts.
+Code the canvas cannot represent shows an error, and the canvas stays read-only. This prevents a canvas edit from
+deleting those parts. Today every example in the Gallery is editable; only comments after the `flowchart` line are
+still lost on a canvas edit (see below).
 
 ## Known limitations
 
@@ -169,7 +171,7 @@ deleting those parts.
 - In a plain label a line break is saved as `<br>`; in a Markdown label as a real newline.
 - The canvas shows Markdown bold and italic only, as Mermaid does in labels.
 - Classes are written back as `class` statements (`A:::hot` becomes `class A hot`), in `classDef` order, which is
-  also the order Mermaid applies them in. Edge curves (`interpolate`, `curve`) are kept but drawn as the default curve.
+  also the order Mermaid applies them in.
 - A style value with quotes, comments or `url(…)` is kept in the code but not drawn. A fill without a text color
   gets dark or light text on the canvas so the label stays readable.
 - `src/parse.ts` uses Mermaid internals (`mermaidAPI.getDiagramFromText` and the flowchart DB).
@@ -184,6 +186,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 |---|---|
 | `src/model.ts` | Graph model and edit operations |
 | `src/styling.ts` | How classDef/class/style/linkStyle look on the canvas |
+| `src/AssetView.tsx` | Icon and image nodes, and consent for remote images |
 | `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
 | `src/parse.ts` | Mermaid text → model |
 | `src/serialize.ts` | Model → Mermaid text |

@@ -23,7 +23,7 @@ and the code follows. ([MP4 version](docs/demo.mp4))
 flowchart LR
   code[/"Mermaid code"/] -- parse --> model[(Graph model)]
   model -- serialize --> code
-  model -- dagre layout --> canvas["Canvas"]
+  model -- "ELK or dagre layout" --> canvas["Canvas"]
   canvas -- edit --> model
 ```
 
@@ -80,7 +80,9 @@ just dev        # open the URL that Vite prints
 - **Canvas → code:** each canvas edit regenerates the full code from the model.
 - **View:** it fits the diagram again when nodes are added or removed, or the direction changes.
   Renames and style edits do not move the view.
-- **Layout** is automatic (dagre). You can drag nodes, but the next edit or **Re-layout** resets the positions.
+- **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
+  With ELK, edges follow the routes ELK found, as in Mermaid. You can drag nodes (their edges then draw a plain curve),
+  but the next edit or **Re-layout** resets the positions.
 
 ## Paste
 
@@ -118,9 +120,10 @@ just dev        # open the URL that Vite prints
 | Edge strokes | normal `--`, dotted `-.-`, thick `==`, invisible `~~~` (drawn faintly on the canvas so you can select it) |
 | Edge ends | `>` arrow, `o` circle, `x` cross or none, on one end (`-->`, `--o`, `-.-x`, `==>`) or both (`<-->`, `o--o`, `x-.-x`, `<==>`) |
 | Edge labels | `-->|label|` or `-- label -->` |
-| Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>` |
+| Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>`. The canvas uses it with dagre; ELK has no per-edge length |
 | Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`. The canvas animates the edge (two speeds; still when the system asks for reduced motion), shows step numbers, and draws `linear` and `step` curves; smooth curves use its own |
 | Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are. The canvas shows the `title` |
+| Themes and looks | `theme` (all 11 Mermaid 12 themes, from `default` and `forest` to `neo` and `redux-dark`), `themeVariables` (`primaryColor`, `primaryBorderColor`, `primaryTextColor`, `lineColor`, `clusterBkg`, `clusterBorder`, …) and `look` (`classic`, `neo` with shadows, `handDrawn` with wobbly outlines), from the front matter or a directive. Without them the canvas uses its own colors, which follow light and dark mode. Labels wrap at `flowchart.wrappingWidth` (200 by default) unless `markdownAutoWrap: false` |
 | Styling | `classDef` (also `default`), `class`, `:::`, `style` on nodes and subgraphs, `linkStyle` (by index and `default`, also `interpolate`), classes on edges with an id. The canvas draws fill, stroke, stroke width, dashes, text color and font; other properties are kept in the code. Edit classes and style in the inspector |
 | Icons and images | `A@{ icon: "fa:user", form, label, pos, h }` and `A@{ img: "…", label, pos, w, h, constraint }`. Icons need an icon pack in Mermaid, which the app does not bundle: the canvas draws the background and the icon name. `data:` images are shown at once; images from a server only after you click **Load** for that server (for this session), so a pasted diagram never makes the canvas contact a server on its own |
 | Interaction | `click id …` in every form (link, `href`, callback, `call fn()`, tooltip, target), kept exactly as written and shown as a badge. The canvas never follows a link or runs a callback |
@@ -156,8 +159,9 @@ still lost on a canvas edit (see below).
 - A canvas edit rewrites the code: comments after the `flowchart` line, formatting, and statement order are not kept.
 - `direction` inside a subgraph works as in Mermaid: the canvas uses it only if no edge connects a node inside
   the subgraph to a node outside it. Edges that end at the subgraph itself are allowed.
-- Handles are on fixed sides (for example right → left in LR). An edge that goes against the flow direction
-  can cross the nodes or subgraphs between its ends.
+- Without an ELK route (dagre, or after you drag a node), edges use handles on fixed sides (for example right → left
+  in LR), so an edge that goes against the flow direction can cross the nodes or subgraphs between its ends.
+- The canvas places nodes like Mermaid's engine, but not pixel for pixel: node sizes are estimated from the text.
 - A subgraph without an id (`subgraph Some title`) gets the id Mermaid gives it (for example `subGraph3`)
   after the first canvas edit.
 - Labels are trimmed. An empty node label becomes the node id.
@@ -180,7 +184,7 @@ still lost on a canvas edit (see below).
 ## Project layout
 
 Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://codemirror.net/),
-[dagre](https://github.com/dagrejs/dagre) and [Mermaid](https://mermaid.js.org/)'s own parser.
+[ELK](https://eclipse.dev/elk/), [dagre](https://github.com/dagrejs/dagre) and [Mermaid](https://mermaid.js.org/)'s own parser.
 
 | File | Purpose |
 |---|---|
@@ -190,7 +194,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
 | `src/parse.ts` | Mermaid text → model |
 | `src/serialize.ts` | Model → Mermaid text |
-| `src/layout.ts` | Model → positioned React Flow nodes and edges |
+| `src/layout.ts`, `src/layoutEngine.ts` | Model → positioned React Flow nodes and edges, with dagre or ELK |
 | `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
 | `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |
 | `src/Canvas.tsx` | Canvas, toolbar and inspector |

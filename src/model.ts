@@ -1,4 +1,5 @@
 import { fromEditText, toEditText } from './labels';
+import { frontMatterOf, getString, readConfig, readYamlMaps } from './config';
 import { SHAPE_INFO, SHAPES, type Shape } from './shapes';
 
 export { SHAPES, type Shape };
@@ -409,40 +410,22 @@ export function canonicalOrder(model: FlowModel): FlowModel {
   return { ...model, nodes, subgraphs };
 }
 
-/** Front matter text (between the `---` lines) of the preamble, or ''. */
-function frontMatter(model: FlowModel): string {
-  return /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(model.preamble ?? '')?.[1] ?? '';
-}
-
 /**
- * The diagram's edge curve from the preamble: `flowchart: curve:` in the front matter config,
- * or `"curve"` in an `%%{init: …}%%` directive. A small reader, not a YAML parser: it covers the
- * forms in the Mermaid docs.
+ * The diagram's edge curve: `flowchart: curve:` in the config (front matter or `%%{init}%%`).
  */
 export function diagramCurve(model: FlowModel): string | null {
-  const lines = frontMatter(model).split(/\r?\n/);
-  const indent = (line: string): number => /^[ \t]*/.exec(line)?.[0].length ?? 0;
-  const start = lines.findIndex((l) => /^[ \t]*flowchart:[ \t]*$/.test(l));
-  if (start >= 0) {
-    // The lines of the `flowchart:` block are indented deeper than it.
-    for (const line of lines.slice(start + 1)) {
-      if (line.trim() === '') continue;
-      if (indent(line) <= indent(lines[start])) break;
-      const curve = /^[ \t]+curve:[ \t]*["']?(\w+)/.exec(line);
-      if (curve) return curve[1];
-    }
-  }
-  const directive = /%%\{[\s\S]*?["']curve["']\s*:\s*["'](\w+)["'][\s\S]*?\}%%/.exec(model.preamble ?? '');
-  return directive ? directive[1] : null;
+  return getString(readConfig(model.preamble), 'flowchart', 'curve') ?? null;
+}
+
+/** The layout engine: `layout:` in the config. Mermaid 12 uses ELK unless the code asks for dagre. */
+export function diagramLayout(model: FlowModel): 'elk' | 'dagre' {
+  return getString(readConfig(model.preamble), 'layout') === 'dagre' ? 'dagre' : 'elk';
 }
 
 /** The `title:` from the front matter in the preamble, or null. */
 export function diagramTitle(model: FlowModel): string | null {
-  const line = /^title:[ \t]*(.*?)[ \t]*$/m.exec(frontMatter(model));
-  if (!line) return null;
-  // A YAML scalar, maybe quoted.
-  const title = line[1].replace(/^(["'])(.*)\1$/, '$2');
-  return title === '' ? null : title;
+  const title = readYamlMaps(frontMatterOf(model.preamble)).title;
+  return typeof title === 'string' && title !== '' ? title : typeof title === 'number' ? String(title) : null;
 }
 
 /**

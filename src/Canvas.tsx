@@ -16,7 +16,8 @@ import {
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import { toEditText } from './labels';
-import { layoutModel, type CanvasNode } from './layout';
+import type { CanvasNode } from './layout';
+import { layoutCanvas } from './layoutEngine';
 import {
   DIRECTIONS,
   EDGE_ENDS,
@@ -50,6 +51,7 @@ import { classesFromText, stylesFromText, stylesToText } from './styling';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
 import { checkClick } from './parse';
+import { diagramTheme, GRADIENT_ID, HAND_DRAWN_ID, themeVars, type DiagramTheme } from './themes';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
 const EDGE_TYPES = { label: LabelEdgeView };
@@ -293,6 +295,29 @@ function keepSelection<T extends { id: string; selected?: boolean }>(next: T[], 
   return next.map((x) => (selected.has(x.id) ? { ...x, selected: true } : x));
 }
 
+/** SVG definitions a theme needs: the gradient for node strokes, the hand-drawn wobble. */
+function ThemeDefs({ theme }: { theme: DiagramTheme }): JSX.Element {
+  const gradient = theme.palette.gradient;
+  return (
+    <svg className="edge-marker-defs" aria-hidden="true">
+      <defs>
+        {gradient && (
+          <linearGradient id={GRADIENT_ID} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor={gradient[0]} />
+            <stop offset="1" stopColor={gradient[1]} />
+          </linearGradient>
+        )}
+        {theme.look === 'handDrawn' && (
+          <filter id={HAND_DRAWN_ID} x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="3" />
+            <feDisplacementMap in="SourceGraphic" scale="3" />
+          </filter>
+        )}
+      </defs>
+    </svg>
+  );
+}
+
 /** Top center of the top-level nodes and subgraphs, where Mermaid draws the diagram title. */
 function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
   const top = nodes.filter((n) => !n.parentId);
@@ -307,6 +332,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   const { fitView } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const title = diagramTitle(model);
+  const theme = useMemo(() => diagramTheme(model), [model]);
   const titleAnchor = useMemo(() => titlePosition(nodes), [nodes]);
   const [edges, setEdges] = useState<Edge[]>([]);
   /** Node ids and direction at the last fit. A change means nodes were added or removed, or the layout turned. */
@@ -316,8 +342,17 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   /** True while the user drags a new edge. All handles are shown then, so the user can see the targets. */
   const [connecting, setConnecting] = useState(false);
 
-  const relayout = useCallback((): void => {
-    const laid = layoutModel(model);
+  /** Direction and node ids of the layout shown. */
+  const layoutKey = useRef('');
+  /** Counts layouts, so a slow (ELK) layout that finishes after a newer one is dropped. */
+  const layoutRun = useRef(0);
+
+  const relayout = useCallback(async (): Promise<void> => {
+    const run = ++layoutRun.current;
+    const laid = await layoutCanvas(model);
+    if (run !== layoutRun.current) return;
+    // The fit key belongs to this layout: the layout is async, so model.direction can be newer than the nodes shown.
+    layoutKey.current = `${model.direction}|${laid.nodes.map((n) => n.id).sort().join(',')}`;
     const select = pendingSelect.current;
     pendingSelect.current = null;
     if (select) {
@@ -329,20 +364,45 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
     }
   }, [model]);
 
-  useEffect(relayout, [relayout]);
+  useEffect(() => {
+    void relayout();
+  }, [relayout]);
 
   useEffect(() => {
     if (nodes.length === 0) return;
-    const key = `${model.direction}|${nodes.map((n) => n.id).sort().join(',')}`;
+    const key = layoutKey.current;
     if (key === lastFitKey.current) return;
     const first = lastFitKey.current === '';
     lastFitKey.current = key;
     // Animate later fits, so the view change is easy to follow.
     requestAnimationFrame(() => void fitView({ padding: 0.2, duration: first ? 0 : 250 }));
-  }, [nodes, model.direction, fitView]);
+  }, [nodes, fitView]);
 
   // Remove events are handled by onBeforeDelete, which updates the model.
+  /** The current nodes, for event handlers that must not wait for a render. */
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+
   const onNodesChange = useCallback((changes: NodeChange<CanvasNode>[]): void => {
+    // A dragged node (with everything inside it) leaves the layout's edge routes; its edges draw their own curve again.
+    const dragged = new Set(changes.flatMap((c) => (c.type === 'position' && c.dragging ? [c.id] : [])));
+    if (dragged.size > 0) {
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const n of nodesRef.current) {
+          if (n.parentId && dragged.has(n.parentId) && !dragged.has(n.id)) {
+            dragged.add(n.id);
+            grew = true;
+          }
+        }
+      }
+      setEdges((edges) =>
+        edges.map((e) =>
+          e.data?.route && (dragged.has(e.source) || dragged.has(e.target)) ? { ...e, data: { ...e.data, route: undefined } } : e,
+        ),
+      );
+    }
     setNodes((prev) => applyNodeChanges(changes.filter((c) => c.type !== 'remove'), prev));
   }, []);
   const onEdgesChange = useCallback((changes: EdgeChange[]): void => {
@@ -439,7 +499,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             ))}
           </select>
         </label>
-        <button onClick={relayout} title="Discard manual moves">
+        <button onClick={() => void relayout()} title="Discard manual moves">
           Re-layout
         </button>
         <button onClick={() => void fitView({ padding: 0.2 })}>Fit</button>
@@ -635,7 +695,6 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         </div>
       )}
 
-      <EdgeMarkerDefs />
       <datalist id="class-names">
         {(model.classDefs ?? [])
           .filter((c) => c.name !== 'default')
@@ -662,7 +721,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
               deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
               zoomOnDoubleClick={false}
               minZoom={0.2}
+              style={theme ? themeVars(theme) : undefined}
+              // React Flow puts the marker color in an inline style; this keeps arrows the color of the edges.
+              defaultMarkerColor="var(--edge-stroke)"
             >
+              {/* Inside the diagram, so markers and theme gradients take the diagram's colors. */}
+              <EdgeMarkerDefs />
+              {theme && <ThemeDefs theme={theme} />}
               <Background />
               <Controls showInteractive={false} />
               {title && titleAnchor && (

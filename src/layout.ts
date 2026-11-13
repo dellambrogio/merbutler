@@ -2,8 +2,10 @@
 import dagre from '@dagrejs/dagre';
 import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from '@xyflow/react';
 import { MARKER_IDS } from './EdgeMarkers';
-import { labelLines, visibleLength } from './labels';
+import { labelLines, markdownRuns } from './labels';
+import { get, readConfig } from './config';
 import { SHAPE_INFO } from './shapes';
+import { diagramTheme } from './themes';
 import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
 import {
   buildTree,
@@ -47,6 +49,13 @@ export type ShapeNode = Node<ShapeNodeData, 'shape'>;
 export type SubgraphNode = Node<SubgraphNodeData, 'subgraph'>;
 export type CanvasNode = ShapeNode | SubgraphNode;
 
+/** A route from the layout engine (ELK), in absolute canvas coordinates. */
+export interface EdgeRoute {
+  points: Array<{ x: number; y: number }>;
+  /** Center of the label, where the layout left room for it. */
+  label?: { x: number; y: number };
+}
+
 export interface LabelEdgeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
@@ -55,6 +64,8 @@ export interface LabelEdgeData extends Record<string, unknown> {
   curve?: string;
   /** Step number from `id@{ step: n }`, shown on the edge. */
   step?: number;
+  /** The layout's route. Missing for dagre, and after a node of the edge was dragged. */
+  route?: EdgeRoute;
 }
 
 export type LabelEdge = Edge<LabelEdgeData, 'label'>;
@@ -70,23 +81,56 @@ const CHAR_WIDTH = 7.5;
 
 /** Space around the contents of a subgraph box. The top has room for the title. */
 export const SUBGRAPH_PADDING = { side: 16, top: 34, bottom: 16 } as const;
-const EMPTY_SUBGRAPH = { width: 160, height: 70 } as const;
+export const EMPTY_SUBGRAPH = { width: 160, height: 70 } as const;
 
-interface Box {
+export interface Box {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-const MAX_TEXT_WIDTH = 220;
 export const LINE_HEIGHT = 18;
+/** Label font size on the canvas, in px (see styles.css). */
+const FONT_SIZE = 14;
 
-/** Approximate text size. Lines longer than the maximum width wrap. */
-export function textSize(label: string, markdown: boolean): { width: number; height: number; lines: number } {
-  const lines = labelLines(label, markdown).map((l) => visibleLength(l, markdown) * CHAR_WIDTH);
-  const wrapped = lines.reduce((sum, w) => sum + Math.max(1, Math.ceil(w / MAX_TEXT_WIDTH)), 0);
-  const width = Math.min(Math.max(...lines, 0), MAX_TEXT_WIDTH);
+/** How labels are measured and wrapped. */
+export interface TextSettings {
+  /** CSS font family of the labels. */
+  font: string;
+  /** Lines wider than this wrap (Mermaid's `flowchart.wrappingWidth`, 200 by default). */
+  wrapWidth: number;
+  /** Markdown labels wrap too (Mermaid's `markdownAutoWrap`, true by default). */
+  markdownWrap: boolean;
+}
+
+export const DEFAULT_TEXT: TextSettings = { font: 'system-ui, sans-serif', wrapWidth: 200, markdownWrap: true };
+
+let measureContext: OffscreenCanvasRenderingContext2D | null | undefined;
+
+/** Width of a text in px, measured by the browser, or null where it cannot measure (tests). */
+function measure(text: string, font: string, bold: boolean): number | null {
+  if (measureContext === undefined) {
+    measureContext = typeof OffscreenCanvas === 'undefined' ? null : new OffscreenCanvas(1, 1).getContext('2d');
+  }
+  if (!measureContext) return null;
+  measureContext.font = `${bold ? '600 ' : ''}${FONT_SIZE}px ${font}`;
+  return measureContext.measureText(text).width;
+}
+
+function lineWidth(line: string, markdown: boolean, settings: TextSettings): number {
+  const runs = markdown ? markdownRuns(line) : [{ text: line, bold: false }];
+  let width = 0;
+  for (const run of runs) width += measure(run.text, settings.font, run.bold) ?? run.text.length * CHAR_WIDTH;
+  return width;
+}
+
+/** Text size of a label. Lines wider than the wrap width wrap, as in Mermaid. */
+export function textSize(label: string, markdown: boolean, settings: TextSettings = DEFAULT_TEXT): { width: number; height: number; lines: number } {
+  const lines = labelLines(label, markdown).map((l) => lineWidth(l, markdown, settings));
+  const wrap = !markdown || settings.markdownWrap ? settings.wrapWidth : Infinity;
+  const wrapped = lines.reduce((sum, w) => sum + Math.max(1, Math.ceil(w / wrap)), 0);
+  const width = Math.min(Math.max(...lines, 0), wrap);
   return { width, height: wrapped * LINE_HEIGHT, lines: wrapped };
 }
 
@@ -108,16 +152,22 @@ export function assetPicture(asset: Asset): { width: number; height: number } {
 }
 
 /** An icon or image with its label above or below it. */
-function assetNodeSize(label: string, markdown: boolean, asset: Asset): { width: number; height: number } {
+export function assetNodeSize(label: string, markdown: boolean, asset: Asset, text: TextSettings = DEFAULT_TEXT): { width: number; height: number } {
   const picture = assetPicture(asset);
   if (label === '') return picture;
-  const text = textSize(label, markdown);
-  return { width: Math.max(picture.width, text.width + 8), height: picture.height + ASSET_GAP + text.height };
+  const size = textSize(label, markdown, text);
+  return { width: Math.max(picture.width, size.width + 8), height: picture.height + ASSET_GAP + size.height };
 }
 
 /** Approximate node size from the label. Exact size does not matter: dagre only needs room. */
-export function nodeSize(label: string, shape: Shape, markdown = false, direction: Direction = 'TB'): { width: number; height: number } {
-  return SHAPE_INFO[shape].size(textSize(label, markdown), direction === 'TB' || direction === 'BT');
+export function nodeSize(
+  label: string,
+  shape: Shape,
+  markdown = false,
+  direction: Direction = 'TB',
+  text: TextSettings = DEFAULT_TEXT,
+): { width: number; height: number } {
+  return SHAPE_INFO[shape].size(textSize(label, markdown, text), direction === 'TB' || direction === 'BT');
 }
 
 function union(boxes: Box[]): Box {
@@ -149,7 +199,7 @@ function marker(end: EdgeEnd, color?: string): EdgeMarkerType | undefined {
 }
 
 /** Facts about the nesting and the edges that the layout needs. */
-interface LayoutContext {
+export interface LayoutContext {
   model: FlowModel;
   parentOf: Map<string, string | null>;
   childrenOf: Map<string | null, string[]>;
@@ -158,6 +208,8 @@ interface LayoutContext {
   isolated: Set<string>;
   /** Direction of the layout that places each element. Used for the handle positions. */
   directionOf: Map<string, Direction>;
+  /** How labels are measured: font from the theme, wrapping from the config. */
+  text: TextSettings;
 }
 
 function isInside(ctx: LayoutContext, id: string, subgraph: string): boolean {
@@ -171,7 +223,7 @@ function isInside(ctx: LayoutContext, id: string, subgraph: string): boolean {
  * Mermaid rule: a subgraph `direction` is used only if no edge connects an element inside the
  * subgraph to an element outside it. An edge that ends at the subgraph itself does not cross.
  */
-function findIsolated(ctx: LayoutContext): Set<string> {
+export function findIsolated(ctx: LayoutContext): Set<string> {
   const isolated = new Set<string>();
   for (const s of ctx.subgraphIds) {
     const crosses = ctx.model.edges.some((e) => {
@@ -191,31 +243,31 @@ function scopeOf(ctx: LayoutContext, id: string): string | null {
   return p;
 }
 
-function titleWidth(subgraph: FlowSubgraph): number {
-  return textSize(subgraph.label, subgraph.markdown).width + 2 * SUBGRAPH_PADDING.side;
+export function titleWidth(subgraph: FlowSubgraph, text: TextSettings = DEFAULT_TEXT): number {
+  return textSize(subgraph.label, subgraph.markdown, text).width + 2 * SUBGRAPH_PADDING.side;
 }
 
 /** Space above the contents of a subgraph: more for a title with several lines. */
-function titleSpace(subgraph: FlowSubgraph): number {
-  return SUBGRAPH_PADDING.top + (textSize(subgraph.label, subgraph.markdown).lines - 1) * LINE_HEIGHT;
+export function titleSpace(subgraph: FlowSubgraph, text: TextSettings = DEFAULT_TEXT): number {
+  return SUBGRAPH_PADDING.top + (textSize(subgraph.label, subgraph.markdown, text).lines - 1) * LINE_HEIGHT;
 }
 
 /** A collapsed subgraph: one box with its title and a toggle. */
-function collapsedSize(subgraph: FlowSubgraph): { width: number; height: number } {
-  const text = textSize(subgraph.label, subgraph.markdown);
-  return { width: Math.max(text.width, 30) + 2 * SUBGRAPH_PADDING.side + 24, height: text.height + 26 };
+export function collapsedSize(subgraph: FlowSubgraph, text: TextSettings = DEFAULT_TEXT): { width: number; height: number } {
+  const size = textSize(subgraph.label, subgraph.markdown, text);
+  return { width: Math.max(size.width, 30) + 2 * SUBGRAPH_PADDING.side + 24, height: size.height + 26 };
 }
 
 /** Box around the contents, with room for the title. */
-function padBox(inner: Box, subgraph: FlowSubgraph): Box {
-  const top = titleSpace(subgraph);
+function padBox(inner: Box, subgraph: FlowSubgraph, text: TextSettings): Box {
+  const top = titleSpace(subgraph, text);
   const box = {
     x: inner.x - SUBGRAPH_PADDING.side,
     y: inner.y - top,
     width: inner.width + 2 * SUBGRAPH_PADDING.side,
     height: inner.height + top + SUBGRAPH_PADDING.bottom,
   };
-  const min = titleWidth(subgraph);
+  const min = titleWidth(subgraph, text);
   return box.width >= min ? box : { ...box, x: box.x - (min - box.width) / 2, width: min };
 }
 
@@ -253,13 +305,13 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     ctx.directionOf.set(id, direction);
     const node = model.nodes.find((n) => n.id === id);
     if (node) {
-      g.setNode(id, node.asset ? assetNodeSize(node.label, node.markdown, node.asset) : nodeSize(node.label, node.shape, node.markdown, direction));
+      g.setNode(id, node.asset ? assetNodeSize(node.label, node.markdown, node.asset, ctx.text) : nodeSize(node.label, node.shape, node.markdown, direction, ctx.text));
     } else if (isCluster(id)) {
       g.setNode(id, {}); // A cluster has no own size.
     } else {
       const content = inner.get(id)?.content;
-      const size = sub(id).view === 'collapsed' ? collapsedSize(sub(id)) : content ? padBox(content, sub(id)) : { ...EMPTY_SUBGRAPH };
-      g.setNode(id, { width: Math.max(size.width, titleWidth(sub(id))), height: size.height });
+      const size = sub(id).view === 'collapsed' ? collapsedSize(sub(id), ctx.text) : content ? padBox(content, sub(id), ctx.text) : { ...EMPTY_SUBGRAPH };
+      g.setNode(id, { width: Math.max(size.width, titleWidth(sub(id), ctx.text)), height: size.height });
     }
   }
   for (const id of members) {
@@ -287,7 +339,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     const target = lift(edge.target);
     if (source === null || target === null || source === target) continue;
     // Edge labels need room between ranks.
-    const label = edge.label ? textSize(edge.label, edge.markdown) : {};
+    const label = edge.label ? textSize(edge.label, edge.markdown, ctx.text) : {};
     g.setEdge(source, target, { ...label, minlen: edge.length ?? 1 }, edge.id);
   }
   dagre.layout(g);
@@ -301,7 +353,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     const known = result.get(id);
     if (known) return known;
     const box = isCluster(id)
-      ? padBox(union((ctx.childrenOf.get(id) ?? []).map(boxOf)), sub(id))
+      ? padBox(union((ctx.childrenOf.get(id) ?? []).map(boxOf)), sub(id), ctx.text)
       : dagreBox(id);
     result.set(id, box);
     return box;
@@ -326,7 +378,20 @@ const STROKE_DASHES: Record<Stroke, string | undefined> = {
   invisible: '1 5',
 };
 
-export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+/** Label font from the theme (if the code sets one), wrapping from the config. */
+export function textSettings(model: FlowModel): TextSettings {
+  const config = readConfig(model.preamble);
+  const wrap = get(config, 'flowchart', 'wrappingWidth');
+  const markdownWrap = get(config, 'markdownAutoWrap') ?? get(config, 'flowchart', 'markdownAutoWrap');
+  return {
+    font: diagramTheme(model)?.palette.font ?? DEFAULT_TEXT.font,
+    wrapWidth: typeof wrap === 'number' && wrap > 0 ? wrap : DEFAULT_TEXT.wrapWidth,
+    markdownWrap: markdownWrap !== false,
+  };
+}
+
+/** The model as the canvas shows it, with the maps both layout engines need. */
+export function layoutContext(full: FlowModel): LayoutContext {
   // Collapsed subgraphs: their contents are not drawn, crossing edges end at the box.
   const model = visibleModel(full);
   const parentOf = new Map<string, string | null>();
@@ -345,10 +410,28 @@ export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: Labe
     subgraphIds: new Set(model.subgraphs.map((s) => s.id)),
     isolated: new Set(),
     directionOf: new Map(),
+    text: textSettings(full),
   };
   ctx.isolated = findIsolated(ctx);
-  const boxes = layoutScope(ctx, null, model.direction);
+  return ctx;
+}
 
+/** Lays out with dagre (`layout: dagre` in Mermaid). Synchronous. */
+export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+  const ctx = layoutContext(full);
+  return canvasFrom(ctx, layoutScope(ctx, null, ctx.model.direction));
+}
+
+/**
+ * React Flow nodes and edges from laid-out boxes (absolute positions) and the direction of each
+ * element (`ctx.directionOf`, for the handles).
+ */
+export function canvasFrom(
+  ctx: LayoutContext,
+  boxes: Map<string, Box>,
+  routes: Map<string, EdgeRoute> = new Map(),
+): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+  const { model } = ctx;
   const nodes: CanvasNode[] = [];
   /** React Flow needs each parent before its children, and child positions relative to the parent. */
   const emit = (items: TreeItem[], parent: string | null): void => {
@@ -416,6 +499,7 @@ export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: Labe
         ...lookField(look),
         ...(curve ? { curve } : {}),
         ...(step !== undefined ? { step } : {}),
+        ...(routes.has(edge.id) ? { route: routes.get(edge.id) } : {}),
       },
       ...(animated ? { animated: true, className: `edge-anim-${animation ?? 'fast'}` } : {}),
       // Edges between nodes in different subgraphs must draw above the subgraph boxes.

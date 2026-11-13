@@ -109,7 +109,7 @@ export const GALLERY: GalleryGroup[] = [
       { id: 'graph-keyword', title: '`graph` keyword', code: 'graph LR\n  A --> B\n' },
       { id: 'semicolons', title: 'Trailing semicolons', code: fc('  A --> B;\n  B --> C;\n') },
       { id: 'comments', title: 'Comments', code: fc('  %% this is a comment\n  A -- text --> B{node}\n'), caveat: 'Canvas edits remove comments after the flowchart line.' },
-      { id: 'front-matter-title', title: 'Front matter title', code: '---\ntitle: Node\n---\nflowchart LR\n  id\n', note: 'Kept in the code. The canvas does not show the title.' },
+      { id: 'front-matter-title', title: 'Front matter title', code: '---\ntitle: Node\n---\nflowchart LR\n  id\n' },
     ],
   },
   {
@@ -254,7 +254,6 @@ export const GALLERY: GalleryGroup[] = [
         id: 'config-look',
         title: 'Classic look and dagre',
         code: '---\nconfig:\n  theme: default\n  look: classic\n  layout: dagre\n---\nflowchart LR\n  A --> B --> C\n',
-        note: 'Kept in the code. The canvas uses its own look and the dagre layout.',
       },
     ],
   },

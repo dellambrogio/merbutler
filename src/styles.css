@@ -102,7 +102,7 @@ button.danger { color: var(--danger); }
 .inspector label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
 
 .shape-node { position: relative; display: flex; align-items: center; justify-content: center; }
-.shape-outline { position: absolute; inset: 0; overflow: visible; }
+.shape-outline { position: absolute; inset: 0; overflow: visible; filter: var(--node-filter, none); }
 .shape-outline :is(rect, ellipse, polygon, path, line, circle) {
   fill: var(--node-fill); stroke: var(--node-stroke);
   /* Set per node by classDef/style; see styling.ts. */
@@ -124,18 +124,18 @@ button.danger { color: var(--danger); }
 .inspector textarea { font: inherit; resize: vertical; line-height: 18px; padding: 3px 8px; }
 .edge-label {
   position: absolute; pointer-events: all; padding: 2px 4px; border-radius: 3px;
-  background: var(--bg); color: var(--text); font-size: 12px; line-height: 16px; text-align: center;
+  background: var(--edge-label-bg, var(--bg)); color: var(--text); font-size: 12px; line-height: 16px; text-align: center;
 }
 .edge-label.selected { outline: 1px solid var(--accent); }
 /* Edges use zIndex 1 to draw above subgraph boxes. Labels must draw above the edges. */
 .react-flow__edgelabel-renderer { z-index: 3; }
 .subgraph-node {
-  border: var(--node-stroke-width, 1.5px) dashed var(--node-stroke); border-radius: 8px;
+  border: var(--node-stroke-width, 1.5px) var(--subgraph-border-style, dashed) var(--subgraph-stroke, var(--node-stroke)); border-radius: 8px;
   background: var(--subgraph-fill);
 }
 .subgraph-node.selected { border-color: var(--accent); border-style: solid; }
 .subgraph-title {
-  padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--muted);
+  padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--subgraph-title, var(--muted));
   line-height: 18px; overflow: hidden; cursor: text;
 }
 .subgraph-input { margin: 4px 6px; width: calc(100% - 12px); font-size: 12px; padding: 1px 4px; }
@@ -146,7 +146,7 @@ button.danger { color: var(--danger); }
 .edge-marker-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 .edge-marker-fill { fill: var(--edge-stroke); }
 .edge-marker-line { stroke: var(--edge-stroke); stroke-width: 2; fill: none; stroke-linecap: round; }
-.react-flow__handle { width: 8px; height: 8px; background: var(--node-stroke); opacity: 0; transition: opacity 0.1s; }
+.react-flow__handle { width: 8px; height: 8px; background: var(--node-stroke-solid, var(--node-stroke)); opacity: 0; transition: opacity 0.1s; }
 /* Handles sit where edge markers end. Show them only when they are useful, so markers stay visible. */
 .react-flow__node:hover .react-flow__handle,
 .react-flow__node.selected .react-flow__handle,
@@ -209,7 +209,7 @@ button.danger { color: var(--danger); }
 }
 
 /* A collapsed subgraph: one box, solid border, a hint of the stacked contents behind it. */
-.subgraph-node.collapsed { border-style: solid; box-shadow: 3px -3px 0 -1px var(--bg), 3px -3px 0 0 var(--node-stroke); }
+.subgraph-node.collapsed { border-style: solid; box-shadow: 3px -3px 0 -1px var(--bg), 3px -3px 0 0 var(--subgraph-stroke, var(--node-stroke-solid, var(--node-stroke))); }
 .subgraph-node.collapsed .subgraph-title { display: flex; align-items: center; height: 100%; color: var(--text); font-size: 13px; }
 .subgraph-title { display: flex; align-items: flex-start; gap: 4px; }
 .subgraph-toggle {
@@ -244,7 +244,7 @@ button.danger { color: var(--danger); }
 .asset-icon {
   flex: none; display: flex; align-items: center; justify-content: center; padding: 4px;
   font: 10px ui-monospace, monospace; color: var(--muted); text-align: center; overflow: hidden;
-  border: 1.5px dashed var(--node-stroke);
+  border: 1.5px dashed var(--node-stroke-solid, var(--node-stroke));
 }
 .asset-icon-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-icon.form-square, .asset-icon.form-circle, .asset-icon.form-rounded { border-style: solid; background: var(--node-fill); color: var(--text); }
@@ -253,8 +253,11 @@ button.danger { color: var(--danger); }
 .asset-image { flex: none; display: block; }
 .asset-placeholder {
   flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  border: 1.5px dashed var(--node-stroke); font-size: 10px; color: var(--muted); overflow: hidden;
+  border: 1.5px dashed var(--node-stroke-solid, var(--node-stroke)); font-size: 10px; color: var(--muted); overflow: hidden;
 }
 .asset-placeholder button { font-size: 11px; padding: 0 6px; }
 .asset-host { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
 .shape-node.selected .asset-icon, .shape-node.selected .asset-placeholder, .shape-node.selected .asset-image { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Mermaid themes (themes.ts). */
+.react-flow { font-family: var(--diagram-font, inherit); }

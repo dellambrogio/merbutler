@@ -109,7 +109,11 @@ export function boxVars(look: Look | undefined): CSSProperties {
     vars['--node-fill'] = look.fill;
     vars['--subgraph-fill'] = look.fill;
   }
-  if (look.stroke) vars['--node-stroke'] = look.stroke;
+  if (look.stroke) {
+    vars['--node-stroke'] = look.stroke;
+    vars['--node-stroke-solid'] = look.stroke;
+    vars['--subgraph-stroke'] = look.stroke;
+  }
   if (look.strokeWidth) vars['--node-stroke-width'] = look.strokeWidth;
   if (look.strokeDasharray) vars['--node-dash'] = look.strokeDasharray;
   return vars as CSSProperties;

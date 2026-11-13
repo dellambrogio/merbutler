@@ -122,6 +122,8 @@ just dev        # open the URL that Vite prints
 | Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`: kept in the code, not drawn yet |
 | Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are. The canvas shows the `title` |
 | Styling | `classDef` (also `default`), `class`, `:::`, `style` on nodes and subgraphs, `linkStyle` (by index and `default`, also `interpolate`), classes on edges with an id. The canvas draws fill, stroke, stroke width, dashes, text color and font; other properties are kept in the code. Edit classes and style in the inspector |
+| Interaction | `click id …` in every form (link, `href`, callback, `call fn()`, tooltip, target), kept exactly as written and shown as a badge. The canvas never follows a link or runs a callback |
+| Collapsed subgraphs | `id@{ view: collapsed }`: drawn as one box, edges that cross its border end at the box, like Mermaid. Toggle with the arrow in its title or the inspector |
 | Labels | quoted text with any characters (`"a & (b)"`), `<br>` line breaks, Markdown strings (`` "`**bold** and *italic*`" ``) on nodes, edges and subgraphs |
 | Subgraphs | `subgraph id [Label] … end`, nested, optional `direction` inside, edges to or from a subgraph (`ingest --> store`) |
 
@@ -144,7 +146,7 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (icon and image shapes, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
+Code with other features (icon and image shapes) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
 
 ## Known limitations

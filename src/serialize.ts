@@ -135,7 +135,13 @@ export function serialize(model: FlowModel): string {
     const options = edgeOptionsLine(edge);
     if (options) lines.push(`${INDENT}${options}`);
   }
+  for (const subgraph of model.subgraphs) {
+    if (subgraph.view) lines.push(`${INDENT}${subgraph.id}@{ view: ${subgraph.view} }`);
+  }
   for (const line of stylingLines(model)) lines.push(`${INDENT}${line}`);
+  for (const node of model.nodes) {
+    if (node.click) lines.push(`${INDENT}click ${node.id} ${node.click}`);
+  }
   return `${lines.join('\n')}\n`;
 }
 

@@ -151,6 +151,41 @@ exports[`round-trip > graph-td.mmd 1`] = `
 "
 `;
 
+exports[`round-trip > interaction.mmd 1`] = `
+"flowchart LR
+  A
+  B
+  C
+  D
+  E
+  F
+  x
+  subgraph one [My Group]
+    a1[click a1 is a label, not a statement]
+    a2
+    subgraph inner
+      a3
+    end
+  end
+  A --> B
+  B --> C
+  C --> D
+  D --> E
+  E --> F
+  a1 --> a2
+  x --> a1
+  a2 --> a3
+  one@{ view: collapsed }
+  inner@{ view: expanded }
+  click A callback "Tip A"
+  click B "https://www.github.com" "Tip; with semicolon"
+  click C call cb(1, "x") "Tip C"
+  click D href "https://x.org" "Tip D" _blank
+  click E "https://e.org" _blank
+  click F call cb()
+"
+`;
+
 exports[`round-trip > invisible.mmd 1`] = `
 "flowchart TB
   a

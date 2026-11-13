@@ -7,6 +7,7 @@ import { SHAPE_INFO } from './shapes';
 import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
 import {
   buildTree,
+  visibleModel,
   type Direction,
   type EdgeEnd,
   type FlowModel,
@@ -21,6 +22,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
   markdown: boolean;
   /** Colors and font from classDef/class/style. Missing when the node has none. */
   look?: Look;
+  /** The rest of the node's `click` statement, shown as a badge. */
+  click?: string;
   shape: Shape;
   sourcePosition: Position;
   targetPosition: Position;
@@ -29,6 +32,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
 export interface SubgraphNodeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
+  /** Drawn as one box; the contents are hidden. */
+  collapsed: boolean;
   look?: Look;
   sourcePosition: Position;
   targetPosition: Position;
@@ -162,6 +167,12 @@ function titleSpace(subgraph: FlowSubgraph): number {
   return SUBGRAPH_PADDING.top + (textSize(subgraph.label, subgraph.markdown).lines - 1) * LINE_HEIGHT;
 }
 
+/** A collapsed subgraph: one box with its title and a toggle. */
+function collapsedSize(subgraph: FlowSubgraph): { width: number; height: number } {
+  const text = textSize(subgraph.label, subgraph.markdown);
+  return { width: Math.max(text.width, 30) + 2 * SUBGRAPH_PADDING.side + 24, height: text.height + 26 };
+}
+
 /** Box around the contents, with room for the title. */
 function padBox(inner: Box, subgraph: FlowSubgraph): Box {
   const top = titleSpace(subgraph);
@@ -214,7 +225,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
       g.setNode(id, {}); // A cluster has no own size.
     } else {
       const content = inner.get(id)?.content;
-      const size = content ? padBox(content, sub(id)) : { ...EMPTY_SUBGRAPH };
+      const size = sub(id).view === 'collapsed' ? collapsedSize(sub(id)) : content ? padBox(content, sub(id)) : { ...EMPTY_SUBGRAPH };
       g.setNode(id, { width: Math.max(size.width, titleWidth(sub(id))), height: size.height });
     }
   }
@@ -282,7 +293,9 @@ const STROKE_DASHES: Record<Stroke, string | undefined> = {
   invisible: '1 5',
 };
 
-export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+export function layoutModel(full: FlowModel): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+  // Collapsed subgraphs: their contents are not drawn, crossing edges end at the box.
+  const model = visibleModel(full);
   const parentOf = new Map<string, string | null>();
   const childrenOf = new Map<string | null, string[]>();
   const addChild = (parent: string | null, id: string): void => {
@@ -327,6 +340,7 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
             markdown: item.node.markdown,
             shape: item.node.shape,
             ...lookField(nodeLook(model, item.node)),
+            ...(item.node.click ? { click: item.node.click } : {}),
             sourcePosition: handles.source,
             targetPosition: handles.target,
           },
@@ -338,6 +352,7 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
           data: {
             label: item.subgraph.label,
             markdown: item.subgraph.markdown,
+            collapsed: item.subgraph.view === 'collapsed',
             ...lookField(subgraphLook(model, item.subgraph)),
             sourcePosition: handles.source,
             targetPosition: handles.target,

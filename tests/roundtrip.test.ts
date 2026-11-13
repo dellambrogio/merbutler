@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { parse } from '../src/parse';
+import { parse, statements } from '../src/parse';
+import { layoutModel } from '../src/layout';
 import { SHAPE_INFO } from '../src/shapes';
 import { serialize } from '../src/serialize';
 import {
@@ -18,6 +19,7 @@ import {
   updateEdge,
   updateNode,
   updateSubgraph,
+  visibleModel,
   type FlowModel,
 } from '../src/model';
 
@@ -188,7 +190,8 @@ describe('parse', () => {
     ['syntax error', 'flowchart LR\n  A --> -->'],
     ['other diagram type', 'sequenceDiagram\n  A->>B: hi'],
     ['unknown @{} shape', 'flowchart LR\n  a@{ shape: nonsense }'],
-    ['click', 'flowchart LR\n  a\n  click a "https://example.com"'],
+    ['click on a subgraph', 'flowchart LR\n  subgraph s\n    a\n  end\n  click s "https://example.com"'],
+    ['unknown subgraph data', 'flowchart LR\n  subgraph s\n    a\n  end\n  s@{ view: collapsed, color: red }'],
   ])('rejects %s', async (_name, text) => {
     const result = await parse(text);
     expect(result.ok).toBe(false);
@@ -421,8 +424,6 @@ describe('rejected instead of dropped', () => {
   test.each([
     ['icon shape', 'flowchart LR\n  A@{ icon: "fa:user", label: "User" }\n', 'icon shape (node A)'],
     ['image shape', 'flowchart LR\n  A@{ img: "data:image/png;base64,AAAA", label: "Pic" }\n', 'image shape (node A)'],
-    ['click with a link', 'flowchart LR\n  A --> B\n  click B "https://example.com"\n', 'click on node B'],
-    ['click with a callback', 'flowchart LR\n  A --> B\n  click A callback\n', 'click on node A'],
   ])('%s', async (_name, text, message) => {
     const result = await parse(text);
     expect(result.ok).toBe(false);
@@ -483,5 +484,51 @@ describe('diagram title', () => {
     [undefined, null],
   ])('%s', (preamble, title) => {
     expect(diagramTitle({ direction: 'TB', nodes: [], subgraphs: [], edges: [], preamble })).toBe(title);
+  });
+});
+
+describe('click', () => {
+  test('kept as written, never rewritten by Mermaid', async () => {
+    // Mermaid would turn this link into about:blank and drop the callback name.
+    const model = await parseOk('flowchart LR\n  A --> B\n  click A "javascript:alert(1)"\n  click B call cb(42)\n');
+    expect(model.nodes.map((n) => n.click)).toEqual(['"javascript:alert(1)"', 'call cb(42)']);
+  });
+
+  test('several statements on one line, separated by ;', async () => {
+    const model = await parseOk('flowchart LR\n  A; click A cb; B --> A\n');
+    expect(model.nodes.find((n) => n.id === 'A')?.click).toBe('cb');
+  });
+
+  test('statements outside quotes and comments only', () => {
+    expect(statements('a["x; click a y"] --> b %% click b z\nclick a cb')).toEqual(['a["x; click a y"] --> b', 'click a cb']);
+  });
+
+  test('edited and removed from the inspector', async () => {
+    const model = await parseOk('flowchart LR\n  A --> B\n  click A cb\n');
+    expect(serialize(updateNode(model, 'A', { click: 'href "https://example.com" _blank' }))).toContain('  click A href "https://example.com" _blank\n');
+    expect(serialize(updateNode(model, 'A', { click: undefined }))).not.toContain('click');
+  });
+});
+
+describe('collapsed subgraphs', () => {
+  test('the canvas hides the contents and moves crossing edges to the box', async () => {
+    const model = await parseOk(readFileSync(join(FIXTURES, 'interaction.mmd'), 'utf8'));
+    const view = visibleModel(model);
+    expect(view.subgraphs.map((s) => s.id)).toEqual(['one']);
+    expect(view.nodes.map((n) => n.id)).not.toContain('a1');
+    // x --> a1 now ends at the box; a1 --> a2 and a2 --> a3 are inside it.
+    expect(view.edges.filter((e) => e.source === 'x').map((e) => [e.id, e.target])).toEqual([[model.edges.find((e) => e.source === 'x')?.id, 'one']]);
+    expect(view.edges.some((e) => e.source === 'a1' || e.source === 'a2')).toBe(false);
+    // The layout draws it as one box.
+    const { nodes } = layoutModel(model);
+    expect(nodes.find((n) => n.id === 'one')?.data).toMatchObject({ collapsed: true });
+    expect(nodes.some((n) => n.id === 'a1')).toBe(false);
+  });
+
+  test('toggled from the canvas', async () => {
+    const model = await parseOk('flowchart LR\n  subgraph s\n    a\n  end\n');
+    const collapsed = updateSubgraph(model, 's', { view: 'collapsed' });
+    expect(serialize(collapsed)).toContain('  s@{ view: collapsed }\n');
+    expect(serialize(updateSubgraph(collapsed, 's', { view: undefined }))).not.toContain('view');
   });
 });

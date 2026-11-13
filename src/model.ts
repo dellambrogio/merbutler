@@ -51,6 +51,11 @@ export interface FlowNode {
   classes?: string[];
   /** From `style id …`. */
   styles?: string[];
+  /**
+   * The rest of a `click id …` statement, as written: `href "https://…" "Tooltip" _blank`,
+   * `callback "Tooltip"`, `call cb()`. Kept and shown; the canvas never follows or runs it.
+   */
+  click?: string;
 }
 
 export interface FlowSubgraph {
@@ -65,6 +70,8 @@ export interface FlowSubgraph {
   classes?: string[];
   /** From `style id …`. */
   styles?: string[];
+  /** From `id@{ view: … }` (Mermaid 11.17+). Collapsed: drawn as one box, its contents hidden. */
+  view?: 'collapsed' | 'expanded';
 }
 
 export interface FlowEdge {
@@ -126,6 +133,9 @@ function withoutEmpty<T extends Styled>(item: T, classDefs?: readonly ClassDef[]
   if (next.classes) next.classes = sortClasses(next.classes, classDefs);
   if (next.classes?.length === 0) delete next.classes;
   if (next.styles?.length === 0) delete next.styles;
+  for (const key of ['click', 'view'] as const) {
+    if (key in next && (next as Record<string, unknown>)[key] === undefined) delete (next as Record<string, unknown>)[key];
+  }
   return next;
 }
 
@@ -217,7 +227,7 @@ export function normalizeNode(node: FlowNode): FlowNode {
 export function updateNode(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles'>>,
+  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles' | 'click'>>,
 ): FlowModel {
   return {
     ...model,
@@ -237,7 +247,7 @@ export function updateNode(
 export function updateSubgraph(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown' | 'classes' | 'styles'>>,
+  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown' | 'classes' | 'styles' | 'view'>>,
 ): FlowModel {
   return {
     ...model,
@@ -376,4 +386,39 @@ export function diagramTitle(model: FlowModel): string | null {
   // A YAML scalar, maybe quoted.
   const title = line[1].replace(/^(["'])(.*)\1$/, '$2');
   return title === '' ? null : title;
+}
+
+/**
+ * The model as the canvas shows it (Mermaid's rules for collapsed subgraphs): the contents of a
+ * collapsed subgraph are hidden, an edge that crosses its border ends at the collapsed box, and
+ * an edge inside it is hidden. Nested subgraphs collapse into the outermost collapsed one.
+ * Edges keep their ids, so a selected edge is still the edge in the model.
+ */
+export function visibleModel(model: FlowModel): FlowModel {
+  if (!model.subgraphs.some((s) => s.view === 'collapsed')) return model;
+  const parentOf = new Map<string, string | null>([
+    ...model.nodes.map((n) => [n.id, n.parent] as const),
+    ...model.subgraphs.map((s) => [s.id, s.parent] as const),
+  ]);
+  const collapsed = new Set(model.subgraphs.filter((s) => s.view === 'collapsed').map((s) => s.id));
+  /** The outermost collapsed subgraph around `id` (not `id` itself), or null. */
+  const collapsedAround = (id: string): string | null => {
+    let found: string | null = null;
+    for (let p = parentOf.get(id) ?? null; p !== null; p = parentOf.get(p) ?? null) if (collapsed.has(p)) found = p;
+    return found;
+  };
+  const shownAs = (id: string): string => collapsedAround(id) ?? id;
+  const edges = model.edges.flatMap((e) => {
+    const source = shownAs(e.source);
+    const target = shownAs(e.target);
+    const moved = source !== e.source || target !== e.target;
+    if (moved && source === target) return [];
+    return [moved ? { ...e, source, target } : e];
+  });
+  return {
+    ...model,
+    nodes: model.nodes.filter((n) => collapsedAround(n.id) === null),
+    subgraphs: model.subgraphs.filter((s) => collapsedAround(s.id) === null),
+    edges,
+  };
 }

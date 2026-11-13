@@ -350,6 +350,12 @@ export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<S
           onKeyDown={onKeyDown}
         />
       )}
+      {data.click && (
+        // Shows that the node has a `click` statement. Never followed or run on the canvas.
+        <span className="click-badge" title={`click ${id} ${data.click}`}>
+          {/^(href\b|")/.test(data.click) ? '↗' : 'ƒ'}
+        </span>
+      )}
       <Handle type="source" position={data.sourcePosition} />
     </div>
   );

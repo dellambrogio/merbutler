@@ -147,7 +147,6 @@ function setStyling<T extends Styled>(item: T, classes: string[], styles: string
 
 /** A subgraph's `style` statement is stored on a vertex with the subgraph id. */
 function toSubgraph(s: MermaidSubgraph, vertex: MermaidVertex | undefined): FlowSubgraph {
-  if (s.metadata) unsupported(`metadata on subgraph ${s.id}`);
   const subgraph: FlowSubgraph = {
     id: s.id,
     label: decodeEntities(s.title || s.id),
@@ -155,6 +154,13 @@ function toSubgraph(s: MermaidSubgraph, vertex: MermaidVertex | undefined): Flow
     parent: null,
     direction: s.dir ? toDirection(s.dir) : null,
   };
+  if (s.metadata) {
+    const { view, ...other } = s.metadata as Record<string, unknown>;
+    const keys = Object.keys(other);
+    if (keys.length > 0) unsupported(`"${keys[0]}" in ${s.id}@{ … } (subgraph ${s.id})`);
+    if (view !== 'collapsed' && view !== 'expanded') unsupported(`view "${String(view)}" (subgraph ${s.id})`);
+    subgraph.view = view;
+  }
   return setStyling(subgraph, [...s.classes], cleanStyles(vertex?.styles));
 }
 
@@ -164,18 +170,59 @@ function usesAtSyntax(text: string, id: string): boolean {
   return new RegExp(`(?:^|[^\\w-])${escaped}@\\{`, 'm').test(text);
 }
 
-function toNode(v: MermaidVertex, text: string): FlowNode {
+/**
+ * The statements of the code (split at newlines and `;`), outside quotes and `%%` comments.
+ * Enough to find `click` statements, which Mermaid's DB does not keep as written: with
+ * securityLevel 'strict' a callback leaves no trace, and links are rewritten (sanitized).
+ */
+export function statements(text: string): string[] {
+  const out: string[] = [];
+  let current = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') quoted = !quoted;
+    if (!quoted && c === '%' && text[i + 1] === '%') {
+      while (i < text.length && text[i] !== '\n') i++;
+      i--;
+      continue;
+    }
+    if (!quoted && (c === '\n' || c === ';')) {
+      out.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += c;
+  }
+  out.push(current.trim());
+  return out.filter((s) => s !== '');
+}
+
+/** `click id rest` statements by node id (the last one wins, as in Mermaid). */
+function clickStatements(text: string): Map<string, string> {
+  const clicks = new Map<string, string>();
+  for (const statement of statements(text.slice(preambleOf(text).length))) {
+    const m = /^click\s+(\S+)\s+(.+)$/s.exec(statement);
+    if (m) clicks.set(m[1], m[2].trim());
+  }
+  return clicks;
+}
+
+function toNode(v: MermaidVertex, text: string, clicks: Map<string, string>): FlowNode {
   if (v.icon) unsupported(`icon shape (node ${v.id})`);
   if (v.img) unsupported(`image shape (node ${v.id})`);
   // Bracket and `@{ shape }` names overlap (`circle`, `stadium`, …), so look at the code.
   const atSyntax = v.type != null && usesAtSyntax(text, v.id);
   const shape = v.type == null ? 'rect' : (atSyntax ? SHAPE_FROM_AT_NAME : SHAPE_FROM_BRACKETS).get(v.type);
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
-  // `click` adds the class "clickable". With securityLevel 'strict' a callback leaves only that class.
-  if (v.link || v.haveCallback || v.classes.includes('clickable')) unsupported(`click on node ${v.id}`);
   const node: FlowNode = { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
   if (atSyntax && v.type) node.shapeName = v.type;
-  setStyling(node, v.classes.filter((c) => c !== 'default'), cleanStyles(v.styles));
+  // `click` adds the class "clickable". The statement itself comes from the code.
+  const clickable = v.link !== undefined || v.haveCallback === true || v.classes.includes('clickable');
+  const click = clicks.get(v.id);
+  if (clickable && !click) unsupported(`click on node ${v.id} (statement not found)`);
+  if (click) node.click = click;
+  setStyling(node, v.classes.filter((c) => c !== 'default' && c !== 'clickable'), cleanStyles(v.styles));
   return normalizeNode(node);
 }
 
@@ -240,6 +287,10 @@ export async function parse(text: string): Promise<ParseResult> {
     const db = diagram.db as unknown as MermaidFlowDb;
     const direction = toDirection(db.getDirection() ?? 'TB');
     const vertices = db.getVertices();
+    const clicks = clickStatements(text);
+    for (const id of clicks.keys()) {
+      if (!vertices.has(id) || db.getSubGraphs().some((s) => s.id === id)) unsupported(`click on ${id}, which is not a node`);
+    }
 
     const rawSubgraphs = db.getSubGraphs();
     const subgraphs = rawSubgraphs.map((s) => toSubgraph(s, vertices.get(s.id)));
@@ -250,7 +301,7 @@ export async function parse(text: string): Promise<ParseResult> {
     const edges = rawEdges.map(toEdge);
 
     // An edge to a subgraph also creates a vertex with the subgraph id. It is not a node.
-    const nodes = [...vertices.values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text));
+    const nodes = [...vertices.values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text, clicks));
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
     // Mermaid lists inner subgraphs first, and keeps each id in one subgraph only.
@@ -279,4 +330,16 @@ export async function parse(text: string): Promise<ParseResult> {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };
   }
+}
+
+/**
+ * Checks the rest of a `click` statement from the inspector. Returns an error message, or null
+ * if Mermaid accepts it and reads it back the same.
+ */
+export async function checkClick(rest: string): Promise<string | null> {
+  if (/[\n;]/.test(rest.replace(/"[^"]*"/g, ''))) return 'One statement only (no line break or ;).';
+  const result = await parse(`flowchart LR\n  a\n  click a ${rest}\n`);
+  // Mermaid's message points into the test diagram (line 3), so give a plain one.
+  if (!result.ok) return 'Mermaid cannot read this click statement.';
+  return result.model.nodes[0]?.click === rest ? null : 'Mermaid reads this differently.';
 }

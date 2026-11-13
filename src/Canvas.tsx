@@ -46,7 +46,8 @@ import {
 import { RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 import { classesFromText, stylesFromText, stylesToText } from './styling';
-import { SubgraphNodeView } from './SubgraphNodeView';
+import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
+import { checkClick } from './parse';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
 const EDGE_TYPES = { label: LabelEdgeView };
@@ -168,6 +169,34 @@ function StyleFields({ id, item, model, styleTitle, onChange }: {
   );
 }
 
+/** The rest of a node's `click` statement. Checked with Mermaid before it is applied. */
+function ClickField({ id, value, onCommit }: { id: string; value: string; onCommit: (click: string | undefined) => void }): JSX.Element {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <label title='For example: href "https://example.com" "Tooltip" _blank, or callback "Tooltip". The canvas never follows or runs it.'>
+      Click
+      <TextField
+        key={`${id}:click:${value}`}
+        value={value}
+        placeholder='href "https://…" "Tooltip"'
+        onCommit={(text) => {
+          const rest = text.trim();
+          if (rest === '') {
+            setError(null);
+            onCommit(undefined);
+            return;
+          }
+          void checkClick(rest).then((problem) => {
+            setError(problem);
+            if (!problem) onCommit(rest);
+          });
+        }}
+      />
+      {error && <span className="field-error">{error}</span>}
+    </label>
+  );
+}
+
 /** Checkbox for the Markdown flag of a label. */
 function MarkdownToggle({ checked, onToggle }: { checked: boolean; onToggle: (markdown: boolean) => void }): JSX.Element {
   return (
@@ -280,6 +309,15 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
     [model, onChange, readOnly],
   );
 
+  const toggleCollapsed = useCallback(
+    (id: string): void => {
+      const subgraph = model.subgraphs.find((s) => s.id === id);
+      if (readOnly || !subgraph) return;
+      onChange(updateSubgraph(model, id, { view: subgraph.view === 'collapsed' ? undefined : 'collapsed' }));
+    },
+    [model, onChange, readOnly],
+  );
+
   /** A new element goes into the selected subgraph, or next to the selected node. */
   const targetParent = (): string | null => subgraph?.id ?? node?.parent ?? null;
 
@@ -364,6 +402,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             exclude={new Set()}
             onSelect={(parent) => onChange(setParent(model, node.id, parent))}
           />
+          <ClickField id={node.id} value={node.click ?? ''} onCommit={(click) => onChange(updateNode(model, node.id, { click }))} />
           <StyleFields
             id={node.id}
             item={node}
@@ -413,6 +452,14 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             exclude={subgraphWithDescendants(model, subgraph.id)}
             onSelect={(parent) => onChange(setParent(model, subgraph.id, parent))}
           />
+          <label className="checkbox" title="Mermaid draws a collapsed subgraph as one box (id@{ view: collapsed })">
+            <input
+              type="checkbox"
+              checked={subgraph.view === 'collapsed'}
+              onChange={(e) => onChange(updateSubgraph(model, subgraph.id, { view: e.target.checked ? 'collapsed' : undefined }))}
+            />
+            Collapsed
+          </label>
           <StyleFields
             id={subgraph.id}
             item={subgraph}
@@ -511,38 +558,40 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             <option key={c.name} value={c.name} />
           ))}
       </datalist>
-      <RenameContext.Provider value={rename}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={EDGE_TYPES}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onBeforeDelete={onBeforeDelete}
-          onConnect={onConnect}
-          onConnectStart={() => setConnecting(true)}
-          onConnectEnd={() => setConnecting(false)}
-          nodesConnectable={!readOnly}
-          elementsSelectable={!readOnly}
-          deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
-          zoomOnDoubleClick={false}
-          minZoom={0.2}
-        >
-          <Background />
-          <Controls showInteractive={false} />
-          {title && titleAnchor && (
-            <ViewportPortal>
-              <div
-                className="diagram-title"
-                style={{ transform: `translate(${titleAnchor.x}px, ${titleAnchor.y}px) translate(-50%, -100%)` }}
-              >
-                {title}
-              </div>
-            </ViewportPortal>
-          )}
-        </ReactFlow>
-      </RenameContext.Provider>
+      <CollapseContext.Provider value={readOnly ? null : toggleCollapsed}>
+        <RenameContext.Provider value={rename}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={EDGE_TYPES}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onBeforeDelete={onBeforeDelete}
+            onConnect={onConnect}
+            onConnectStart={() => setConnecting(true)}
+            onConnectEnd={() => setConnecting(false)}
+            nodesConnectable={!readOnly}
+            elementsSelectable={!readOnly}
+            deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+            zoomOnDoubleClick={false}
+            minZoom={0.2}
+          >
+            <Background />
+            <Controls showInteractive={false} />
+            {title && titleAnchor && (
+              <ViewportPortal>
+                <div
+                  className="diagram-title"
+                  style={{ transform: `translate(${titleAnchor.x}px, ${titleAnchor.y}px) translate(-50%, -100%)` }}
+                >
+                  {title}
+                </div>
+              </ViewportPortal>
+            )}
+          </ReactFlow>
+        </RenameContext.Provider>
+      </CollapseContext.Provider>
     </div>
   );
 }

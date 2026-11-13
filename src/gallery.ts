@@ -242,8 +242,8 @@ export const GALLERY: GalleryGroup[] = [
   {
     title: 'Interaction',
     examples: [
-      { id: 'click-link', title: 'click with a link', code: fc('  A --> B\n  click B "https://mermaid.js.org" "Open the docs" _blank\n') },
-      { id: 'click-callback', title: 'click with a callback', code: fc('  A --> B\n  click A callback "Tooltip"\n') },
+      { id: 'click-link', title: 'click with a link', code: fc('  A --> B\n  click B "https://mermaid.js.org" "Open the docs" _blank\n'), note: 'Kept as written. The canvas shows a badge and never follows the link.' },
+      { id: 'click-callback', title: 'click with a callback', code: fc('  A --> B\n  click A callback "Tooltip"\n'), note: 'Kept as written. The canvas shows a badge and never runs the callback.' },
     ],
   },
   {

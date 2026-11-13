@@ -148,3 +148,46 @@ button.danger { color: var(--danger); }
   .panes { grid-template-columns: 1fr; grid-template-rows: 2fr 3fr; }
   .code-pane { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* Gallery: an overlay on top of both panes. */
+.panes { position: relative; }
+.gallery {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  background: var(--bg);
+}
+.gallery-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+}
+.gallery-hint { font-size: 12px; }
+.gallery-body { flex: 1; overflow: auto; padding: 4px 16px 24px; }
+.gallery-body h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 20px 0 8px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gallery-card {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 10px;
+  border-radius: 8px; background: var(--panel); min-width: 0;
+}
+.gallery-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgb(0 0 0 / 0.1); }
+.gallery-card-head { display: flex; align-items: center; gap: 8px; }
+.gallery-card-title { flex: 1; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.badge { flex: none; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.badge.ok, .gallery-note.ok { color: #1d8a4e; }
+.badge.warn, .gallery-note.warn { color: #a86400; }
+.badge.no, .gallery-note.no { color: var(--danger); }
+/* Mermaid draws for a light background, in both color schemes. */
+.gallery-preview {
+  display: flex; align-items: center; justify-content: center; height: 150px; padding: 6px;
+  background: #fff; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.gallery-svg { display: contents; }
+.gallery-svg svg { max-width: 100%; max-height: 100%; height: auto; }
+.gallery-error { color: #c43c3c; font-size: 12px; overflow: hidden; }
+.gallery-note { font-size: 12px; overflow-wrap: anywhere; }
+.gallery-code {
+  margin: 0; font-size: 11px; line-height: 15px; max-height: 92px; overflow: hidden;
+  color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+@media (prefers-color-scheme: dark) {
+  .badge.ok, .gallery-note.ok { color: #5fd18f; }
+  .badge.warn, .gallery-note.warn { color: #f0b45a; }
+}

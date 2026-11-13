@@ -48,6 +48,8 @@ flowchart LR
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
   and HTML in labels never runs.
+- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, drawn by Mermaid, with a badge
+  that says whether the canvas can edit it. Click one to open it.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.
 
 ## Quick start
@@ -135,6 +137,8 @@ flowchart LR
   c ==>|yes| e[(Store)]
 ```
 
+Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
+
 Code with other features (invisible links `~~~`, `A@{ shape: … }`, `classDef`, `style`, `linkStyle`, `click`,
 other shapes or arrow types) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
@@ -175,6 +179,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx` | CodeMirror panel |
 | `src/App.tsx` | Split view and sync logic |
+| `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples and the gallery panel |
 | `tests/` | Round-trip, layout, label and clipboard tests, with `.mmd` fixtures |
 
 ## License

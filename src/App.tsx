@@ -3,6 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './Canvas';
 import { extractMermaid } from './clipboard';
 import { CodeEditor } from './CodeEditor';
+import { Gallery } from './Gallery';
 import type { FlowModel } from './model';
 import { parse } from './parse';
 import { serialize } from './serialize';
@@ -41,6 +42,7 @@ export function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const parseSeq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -148,6 +150,9 @@ export function App(): JSX.Element {
         <span className="muted">Mermaid flowchart editor</span>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
+        <button onClick={() => setGalleryOpen((open) => !open)} aria-pressed={galleryOpen}>
+          Gallery
+        </button>
         <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
           Paste
         </button>
@@ -175,6 +180,15 @@ export function App(): JSX.Element {
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>
           )}
         </section>
+        {galleryOpen && (
+          <Gallery
+            onOpen={(text) => {
+              replaceFromPaste(text);
+              setGalleryOpen(false);
+            }}
+            onClose={() => setGalleryOpen(false)}
+          />
+        )}
       </main>
     </div>
   );

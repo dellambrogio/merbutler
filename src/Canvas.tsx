@@ -43,6 +43,7 @@ import {
   type Stroke,
 } from './model';
 import { RenameContext, ShapeNodeView } from './ShapeNodeView';
+import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 import { SubgraphNodeView } from './SubgraphNodeView';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -283,8 +284,14 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
               value={node.shape}
               onChange={(e) => onChange(updateNode(model, node.id, { shape: e.target.value as Shape }))}
             >
-              {SHAPES.map((s) => (
-                <option key={s}>{s}</option>
+              {SHAPE_GROUPS.map((group) => (
+                <optgroup key={group} label={group}>
+                  {SHAPES.filter((s) => SHAPE_INFO[s].group === group).map((s) => (
+                    <option key={s} value={s}>
+                      {SHAPE_INFO[s].title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>

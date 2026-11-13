@@ -1,62 +1,14 @@
 import { fromEditText, toEditText } from './labels';
+import { SHAPE_INFO, SHAPES, type Shape } from './shapes';
+
+export { SHAPES, type Shape };
 
 export type Direction = 'TB' | 'BT' | 'LR' | 'RL';
-export type Shape =
-  | 'rect'
-  | 'round'
-  | 'stadium'
-  | 'subroutine'
-  | 'cylinder'
-  | 'circle'
-  | 'double-circle'
-  | 'flag'
-  | 'diamond'
-  | 'hexagon'
-  | 'lean-right'
-  | 'lean-left'
-  | 'trapezoid'
-  | 'inv-trapezoid';
 /** `invisible` is `~~~`: the layout uses the link, Mermaid does not draw it. */
 export type Stroke = 'normal' | 'dotted' | 'thick' | 'invisible';
 export type EdgeEnd = 'none' | 'arrow' | 'circle' | 'cross';
 
 export const DIRECTIONS: readonly Direction[] = ['TB', 'LR', 'BT', 'RL'];
-export const SHAPES: readonly Shape[] = [
-  'rect',
-  'round',
-  'stadium',
-  'subroutine',
-  'cylinder',
-  'circle',
-  'double-circle',
-  'flag',
-  'diamond',
-  'hexagon',
-  'lean-right',
-  'lean-left',
-  'trapezoid',
-  'inv-trapezoid',
-];
-/**
- * The short name for each shape in the `id@{ shape: … }` syntax (Mermaid 11.3+). Mermaid draws
- * these exactly like the bracket forms. Other names and aliases are in parse.ts.
- */
-export const AT_SHAPE_NAMES: Record<Shape, string> = {
-  rect: 'rect',
-  round: 'rounded',
-  stadium: 'stadium',
-  subroutine: 'fr-rect',
-  cylinder: 'cyl',
-  circle: 'circle',
-  'double-circle': 'dbl-circ',
-  flag: 'odd',
-  diamond: 'diam',
-  hexagon: 'hex',
-  'lean-right': 'lean-r',
-  'lean-left': 'lean-l',
-  trapezoid: 'trap-b',
-  'inv-trapezoid': 'trap-t',
-};
 
 export const STROKES: readonly Stroke[] = ['normal', 'dotted', 'thick', 'invisible'];
 export const EDGE_ENDS: readonly EdgeEnd[] = ['none', 'arrow', 'circle', 'cross'];
@@ -180,9 +132,33 @@ function relabel<T extends { label: string; markdown: boolean }>(old: T, next: T
 /**
  * The `@{ … }` syntax has no plain-text label: `label: "…"` is always Markdown, and without
  * `label:` the text is the id. A node with another plain label is written with brackets.
+ * A shape without brackets is always written with `@{ … }`.
  */
 export function keepsAtSyntax(node: FlowNode): boolean {
+  if (!SHAPE_INFO[node.shape].brackets) return true;
   return node.shapeName !== undefined && (node.markdown || node.label === node.id);
+}
+
+/**
+ * Makes a node writable in the syntax it needs. A shape without brackets needs `@{ … }`,
+ * so a plain label becomes a Markdown label there (`<br>` becomes a newline).
+ * A shape with brackets keeps `@{ … }` only while `keepsAtSyntax` allows it.
+ */
+export function normalizeNode(node: FlowNode): FlowNode {
+  const info = SHAPE_INFO[node.shape];
+  if (!info.brackets) {
+    const next = { ...node, shapeName: node.shapeName ?? info.at };
+    if (!next.markdown && next.label !== next.id) {
+      next.markdown = true;
+      next.label = toEditText(next.label);
+    }
+    return next;
+  }
+  if (node.shapeName !== undefined && !keepsAtSyntax(node)) {
+    const { shapeName: _dropped, ...rest } = node;
+    return rest;
+  }
+  return node;
 }
 
 export function updateNode(
@@ -196,10 +172,11 @@ export function updateNode(
       if (n.id !== id) return n;
       const node = { ...n, ...patch };
       node.label = normalizeNodeLabel(relabel(n, node), id, node.markdown);
-      // A new shape keeps the syntax the code used.
-      if (node.shapeName !== undefined && patch.shape && patch.shape !== n.shape) node.shapeName = AT_SHAPE_NAMES[patch.shape];
-      if (node.shapeName !== undefined && !keepsAtSyntax(node)) delete node.shapeName;
-      return node;
+      // A new shape keeps the syntax the code used, with the short name.
+      if (patch.shape && patch.shape !== n.shape && (node.shapeName !== undefined || !SHAPE_INFO[patch.shape].brackets)) {
+        node.shapeName = SHAPE_INFO[patch.shape].at;
+      }
+      return normalizeNode(node);
     }),
   };
 }

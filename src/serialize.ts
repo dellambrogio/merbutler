@@ -11,28 +11,12 @@ import {
   type FlowModel,
   type FlowNode,
   type FlowSubgraph,
-  type Shape,
   type Stroke,
   type TreeItem,
 } from './model';
 import { fromEditText } from './labels';
+import { SHAPE_INFO } from './shapes';
 
-const SHAPE_BRACKETS: Record<Shape, readonly [string, string]> = {
-  rect: ['[', ']'],
-  round: ['(', ')'],
-  stadium: ['([', '])'],
-  subroutine: ['[[', ']]'],
-  cylinder: ['[(', ')]'],
-  circle: ['((', '))'],
-  'double-circle': ['(((', ')))'],
-  flag: ['>', ']'],
-  diamond: ['{', '}'],
-  hexagon: ['{{', '}}'],
-  'lean-right': ['[/', '/]'],
-  'lean-left': ['[\\', '\\]'],
-  trapezoid: ['[/', '\\]'],
-  'inv-trapezoid': ['[\\', '/]'],
-};
 
 /**
  * Line without markers, and line body to put markers around, for an edge of length n.
@@ -97,7 +81,7 @@ function nodeLine(node: FlowNode): string {
     return `${node.id}@{ ${fields.join(', ')} }`;
   }
   if (node.shape === 'rect' && label === node.id && !node.markdown) return node.id;
-  const [open, close] = SHAPE_BRACKETS[node.shape];
+  const [open, close] = SHAPE_INFO[node.shape].brackets ?? ['[', ']'];
   return `${node.id}${open}${quoteText(label, node.markdown)}${close}`;
 }
 

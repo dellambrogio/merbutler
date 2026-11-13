@@ -43,7 +43,7 @@ flowchart LR
 
 - ✍️ **Two-way sync**: type code and the canvas updates; edit the canvas and the code is regenerated.
 - 🧩 **Subgraphs**: nested, with their own direction, and edges to or from a whole subgraph.
-- 🔷 **14 node shapes** and all Mermaid flowchart edge styles and end markers.
+- 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
@@ -114,7 +114,7 @@ just dev        # open the URL that Vite prints
 |---|---|
 | Diagram | `flowchart` / `graph` with `TB`, `TD`, `BT`, `LR`, `RL` |
 | Shapes | `[rect]`, `(round)`, `([stadium])`, `[[subroutine]]`, `[(cylinder)]`, `((circle))`, `(((double circle)))`, `>flag]`, `{diamond}`, `{{hexagon}}`, `[/parallelogram/]`, `[\parallelogram\]`, `[/trapezoid\]`, `[\inverted trapezoid/]` |
-| Shapes, new syntax | `A@{ shape: diam, label: "…" }` with the names and aliases that Mermaid draws like the shapes above: `rect`, `rounded`, `stadium`, `fr-rect`, `cyl`, `circle`, `dbl-circ`, `odd`, `diam`, `hex`, `lean-r`, `lean-l`, `trap-b`, `trap-t` (and aliases such as `database`, `decision`, `process`). The syntax and name are kept |
+| Shapes, new syntax | `A@{ shape: …, label: "…" }` with all 53 shapes of Mermaid 12.3 and their aliases, from `doc` and `cloud` to `fork` and `person`. The 14 shapes above can be written either way. The syntax and the name (alias included) are kept |
 | Edge strokes | normal `--`, dotted `-.-`, thick `==`, invisible `~~~` (drawn faintly on the canvas so you can select it) |
 | Edge ends | `>` arrow, `o` circle, `x` cross or none, on one end (`-->`, `--o`, `-.-x`, `==>`) or both (`<-->`, `o--o`, `x-.-x`, `<==>`) |
 | Edge labels | `-->|label|` or `-- label -->` |
@@ -143,7 +143,7 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (other `A@{ shape: … }` shapes such as `cloud` or `doc`, icon and image shapes, `classDef`, `style`,
+Code with other features (icon and image shapes, `classDef`, `style`,
 `linkStyle`, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
 
@@ -157,6 +157,11 @@ deleting those parts.
 - A subgraph without an id (`subgraph Some title`) gets the id Mermaid gives it (for example `subGraph3`)
   after the first canvas edit.
 - Labels are trimmed. An empty node label becomes the node id.
+- `@{ label: … }` is always Markdown in Mermaid. A shape that exists only in the `@{}` syntax therefore turns a
+  plain label into a Markdown label (`<br>` becomes a line break). A shape with brackets keeps a plain label by
+  switching to the bracket syntax.
+- Some shapes have no visible label in Mermaid (`fork`, `f-circ`, `sm-circ`, `fr-circ`, `cross-circ`, `hourglass`,
+  `bolt`). The canvas does the same; edit their label in the inspector.
 - Mermaid removes unknown HTML tags from labels (for example `<t>`). Other tags (for example `<b>`) are kept in
   the code but shown as text on the canvas; only `<br>` is shown as a line break. HTML from pasted code never runs.
 - In a plain label a line break is saved as `<br>`; in a Markdown label as a real newline.
@@ -172,13 +177,14 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | File | Purpose |
 |---|---|
 | `src/model.ts` | Graph model and edit operations |
+| `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
 | `src/parse.ts` | Mermaid text → model |
 | `src/serialize.ts` | Model → Mermaid text |
 | `src/layout.ts` | Model → positioned React Flow nodes and edges |
 | `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
 | `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |
 | `src/Canvas.tsx` | Canvas, toolbar and inspector |
-| `src/ShapeNodeView.tsx`, `src/SubgraphNodeView.tsx` | Node shapes and subgraph boxes |
+| `src/ShapeNodeView.tsx`, `src/SubgraphNodeView.tsx` | Shape outlines and subgraph boxes |
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx` | CodeMirror panel |
 | `src/App.tsx` | Split view and sync logic |

@@ -103,8 +103,14 @@ button.danger { color: var(--danger); }
 
 .shape-node { position: relative; display: flex; align-items: center; justify-content: center; }
 .shape-outline { position: absolute; inset: 0; overflow: visible; }
-.shape-outline :is(rect, ellipse, polygon, path, line) { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
-.shape-node.selected .shape-outline :is(rect, ellipse, polygon, path, line) { stroke: var(--accent); stroke-width: 2.5; }
+.shape-outline :is(rect, ellipse, polygon, path, line, circle) { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
+.shape-node.selected .shape-outline :is(rect, ellipse, polygon, path, line, circle) { stroke: var(--accent); stroke-width: 2.5; }
+/* Outline parts: stroke only, filled with the stroke color, a thick ring, or an invisible area that still takes clicks. */
+.shape-outline .nofill { fill: none; }
+.shape-outline .solid { fill: var(--node-stroke); }
+.shape-outline .thick { stroke-width: 3.5; }
+.shape-outline .ghost { fill: transparent; stroke: none; }
+.shape-node.selected .shape-outline .ghost { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
 .shape-label {
   position: relative; padding: 0 10px; text-align: center; line-height: 18px;
   overflow: hidden; color: var(--text); overflow-wrap: anywhere;

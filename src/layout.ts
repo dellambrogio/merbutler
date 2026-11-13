@@ -3,6 +3,7 @@ import dagre from '@dagrejs/dagre';
 import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from '@xyflow/react';
 import { MARKER_IDS } from './EdgeMarkers';
 import { labelLines, visibleLength } from './labels';
+import { SHAPE_INFO } from './shapes';
 import {
   buildTree,
   type Direction,
@@ -13,9 +14,6 @@ import {
   type Stroke,
   type TreeItem,
 } from './model';
-
-/** Horizontal slant of parallelograms, trapezoids and hexagons, in px. Shared with the node view. */
-export const SLANT = 16;
 
 export interface ShapeNodeData extends Record<string, unknown> {
   label: string;
@@ -75,51 +73,8 @@ export function textSize(label: string, markdown: boolean): { width: number; hei
 }
 
 /** Approximate node size from the label. Exact size does not matter: dagre only needs room. */
-export function nodeSize(label: string, shape: Shape, markdown = false): { width: number; height: number } {
-  const text = textSize(label, markdown);
-  const textWidth = Math.max(text.width, 30);
-  const base = nodeSizeOneLine(textWidth, shape);
-  const extra = (text.lines - 1) * LINE_HEIGHT;
-  if (shape === 'circle' || shape === 'double-circle') {
-    const d = Math.max(base.width, base.height + extra);
-    return { width: d, height: d };
-  }
-  if (shape === 'diamond') return { width: base.width + extra, height: base.height + extra * 1.5 };
-  return { width: base.width, height: base.height + extra };
-}
-
-function nodeSizeOneLine(textWidth: number, shape: Shape): { width: number; height: number } {
-  switch (shape) {
-    case 'circle': {
-      const d = Math.max(textWidth + 24, 60);
-      return { width: d, height: d };
-    }
-    case 'double-circle': {
-      const d = Math.max(textWidth + 36, 70);
-      return { width: d, height: d };
-    }
-    case 'diamond': {
-      const w = Math.max(textWidth * 1.6 + 40, 90);
-      return { width: w, height: Math.max(w * 0.6, 70) };
-    }
-    case 'stadium':
-      return { width: textWidth + 48, height: 44 };
-    case 'cylinder':
-      return { width: textWidth + 32, height: 54 };
-    case 'subroutine':
-    case 'flag':
-      return { width: textWidth + 48, height: 44 };
-    case 'hexagon':
-    case 'lean-right':
-    case 'lean-left':
-    case 'trapezoid':
-    case 'inv-trapezoid':
-      // The slanted sides take room on both ends.
-      return { width: textWidth + 32 + 2 * SLANT, height: 44 };
-    case 'rect':
-    case 'round':
-      return { width: textWidth + 32, height: 44 };
-  }
+export function nodeSize(label: string, shape: Shape, markdown = false, direction: Direction = 'TB'): { width: number; height: number } {
+  return SHAPE_INFO[shape].size(textSize(label, markdown), direction === 'TB' || direction === 'BT');
 }
 
 function union(boxes: Box[]): Box {
@@ -243,7 +198,7 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
     ctx.directionOf.set(id, direction);
     const node = model.nodes.find((n) => n.id === id);
     if (node) {
-      g.setNode(id, nodeSize(node.label, node.shape, node.markdown));
+      g.setNode(id, nodeSize(node.label, node.shape, node.markdown, direction));
     } else if (isCluster(id)) {
       g.setNode(id, {}); // A cluster has no own size.
     } else {

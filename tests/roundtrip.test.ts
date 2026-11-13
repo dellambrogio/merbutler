@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { parse } from '../src/parse';
+import { SHAPE_INFO } from '../src/shapes';
 import { serialize } from '../src/serialize';
 import {
   addNode,
@@ -113,7 +114,10 @@ describe('parse', () => {
     ]);
   });
 
-  test.each(SHAPES)('shape %s keeps a label with special characters', async (shape) => {
+  const withBrackets = SHAPES.filter((s) => SHAPE_INFO[s].brackets);
+  const atOnly = SHAPES.filter((s) => !SHAPE_INFO[s].brackets);
+
+  test.each(withBrackets)('shape %s keeps a label with special characters', async (shape) => {
     // No HTML tags: Mermaid removes unknown tags such as <t> from labels.
     const label = 'a "q" (x) [y] {z} /s/ \\b\\ |p| > #35;';
     const model = await parseOk('flowchart LR\n  a');
@@ -122,12 +126,28 @@ describe('parse', () => {
     expect(reparsed.nodes[0]).toEqual({ id: 'a', label, shape, markdown: false, parent: null });
   });
 
+  test.each(atOnly)('shape %s (only in @{} syntax) keeps a label with special characters, as Markdown', async (shape) => {
+    const label = 'a "q" (x) [y] {z} /s/ \\b\\ |p| > #35;';
+    const model = await parseOk('flowchart LR\n  a');
+    const edited = updateNode(model, 'a', { label, shape });
+    expect(serialize(edited)).toContain(`a@{ shape: ${SHAPE_INFO[shape].at}, label: `);
+    const reparsed = await parseOk(serialize(edited));
+    expect(reparsed.nodes[0]).toEqual({ id: 'a', label, shape, markdown: true, parent: null, shapeName: SHAPE_INFO[shape].at });
+  });
+
   test.each(SHAPES)('shape %s keeps a Markdown label', async (shape) => {
     const label = '**b** "q" `tick` *i*\nsecond (line) #35;';
     const model = await parseOk('flowchart LR\n  a');
     const edited = updateNode(model, 'a', { label, shape, markdown: true });
     const reparsed = await parseOk(serialize(edited));
-    expect(reparsed.nodes[0]).toEqual({ id: 'a', label, shape, markdown: true, parent: null });
+    expect(reparsed.nodes[0]).toMatchObject({ id: 'a', label, shape, markdown: true, parent: null });
+  });
+
+  test.each(atOnly)('shape %s: every alias parses to it', async (shape) => {
+    for (const name of [SHAPE_INFO[shape].at, ...SHAPE_INFO[shape].aliases]) {
+      const model = await parseOk(`flowchart LR\n  a@{ shape: ${name}, label: "x" }\n`);
+      expect(model.nodes[0]).toMatchObject({ shape, shapeName: name });
+    }
   });
 
   test('maps edge ends', async () => {
@@ -169,8 +189,7 @@ describe('parse', () => {
     ['other diagram type', 'sequenceDiagram\n  A->>B: hi'],
     ['classDef', 'flowchart LR\n  a\n  classDef red fill:#f00'],
     ['style', 'flowchart LR\n  a\n  style a fill:#f00'],
-    ['shape from @{} syntax', 'flowchart LR\n  a@{ shape: bolt }'],
-    ['paper tape, not the bracket flag', 'flowchart LR\n  a@{ shape: flag }'],
+    ['unknown @{} shape', 'flowchart LR\n  a@{ shape: nonsense }'],
     ['linkStyle', 'flowchart LR\n  a --> b\n  linkStyle 0 stroke:#f00'],
     ['click', 'flowchart LR\n  a\n  click a "https://example.com"'],
   ])('rejects %s', async (_name, text) => {

@@ -6,7 +6,8 @@
  * this API is not public and can change.
  */
 import mermaid from 'mermaid';
-import { canonicalOrder, keepsAtSyntax, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Shape, type Stroke } from './model';
+import { canonicalOrder, normalizeNode, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
+import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
 
 export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
 
@@ -60,51 +61,6 @@ interface MermaidFlowDb {
   getSubGraphs(): MermaidSubgraph[];
 }
 
-/** Shape types from the bracket syntax (`A[(…)]` is `cylinder`, `A>…]` is `odd`). */
-const SHAPE_FROM_BRACKETS: Record<string, Shape> = {
-  square: 'rect',
-  round: 'round',
-  stadium: 'stadium',
-  subroutine: 'subroutine',
-  cylinder: 'cylinder',
-  circle: 'circle',
-  doublecircle: 'double-circle',
-  odd: 'flag',
-  diamond: 'diamond',
-  hexagon: 'hexagon',
-  lean_right: 'lean-right',
-  lean_left: 'lean-left',
-  trapezoid: 'trapezoid',
-  inv_trapezoid: 'inv-trapezoid',
-};
-
-/**
- * Names and aliases from the `A@{ shape: … }` syntax that Mermaid draws exactly like a bracket
- * shape (checked by comparing Mermaid's SVG output). Other names, such as `flag` (paper tape),
- * are different shapes and are not supported yet.
- */
-const SHAPE_FROM_AT_SYNTAX: Record<string, Shape> = {
-  ...Object.fromEntries(
-    (
-      [
-        ['rect', ['rect', 'proc', 'process', 'rectangle']],
-        ['round', ['rounded', 'event']],
-        ['stadium', ['stadium', 'pill', 'terminal']],
-        ['subroutine', ['fr-rect', 'framed-rectangle', 'subproc', 'subprocess', 'subroutine']],
-        ['cylinder', ['cyl', 'cylinder', 'database', 'db']],
-        ['circle', ['circle', 'circ']],
-        ['double-circle', ['dbl-circ', 'double-circle']],
-        ['flag', ['odd']],
-        ['diamond', ['diam', 'decision', 'diamond', 'question']],
-        ['hexagon', ['hex', 'hexagon', 'prepare']],
-        ['lean-right', ['lean-r', 'lean-right', 'in-out']],
-        ['lean-left', ['lean-l', 'lean-left', 'out-in']],
-        ['trapezoid', ['trap-b', 'trapezoid', 'trapezoid-bottom', 'priority']],
-        ['inv-trapezoid', ['trap-t', 'inv-trapezoid', 'trapezoid-top', 'manual']],
-      ] as Array<[Shape, string[]]>
-    ).flatMap(([shape, names]) => names.map((name) => [name, shape])),
-  ),
-};
 
 const DIRECTION_FROM_MERMAID: Record<string, Direction> = {
   TB: 'TB',
@@ -197,7 +153,7 @@ function toNode(v: MermaidVertex, text: string): FlowNode {
   if (v.img) unsupported(`image shape (node ${v.id})`);
   // Bracket and `@{ shape }` names overlap (`circle`, `stadium`, …), so look at the code.
   const atSyntax = v.type != null && usesAtSyntax(text, v.id);
-  const shape = v.type == null ? 'rect' : atSyntax ? SHAPE_FROM_AT_SYNTAX[v.type] : SHAPE_FROM_BRACKETS[v.type];
+  const shape = v.type == null ? 'rect' : (atSyntax ? SHAPE_FROM_AT_NAME : SHAPE_FROM_BRACKETS).get(v.type);
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
   if (v.styles.length > 0) unsupported(`style on node ${v.id}`);
   // `click` adds the class "clickable". With securityLevel 'strict' a callback leaves only that class.
@@ -205,8 +161,7 @@ function toNode(v: MermaidVertex, text: string): FlowNode {
   if (v.classes.some((c) => c !== 'default')) unsupported(`class on node ${v.id}`);
   const node: FlowNode = { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
   if (atSyntax && v.type) node.shapeName = v.type;
-  if (node.shapeName !== undefined && !keepsAtSyntax(node)) delete node.shapeName;
-  return node;
+  return normalizeNode(node);
 }
 
 function toEdge(e: MermaidEdge, index: number): FlowEdge {

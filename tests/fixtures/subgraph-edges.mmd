@@ -1,0 +1,9 @@
+flowchart LR
+    subgraph ingest [Ingestion]
+        direction TB
+        a1[fetch] --> a2[parse]
+    end
+    subgraph store [Storage]
+        b1[(db)]
+    end
+    ingest --> store

@@ -1,0 +1,4 @@
+flowchart TB
+  start([Begin]) --> step1[Load data] --> step2{Valid?}
+  step2 -->|yes| done((End))
+  step2 -->|no| step1

@@ -1,0 +1,173 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`round-trip > all-shapes.mmd 1`] = `
+"flowchart LR
+  a[rectangle]
+  b(rounded)
+  c([stadium])
+  d[[subroutine]]
+  e[(database)]
+  f((circle))
+  g>flag]
+  h{decision}
+  i{{hexagon}}
+  j[/parallelogram/]
+  k[/trapezoid\\]
+  l(((double circle)))
+  m[\\lean left\\]
+  n[\\inverted trapezoid/]
+  a --> b
+  b --> c
+  c --> d
+  e --> f
+  f --> g
+  g --> h
+  i --> j
+  j --> k
+  k --> l
+  m --> n
+"
+`;
+
+exports[`round-trip > basic.mmd 1`] = `
+"flowchart LR
+  A[Start]
+  B{Ok?}
+  C(Done)
+  D([Retry])
+  E((Circle))
+  F
+  A --> B
+  B -->|yes| C
+  B -.->|no| D
+  D ==> A
+  E --- C
+"
+`;
+
+exports[`round-trip > chain.mmd 1`] = `
+"flowchart TB
+  start([Begin])
+  step1[Load data]
+  step2{Valid?}
+  done((End))
+  start --> step1
+  step1 --> step2
+  step2 -->|yes| done
+  step2 -->|no| step1
+"
+`;
+
+exports[`round-trip > edge-ends.mmd 1`] = `
+"flowchart LR
+  A
+  B
+  C
+  D
+  E
+  F
+  G
+  H
+  A --> B
+  B --- C
+  C -.-> D
+  D ==> E
+  E --o F
+  F --x G
+  G <--> H
+"
+`;
+
+exports[`round-trip > graph-td.mmd 1`] = `
+"flowchart TB
+  a
+  b
+  c
+  d
+  a --> b
+  a --> c
+  b --> d
+  c --> d
+"
+`;
+
+exports[`round-trip > open-edges.mmd 1`] = `
+"flowchart BT
+  x
+  y
+  z
+  x -.- y
+  y === z
+  z ---|plain label| x
+"
+`;
+
+exports[`round-trip > rich-text.mmd 1`] = `
+"flowchart LR
+  A["Text with (parens) & symbols"]
+  B["\`**bold** and *italic*\`"]
+  C["line one<br>line two"]
+  A --> B
+  B --> C
+"
+`;
+
+exports[`round-trip > special-text.mmd 1`] = `
+"flowchart RL
+  q["Say #quot;hi#quot; (now)"]
+  r["x [y] {z}"]
+  s["ünïcode: ✓"]
+  q -->|"a | b"| r
+  r --> s
+"
+`;
+
+exports[`round-trip > subgraph-edges.mmd 1`] = `
+"flowchart LR
+  subgraph ingest [Ingestion]
+    direction TB
+    a1[fetch]
+    a2[parse]
+  end
+  subgraph store [Storage]
+    b1[(db)]
+  end
+  a1 --> a2
+  ingest --> store
+"
+`;
+
+exports[`round-trip > subgraph-empty.mmd 1`] = `
+"flowchart TB
+  x
+  y
+  subgraph s1 [Empty group]
+  end
+  x --> y
+"
+`;
+
+exports[`round-trip > subgraphs.mmd 1`] = `
+"flowchart LR
+  start
+  e
+  subgraph outer [Outer box]
+    direction TB
+    a[A]
+    subgraph inner ["Inner #quot;x#quot;"]
+      b((B))
+    end
+  end
+  subgraph plain
+    c
+  end
+  subgraph subGraph3 [Title with spaces]
+    d
+  end
+  start --> a
+  a --> b
+  b --> c
+  c --> e
+  d -.-> a
+"
+`;

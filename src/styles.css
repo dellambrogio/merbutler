@@ -1,0 +1,150 @@
+:root {
+  --bg: #ffffff;
+  --panel: #f6f7f9;
+  --text: #1d2330;
+  --muted: #687085;
+  --border: #d5d9e0;
+  --accent: #3b6ef5;
+  --node-fill: #eef2ff;
+  --node-stroke: #5b6b9a;
+  --danger: #c43c3c;
+  --error-bg: #fdecec;
+  --active-line: rgb(59 110 245 / 0.07);
+  --selection: rgb(59 110 245 / 0.25);
+  --selection-match: rgb(59 110 245 / 0.12);
+  --subgraph-fill: rgb(59 110 245 / 0.04);
+  --edge-stroke: #8a91a3;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --panel: #1f2229;
+    --text: #e3e6ed;
+    --muted: #9098ab;
+    --border: #353a45;
+    --accent: #7a9bff;
+    --node-fill: #262c3d;
+    --node-stroke: #8d9cc8;
+    --danger: #ff7a7a;
+    --error-bg: #3a1f22;
+    --active-line: rgb(255 255 255 / 0.05);
+    --selection: rgb(122 155 255 / 0.35);
+    --selection-match: rgb(122 155 255 / 0.18);
+    --subgraph-fill: rgb(122 155 255 / 0.06);
+    --edge-stroke: #a7aec0;
+  }
+  .react-flow {
+    --xy-background-color: var(--bg);
+    --xy-edge-label-background-color: var(--bg);
+    --xy-edge-label-color: var(--text);
+    --xy-controls-button-background-color: var(--panel);
+    --xy-controls-button-color: var(--text);
+    --xy-controls-button-border-color: var(--border);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; background: var(--bg); }
+
+button, select, input, textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.danger { color: var(--danger); }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+.app-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--panel);
+}
+.muted { color: var(--muted); }
+.notice { color: var(--danger); font-size: 12px; }
+.spacer { flex: 1; }
+
+.panes { flex: 1; display: grid; grid-template-columns: minmax(280px, 2fr) 3fr; min-height: 0; }
+.pane { position: relative; min-height: 0; min-width: 0; }
+.code-pane { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+.code-editor { flex: 1; min-height: 0; overflow: auto; }
+.code-editor .cm-editor { height: 100%; font-size: 13px; }
+.code-editor .cm-editor.cm-focused { outline: none; }
+
+.error {
+  background: var(--error-bg); color: var(--danger);
+  padding: 8px 12px; border-top: 1px solid var(--border); max-height: 40%; overflow: auto;
+}
+.error pre { margin: 4px 0 0; white-space: pre-wrap; font-size: 12px; }
+
+.canvas { position: absolute; inset: 0; }
+.canvas.read-only .react-flow { opacity: 0.55; }
+.placeholder { padding: 24px; color: var(--muted); }
+
+.toolbar, .inspector {
+  position: absolute; z-index: 5; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+.toolbar { top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; }
+.inspector { top: 10px; right: 10px; width: 220px; display: flex; flex-direction: column; gap: 8px; }
+.inspector-title { font-weight: 600; }
+.inspector label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
+.inspector label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
+
+.shape-node { position: relative; display: flex; align-items: center; justify-content: center; }
+.shape-outline { position: absolute; inset: 0; overflow: visible; }
+.shape-outline :is(rect, ellipse, polygon, path, line) { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
+.shape-node.selected .shape-outline :is(rect, ellipse, polygon, path, line) { stroke: var(--accent); stroke-width: 2.5; }
+.shape-label {
+  position: relative; padding: 0 10px; text-align: center; line-height: 18px;
+  overflow: hidden; color: var(--text); overflow-wrap: anywhere;
+}
+.shape-input, .subgraph-input { position: relative; resize: none; font: inherit; line-height: 18px; }
+.shape-input { width: 85%; text-align: center; padding: 2px 4px; }
+.inspector textarea { font: inherit; resize: vertical; line-height: 18px; padding: 3px 8px; }
+.edge-label {
+  position: absolute; pointer-events: all; padding: 2px 4px; border-radius: 3px;
+  background: var(--bg); color: var(--text); font-size: 12px; line-height: 16px; text-align: center;
+}
+.edge-label.selected { outline: 1px solid var(--accent); }
+/* Edges use zIndex 1 to draw above subgraph boxes. Labels must draw above the edges. */
+.react-flow__edgelabel-renderer { z-index: 3; }
+.subgraph-node {
+  border: 1.5px dashed var(--node-stroke); border-radius: 8px;
+  background: var(--subgraph-fill);
+}
+.subgraph-node.selected { border-color: var(--accent); border-style: solid; }
+.subgraph-title {
+  padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--muted);
+  line-height: 18px; overflow: hidden; cursor: text;
+}
+.subgraph-input { margin: 4px 6px; width: calc(100% - 12px); font-size: 12px; padding: 1px 4px; }
+.react-flow__node-subgraph { padding: 0; }
+.react-flow { --xy-edge-stroke: var(--edge-stroke); }
+/* Arrow markers take this color. Circle and cross markers are styled below. */
+.react-flow__arrowhead polyline { stroke: var(--edge-stroke); fill: var(--edge-stroke); }
+.edge-marker-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.edge-marker-fill { fill: var(--edge-stroke); }
+.edge-marker-line { stroke: var(--edge-stroke); stroke-width: 2; fill: none; stroke-linecap: round; }
+.react-flow__handle { width: 8px; height: 8px; background: var(--node-stroke); opacity: 0; transition: opacity 0.1s; }
+/* Handles sit where edge markers end. Show them only when they are useful, so markers stay visible. */
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto,
+.canvas.connecting .react-flow__handle { opacity: 1; }
+
+@media (max-width: 760px) {
+  .panes { grid-template-columns: 1fr; grid-template-rows: 2fr 3fr; }
+  .code-pane { border-right: none; border-bottom: 1px solid var(--border); }
+}

@@ -1,0 +1,17 @@
+flowchart LR
+  start --> a
+  subgraph outer [Outer box]
+    direction TB
+    a[A]
+    subgraph inner ["Inner #quot;x#quot;"]
+      b((B))
+    end
+  end
+  subgraph plain
+    c
+  end
+  subgraph Title with spaces
+    d
+  end
+  a --> b --> c --> e
+  d -.-> a

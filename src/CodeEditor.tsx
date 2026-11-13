@@ -1,11 +1,19 @@
-import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
+import { useEffect, useRef, type JSX } from 'react';
 import { basicSetup, EditorView } from 'codemirror';
-import { Annotation } from '@codemirror/state';
+import { Annotation, Compartment } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { indentWithTab, isolateHistory } from '@codemirror/commands';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
 import { extractMermaid } from './clipboard';
+
+/**
+ * The text size, as part of the editor's theme. CodeMirror measures line heights itself: a size set
+ * from outside (CSS) leaves the gutter's line numbers at the old heights. Reconfiguring this
+ * compartment makes it measure again.
+ */
+const fontTheme = new Compartment();
+const fontSizeTheme = (px: number) => EditorView.theme({ '&': { fontSize: `${px}px` } });
 
 /** Marks a change that comes from the `value` prop, so it is not reported back through onChange. */
 const External = Annotation.define<boolean>();
@@ -80,6 +88,7 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
       extensions: [
         basicSetup,
         appTheme,
+        fontTheme.of(fontSizeTheme(fontSize)),
         EditorView.lineWrapping,
         mermaidSyntax(),
         mermaidCompletion(() => completionRef.current),
@@ -112,6 +121,10 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
     }
   }, [value]);
 
+  useEffect(() => {
+    view.current?.dispatch({ effects: fontTheme.reconfigure(fontSizeTheme(fontSize)) });
+  }, [fontSize]);
+
   // Mark the parse error on its line. The error comes from the app's parse, after the code settles.
   useEffect(() => {
     const v = view.current;
@@ -120,5 +133,5 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
     v.dispatch(setDiagnostics(v.state, mark ? [mark] : []));
   }, [error, value]);
 
-  return <div className="code-editor" ref={host} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties} />;
+  return <div className="code-editor" ref={host} />;
 }

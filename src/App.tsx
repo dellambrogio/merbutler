@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type JSX } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './Canvas';
 import { extractMermaid } from './clipboard';
@@ -28,6 +28,25 @@ function loadCode(): string {
   }
 }
 
+const FONT_KEY = 'merbutler:editorFontSize';
+const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
+const DEFAULT_FONT_SIZE = 13;
+
+function loadFontSize(): number {
+  try {
+    const size = Number(localStorage.getItem(FONT_KEY));
+    return FONT_SIZES.includes(size) ? size : DEFAULT_FONT_SIZE;
+  } catch {
+    return DEFAULT_FONT_SIZE;
+  }
+}
+
+/** The next size in FONT_SIZES, up or down. */
+function stepFontSize(size: number, step: 1 | -1): number {
+  const i = FONT_SIZES.indexOf(size);
+  return FONT_SIZES[Math.min(FONT_SIZES.length - 1, Math.max(0, (i < 0 ? FONT_SIZES.indexOf(DEFAULT_FONT_SIZE) : i) + step))];
+}
+
 function saveCode(code: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, code);
@@ -43,6 +62,39 @@ export function App(): JSX.Element {
   const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [fontSize, setFontSize] = useState(loadFontSize);
+  const changeFont = useCallback((step: 1 | -1 | 0): void => {
+    setFontSize((size) => {
+      const next = step === 0 ? DEFAULT_FONT_SIZE : stepFontSize(size, step);
+      try {
+        localStorage.setItem(FONT_KEY, String(next));
+      } catch {
+        // Storage is a convenience only.
+      }
+      return next;
+    });
+  }, []);
+  /** Ids and classes of the last parsed diagram, for autocompletion. */
+  const completionData = useMemo(
+    () => ({
+      ids: model ? [...model.nodes.map((n) => n.id), ...model.subgraphs.map((s) => s.id)] : [],
+      classes: (model?.classDefs ?? []).map((c) => c.name).filter((c) => c !== 'default'),
+    }),
+    [model],
+  );
+
+  // Ctrl+Alt+= / Ctrl+Alt+- / Ctrl+Alt+0: code font size (Ctrl+= alone is the browser's zoom).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || !e.altKey) return;
+      const step = e.code === 'Equal' || e.code === 'NumpadAdd' ? 1 : e.code === 'Minus' || e.code === 'NumpadSubtract' ? -1 : e.code === 'Digit0' ? 0 : null;
+      if (step === null) return;
+      e.preventDefault();
+      changeFont(step);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [changeFont]);
   const parseSeq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -163,7 +215,20 @@ export function App(): JSX.Element {
       </header>
       <main className="panes">
         <section className="pane code-pane">
-          <CodeEditor value={code} onChange={onCodeChange} />
+          <div className="code-toolbar">
+            <span className="muted">Mermaid</span>
+            <span className="spacer" />
+            <button onClick={() => changeFont(-1)} title="Smaller text (Ctrl+Alt+−)" aria-label="Smaller text" disabled={fontSize === FONT_SIZES[0]}>
+              A−
+            </button>
+            <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0)">
+              {fontSize}px
+            </button>
+            <button onClick={() => changeFont(1)} title="Larger text (Ctrl+Alt+=)" aria-label="Larger text" disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}>
+              A+
+            </button>
+          </div>
+          <CodeEditor value={code} onChange={onCodeChange} error={error} completionData={completionData} fontSize={fontSize} />
           {error && (
             <div className="error" role="alert">
               <strong>Canvas is read-only until the code parses.</strong>

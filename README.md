@@ -32,6 +32,7 @@ flowchart LR
 - [Features](#features)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
+- [Code editor](#code-editor)
 - [Paste](#paste)
 - [Canvas actions](#canvas-actions)
 - [Supported Mermaid subset](#supported-mermaid-subset)
@@ -83,6 +84,19 @@ just dev        # open the URL that Vite prints
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
   With ELK, edges follow the routes ELK found, as in Mermaid. You can drag nodes (their edges then draw a plain curve),
   but the next edit or **Re-layout** resets the positions.
+
+## Code editor
+
+- **Syntax highlighting** for the flowchart syntax (keywords, edges, labels, `@{}` data, styling, front matter,
+  comments), in light and dark mode.
+- **Autocompletion** (as you type, or Ctrl+Space): statements, directions, node and subgraph ids of the diagram,
+  all shape names and aliases in `@{ shape: … }`, `@{}` keys and values, class names, curves, themes and looks in the
+  front matter, and FontAwesome icon names after `fa:fa-` or in `icon: "…"`.
+- **Errors** are underlined on their line, with a mark in the gutter (Mermaid's line numbers are mapped back to the
+  editor's, also when comments were removed).
+- **Editing:** Ctrl+/ toggles `%%` comments, Tab indents (Esc then Tab leaves the editor), lines inside a subgraph
+  indent automatically and `end` steps back, brackets and quotes close, Ctrl+F searches.
+- **Text size:** **A−** / **A+** above the code (Ctrl+Alt+− / Ctrl+Alt+=, Ctrl+Alt+0 resets). It is remembered.
 
 ## Paste
 
@@ -202,7 +216,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/Canvas.tsx` | Canvas, toolbar and inspector |
 | `src/ShapeNodeView.tsx`, `src/SubgraphNodeView.tsx` | Shape outlines and subgraph boxes |
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
-| `src/CodeEditor.tsx` | CodeMirror panel |
+| `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
 | `src/App.tsx` | Split view and sync logic |
 | `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples and the gallery panel |
 | `tests/` | Round-trip, layout, label and clipboard tests, with `.mmd` fixtures |

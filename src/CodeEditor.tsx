@@ -1,7 +1,10 @@
-import { useEffect, useRef, type JSX } from 'react';
+import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
 import { basicSetup, EditorView } from 'codemirror';
 import { Annotation } from '@codemirror/state';
-import { isolateHistory } from '@codemirror/commands';
+import { keymap } from '@codemirror/view';
+import { indentWithTab, isolateHistory } from '@codemirror/commands';
+import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
 import { extractMermaid } from './clipboard';
 
 /** Marks a change that comes from the `value` prop, so it is not reported back through onChange. */
@@ -53,13 +56,21 @@ const appTheme = EditorView.theme({
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
+  /** Parse error of the current code, marked on its line. */
+  error: string | null;
+  /** Ids and class names of the last parsed diagram, for autocompletion. */
+  completionData: CompletionData;
+  /** Font size in px. */
+  fontSize: number;
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps): JSX.Element {
+export function CodeEditor({ value, onChange, error, completionData, fontSize }: CodeEditorProps): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const completionRef = useRef(completionData);
+  completionRef.current = completionData;
 
   useEffect(() => {
     if (!host.current) return;
@@ -70,6 +81,11 @@ export function CodeEditor({ value, onChange }: CodeEditorProps): JSX.Element {
         basicSetup,
         appTheme,
         EditorView.lineWrapping,
+        mermaidSyntax(),
+        mermaidCompletion(() => completionRef.current),
+        lintGutter(),
+        // Tab indents (Escape, then Tab, leaves the editor, as CodeMirror documents).
+        keymap.of([indentWithTab]),
         EditorView.domEventHandlers({ paste: replaceOnFencedPaste }),
         EditorView.updateListener.of((update) => {
           const external = update.transactions.some((t) => t.annotation(External));
@@ -96,5 +112,13 @@ export function CodeEditor({ value, onChange }: CodeEditorProps): JSX.Element {
     }
   }, [value]);
 
-  return <div className="code-editor" ref={host} />;
+  // Mark the parse error on its line. The error comes from the app's parse, after the code settles.
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const mark = error ? errorDiagnostic(v.state.doc, error) : null;
+    v.dispatch(setDiagnostics(v.state, mark ? [mark] : []));
+  }, [error, value]);
+
+  return <div className="code-editor" ref={host} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties} />;
 }

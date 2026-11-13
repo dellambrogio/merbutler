@@ -211,6 +211,37 @@ exports[`round-trip > special-text.mmd 1`] = `
 "
 `;
 
+exports[`round-trip > styling.mmd 1`] = `
+"flowchart LR
+  A
+  B
+  C
+  subgraph grp [Group]
+    D
+  end
+  A --> B
+  B e1@--> C
+  C --> D
+  classDef hot fill:#f96,stroke:#333,stroke-width:4px
+  classDef cold color:#00f
+  classDef warm color:#00f
+  classDef default fill:#eee
+  classDef dashed stroke-dasharray: 9\\,5,stroke-dashoffset: 900
+  class A,D hot
+  class D,grp cold
+  class B,C warm
+  class e1 dashed
+  class D alpha
+  class D zeta
+  style A color:#fff
+  style grp fill:#ffe,stroke:#cc0
+  linkStyle default interpolate basis
+  linkStyle default stroke:#999
+  linkStyle 0 stroke:#f00,stroke-width:3px
+  linkStyle 2 interpolate linear
+"
+`;
+
 exports[`round-trip > subgraph-edges.mmd 1`] = `
 "flowchart LR
   subgraph ingest [Ingestion]

@@ -4,6 +4,7 @@ import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from 
 import { MARKER_IDS } from './EdgeMarkers';
 import { labelLines, visibleLength } from './labels';
 import { SHAPE_INFO } from './shapes';
+import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
 import {
   buildTree,
   type Direction,
@@ -18,6 +19,8 @@ import {
 export interface ShapeNodeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
+  /** Colors and font from classDef/class/style. Missing when the node has none. */
+  look?: Look;
   shape: Shape;
   sourcePosition: Position;
   targetPosition: Position;
@@ -26,6 +29,7 @@ export interface ShapeNodeData extends Record<string, unknown> {
 export interface SubgraphNodeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
+  look?: Look;
   sourcePosition: Position;
   targetPosition: Position;
 }
@@ -37,6 +41,7 @@ export type CanvasNode = ShapeNode | SubgraphNode;
 export interface LabelEdgeData extends Record<string, unknown> {
   label: string;
   markdown: boolean;
+  look?: Look;
 }
 
 export type LabelEdge = Edge<LabelEdgeData, 'label'>;
@@ -85,11 +90,17 @@ function union(boxes: Box[]): Box {
   return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
 }
 
-function marker(end: EdgeEnd): EdgeMarkerType | undefined {
+/** `look` only when there is something to draw, so plain elements keep plain data. */
+function lookField(look: Look): { look?: Look } {
+  return isPlain(look) ? {} : { look };
+}
+
+/** `color` gives an arrow the edge's own stroke color. Circle and cross markers keep the default color. */
+function marker(end: EdgeEnd, color?: string): EdgeMarkerType | undefined {
   switch (end) {
     case 'arrow':
       // Fixed size in px. The default unit (stroke width) makes arrows on thick edges too big.
-      return { type: MarkerType.ArrowClosed, width: 27, height: 27, markerUnits: 'userSpaceOnUse' };
+      return { type: MarkerType.ArrowClosed, width: 27, height: 27, markerUnits: 'userSpaceOnUse', ...(color ? { color } : {}) };
     case 'circle':
       return MARKER_IDS.circle;
     case 'cross':
@@ -315,6 +326,7 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
             label: item.node.label,
             markdown: item.node.markdown,
             shape: item.node.shape,
+            ...lookField(nodeLook(model, item.node)),
             sourcePosition: handles.source,
             targetPosition: handles.target,
           },
@@ -326,6 +338,7 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
           data: {
             label: item.subgraph.label,
             markdown: item.subgraph.markdown,
+            ...lookField(subgraphLook(model, item.subgraph)),
             sourcePosition: handles.source,
             targetPosition: handles.target,
           },
@@ -336,23 +349,27 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
   };
   emit(buildTree(model), null);
 
-  const edges: LabelEdge[] = model.edges.map((edge) => ({
-    id: edge.id,
-    type: 'label',
-    source: edge.source,
-    target: edge.target,
-    data: { label: edge.label, markdown: edge.markdown },
-    // Edges between nodes in different subgraphs must draw above the subgraph boxes.
-    zIndex: 1,
-    markerEnd: marker(edge.end),
-    markerStart: edge.bothEnds ? marker(edge.end) : undefined,
-    style: {
-      strokeWidth: edge.stroke === 'thick' ? 3.5 : 1.5,
-      strokeDasharray: STROKE_DASHES[edge.stroke],
-      // Mermaid does not draw an invisible link. The canvas shows it faintly, so it can be selected.
-      opacity: edge.stroke === 'invisible' ? 0.4 : undefined,
-    },
-  }));
+  const edges: LabelEdge[] = model.edges.map((edge) => {
+    const look = edgeLook(model, edge);
+    return {
+      id: edge.id,
+      type: 'label',
+      source: edge.source,
+      target: edge.target,
+      data: { label: edge.label, markdown: edge.markdown, ...lookField(look) },
+      // Edges between nodes in different subgraphs must draw above the subgraph boxes.
+      zIndex: 1,
+      markerEnd: marker(edge.end, look.stroke),
+      markerStart: edge.bothEnds ? marker(edge.end, look.stroke) : undefined,
+      style: {
+        strokeWidth: look.strokeWidth ?? (edge.stroke === 'thick' ? 3.5 : 1.5),
+        strokeDasharray: look.strokeDasharray ?? STROKE_DASHES[edge.stroke],
+        stroke: look.stroke,
+        // Mermaid does not draw an invisible link. The canvas shows it faintly, so it can be selected.
+        opacity: edge.stroke === 'invisible' ? 0.4 : undefined,
+      },
+    };
+  });
 
   return { nodes, edges };
 }

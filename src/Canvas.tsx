@@ -41,9 +41,11 @@ import {
   type FlowModel,
   type Shape,
   type Stroke,
+  type Styled,
 } from './model';
 import { RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
+import { classesFromText, stylesFromText, stylesToText } from './styling';
 import { SubgraphNodeView } from './SubgraphNodeView';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -102,6 +104,67 @@ function LabelInput({ value, onCommit }: { value: string; onCommit: (value: stri
         if (e.key === 'Escape') setDraft(initial);
       }}
     />
+  );
+}
+
+/** One-line text field that commits on Enter or blur, and resets on Escape. */
+function TextField({ value, onCommit, placeholder, list }: { value: string; onCommit: (value: string) => void; placeholder?: string; list?: string }): JSX.Element {
+  const [draft, setDraft] = useState(value);
+  const commit = (): void => {
+    if (draft !== value) onCommit(draft);
+  };
+  return (
+    <input
+      value={draft}
+      placeholder={placeholder}
+      list={list}
+      spellCheck={false}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') setDraft(value);
+      }}
+    />
+  );
+}
+
+/**
+ * Classes and own style of a node, subgraph or edge. Classes are names from `classDef`;
+ * the style is declarations separated by `;` (written as `style`/`linkStyle`, comma-separated, in the code).
+ */
+function StyleFields({ id, item, model, styleTitle, onChange }: {
+  id: string;
+  item: Styled;
+  model: FlowModel;
+  styleTitle: string;
+  onChange: (patch: Styled) => void;
+}): JSX.Element {
+  const classes = (item.classes ?? []).join(' ');
+  const styles = stylesToText(item.styles);
+  const defined = (model.classDefs ?? []).map((c) => c.name).filter((n) => n !== 'default');
+  return (
+    <>
+      <label title={defined.length > 0 ? `Defined: ${defined.join(', ')}` : 'Define classes with classDef in the code'}>
+        Classes
+        <TextField
+          key={`${id}:classes:${classes}`}
+          value={classes}
+          placeholder={defined.length > 0 ? defined.slice(0, 3).join(' ') : 'none defined'}
+          list="class-names"
+          onCommit={(text) => onChange({ classes: classesFromText(text) })}
+        />
+      </label>
+      <label title={styleTitle}>
+        Style
+        <TextField
+          key={`${id}:styles:${styles}`}
+          value={styles}
+          placeholder="fill:#f96; stroke:#333"
+          onCommit={(text) => onChange({ styles: stylesFromText(text) })}
+        />
+      </label>
+    </>
   );
 }
 
@@ -301,6 +364,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             exclude={new Set()}
             onSelect={(parent) => onChange(setParent(model, node.id, parent))}
           />
+          <StyleFields
+            id={node.id}
+            item={node}
+            model={model}
+            styleTitle="Written as: style id …"
+            onChange={(patch) => onChange(updateNode(model, node.id, patch))}
+          />
           <button className="danger" onClick={deleteSelected}>
             Delete node
           </button>
@@ -342,6 +412,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             value={subgraph.parent}
             exclude={subgraphWithDescendants(model, subgraph.id)}
             onSelect={(parent) => onChange(setParent(model, subgraph.id, parent))}
+          />
+          <StyleFields
+            id={subgraph.id}
+            item={subgraph}
+            model={model}
+            styleTitle="Written as: style id …"
+            onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))}
           />
           <button className="danger" onClick={deleteSelected} title="The nodes inside move up one level">
             Delete subgraph (keep contents)
@@ -413,6 +490,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             />
             Both ends
           </label>
+          <StyleFields
+            id={edge.id}
+            item={edge}
+            model={model}
+            styleTitle="Written as: linkStyle n … (classes need an edge id; one is added)"
+            onChange={(patch) => onChange(updateEdge(model, edge.id, patch))}
+          />
           <button className="danger" onClick={deleteSelected}>
             Delete edge
           </button>
@@ -420,6 +504,13 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
       )}
 
       <EdgeMarkerDefs />
+      <datalist id="class-names">
+        {(model.classDefs ?? [])
+          .filter((c) => c.name !== 'default')
+          .map((c) => (
+            <option key={c.name} value={c.name} />
+          ))}
+      </datalist>
       <RenameContext.Provider value={rename}>
         <ReactFlow
           nodes={nodes}

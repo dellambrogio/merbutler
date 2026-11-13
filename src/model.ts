@@ -20,7 +20,19 @@ export interface EdgeOptions {
   animate?: boolean;
   animation?: 'fast' | 'slow';
   step?: number;
-  curve?: string;
+}
+
+/** `classDef name fill:#f96,stroke:#333`. `default` applies to nodes without a class. */
+export interface ClassDef {
+  name: string;
+  /** CSS-like declarations as written, for example `fill:#f96`. */
+  styles: string[];
+}
+
+/** Classes (`class`, `:::`) and own styles (`style`, `linkStyle`) of a node, subgraph or edge. */
+export interface Styled {
+  classes?: string[];
+  styles?: string[];
 }
 
 export interface FlowNode {
@@ -36,6 +48,9 @@ export interface FlowNode {
    * Missing for the bracket syntax. See `keepsAtSyntax`.
    */
   shapeName?: string;
+  classes?: string[];
+  /** From `style id …`. */
+  styles?: string[];
 }
 
 export interface FlowSubgraph {
@@ -47,6 +62,9 @@ export interface FlowSubgraph {
   parent: string | null;
   /** `direction` statement inside the subgraph. Kept in the code; the canvas layout ignores it. */
   direction: Direction | null;
+  classes?: string[];
+  /** From `style id …`. */
+  styles?: string[];
 }
 
 export interface FlowEdge {
@@ -67,6 +85,12 @@ export interface FlowEdge {
   ref?: string;
   /** Settings from `ref@{ … }`. Only an edge with a `ref` can have them. */
   options?: EdgeOptions;
+  /** Curve name (`basis`, `linear`, `step`, …) from `ref@{ curve }` or `linkStyle n interpolate`. Not drawn yet. */
+  curve?: string;
+  /** From `class ref …`. Only an edge with a `ref` can have classes. */
+  classes?: string[];
+  /** From `linkStyle n …`. */
+  styles?: string[];
 }
 
 export interface FlowModel {
@@ -76,9 +100,38 @@ export interface FlowModel {
    */
   preamble?: string;
   direction: Direction;
+  /** `classDef` statements, in order. */
+  classDefs?: ClassDef[];
+  /** `linkStyle default …`: styles and curve for all edges. */
+  linkDefaults?: { styles?: string[]; curve?: string };
   nodes: FlowNode[];
   subgraphs: FlowSubgraph[];
   edges: FlowEdge[];
+}
+
+/**
+ * Classes in a fixed order: as in the `classDef` statements, then undefined ones alphabetically.
+ * This is the order Mermaid applies them in (later `classDef` wins, as in CSS), and it keeps
+ * the order stable when the code is written and read again.
+ */
+export function sortClasses(classes: readonly string[], classDefs: readonly ClassDef[] | undefined): string[] {
+  const rank = new Map((classDefs ?? []).map((c, i) => [c.name, i]));
+  const key = (name: string): number => rank.get(name) ?? Number.MAX_SAFE_INTEGER;
+  return [...new Set(classes)].sort((a, b) => key(a) - key(b) || (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/** Drops empty `classes` and `styles` lists, so a cleared field leaves no statement in the code. */
+function withoutEmpty<T extends Styled>(item: T, classDefs?: readonly ClassDef[]): T {
+  const next = { ...item };
+  if (next.classes) next.classes = sortClasses(next.classes, classDefs);
+  if (next.classes?.length === 0) delete next.classes;
+  if (next.styles?.length === 0) delete next.styles;
+  return next;
+}
+
+/** An edge id for the code (`A e1@--> B`) that no edge and no node or subgraph uses. */
+export function nextEdgeRef(model: FlowModel): string {
+  return freshId('e', [...model.edges.flatMap((e) => (e.ref ? [e.ref] : [])), ...vertexIds(model)]);
 }
 
 /** Returns an id that is not in `taken`, built from `prefix` and a counter. */
@@ -164,13 +217,13 @@ export function normalizeNode(node: FlowNode): FlowNode {
 export function updateNode(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown'>>,
+  patch: Partial<Pick<FlowNode, 'label' | 'shape' | 'markdown' | 'classes' | 'styles'>>,
 ): FlowModel {
   return {
     ...model,
     nodes: model.nodes.map((n) => {
       if (n.id !== id) return n;
-      const node = { ...n, ...patch };
+      const node = withoutEmpty({ ...n, ...patch }, model.classDefs);
       node.label = normalizeNodeLabel(relabel(n, node), id, node.markdown);
       // A new shape keeps the syntax the code used, with the short name.
       if (patch.shape && patch.shape !== n.shape && (node.shapeName !== undefined || !SHAPE_INFO[patch.shape].brackets)) {
@@ -184,13 +237,13 @@ export function updateNode(
 export function updateSubgraph(
   model: FlowModel,
   id: string,
-  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown'>>,
+  patch: Partial<Pick<FlowSubgraph, 'label' | 'direction' | 'markdown' | 'classes' | 'styles'>>,
 ): FlowModel {
   return {
     ...model,
     subgraphs: model.subgraphs.map((s) => {
       if (s.id !== id) return s;
-      const subgraph = { ...s, ...patch };
+      const subgraph = withoutEmpty({ ...s, ...patch }, model.classDefs);
       return { ...subgraph, label: normalizeNodeLabel(relabel(s, subgraph), id, subgraph.markdown) };
     }),
   };
@@ -201,8 +254,10 @@ export function updateEdge(model: FlowModel, id: string, patch: Partial<Omit<Flo
     ...model,
     edges: model.edges.map((e) => {
       if (e.id !== id) return e;
-      const edge = { ...e, ...patch };
+      const edge = withoutEmpty({ ...e, ...patch }, model.classDefs);
       edge.label = fromEditText(relabel(e, edge), edge.markdown);
+      // `class ref name` needs an edge id in the code.
+      if (edge.classes && !edge.ref) edge.ref = nextEdgeRef(model);
       // An invisible link has no markers.
       if (edge.stroke === 'invisible') edge.end = 'none';
       // Mermaid has no "both ends" line without markers.

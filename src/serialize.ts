@@ -5,6 +5,7 @@
 import {
   buildTree,
   keepsAtSyntax,
+  sortClasses,
   normalizeNodeLabel,
   type EdgeEnd,
   type FlowEdge,
@@ -101,13 +102,13 @@ function edgeLine(edge: FlowEdge): string {
 
 /** `e1@{ animate: true, step: 2 }`, or null when the edge has no settings. */
 function edgeOptionsLine(edge: FlowEdge): string | null {
-  const options = edge.options;
-  if (!edge.ref || !options) return null;
+  const options = edge.options ?? {};
+  if (!edge.ref) return null;
   const parts: string[] = [];
   if (options.animate !== undefined) parts.push(`animate: ${options.animate}`);
   if (options.animation !== undefined) parts.push(`animation: ${options.animation}`);
   if (options.step !== undefined) parts.push(`step: ${options.step}`);
-  if (options.curve !== undefined) parts.push(`curve: ${options.curve}`);
+  if (edge.curve !== undefined) parts.push(`curve: ${edge.curve}`);
   return parts.length > 0 ? `${edge.ref}@{ ${parts.join(', ')} }` : null;
 }
 
@@ -134,5 +135,45 @@ export function serialize(model: FlowModel): string {
     const options = edgeOptionsLine(edge);
     if (options) lines.push(`${INDENT}${options}`);
   }
+  for (const line of stylingLines(model)) lines.push(`${INDENT}${line}`);
   return `${lines.join('\n')}\n`;
+}
+
+/** Commas separate declarations, so a comma inside one is written as `\\,`. */
+function declarations(styles: readonly string[]): string {
+  return styles.map((s) => s.replaceAll(',', '\\,')).join(',');
+}
+
+/**
+ * `classDef`, `class`, `style` and `linkStyle` statements, after the graph. Classes are always
+ * written as `class` statements (not `:::`), grouped by class.
+ */
+function stylingLines(model: FlowModel): string[] {
+  const lines: string[] = [];
+  for (const def of model.classDefs ?? []) lines.push(`classDef ${def.name} ${declarations(def.styles)}`);
+
+  const members = new Map<string, string[]>();
+  const addClasses = (id: string, classes: readonly string[] | undefined): void => {
+    for (const name of classes ?? []) members.set(name, [...(members.get(name) ?? []), id]);
+  };
+  for (const node of model.nodes) addClasses(node.id, node.classes);
+  for (const subgraph of model.subgraphs) addClasses(subgraph.id, subgraph.classes);
+  for (const edge of model.edges) if (edge.ref) addClasses(edge.ref, edge.classes);
+  // Each element's classes are already in canonical order (see sortClasses); write the statements in that order too.
+  const order = sortClasses([...members.keys()], model.classDefs);
+  for (const name of order) lines.push(`class ${(members.get(name) ?? []).join(',')} ${name}`);
+
+  for (const item of [...model.nodes, ...model.subgraphs]) {
+    if (item.styles) lines.push(`style ${item.id} ${declarations(item.styles)}`);
+  }
+
+  const defaults = model.linkDefaults;
+  if (defaults?.curve) lines.push(`linkStyle default interpolate ${defaults.curve}`);
+  if (defaults?.styles) lines.push(`linkStyle default ${declarations(defaults.styles)}`);
+  model.edges.forEach((edge, index) => {
+    // An edge with an id has its curve in `id@{ curve }`.
+    if (edge.curve && !edge.ref) lines.push(`linkStyle ${index} interpolate ${edge.curve}`);
+    if (edge.styles) lines.push(`linkStyle ${index} ${declarations(edge.styles)}`);
+  });
+  return lines;
 }

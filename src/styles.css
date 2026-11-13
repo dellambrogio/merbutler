@@ -103,7 +103,11 @@ button.danger { color: var(--danger); }
 
 .shape-node { position: relative; display: flex; align-items: center; justify-content: center; }
 .shape-outline { position: absolute; inset: 0; overflow: visible; }
-.shape-outline :is(rect, ellipse, polygon, path, line, circle) { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
+.shape-outline :is(rect, ellipse, polygon, path, line, circle) {
+  fill: var(--node-fill); stroke: var(--node-stroke);
+  /* Set per node by classDef/style; see styling.ts. */
+  stroke-width: var(--node-stroke-width, 1.5); stroke-dasharray: var(--node-dash, none);
+}
 .shape-node.selected .shape-outline :is(rect, ellipse, polygon, path, line, circle) { stroke: var(--accent); stroke-width: 2.5; }
 /* Outline parts: stroke only, filled with the stroke color, a thick ring, or an invisible area that still takes clicks. */
 .shape-outline .nofill { fill: none; }
@@ -126,7 +130,7 @@ button.danger { color: var(--danger); }
 /* Edges use zIndex 1 to draw above subgraph boxes. Labels must draw above the edges. */
 .react-flow__edgelabel-renderer { z-index: 3; }
 .subgraph-node {
-  border: 1.5px dashed var(--node-stroke); border-radius: 8px;
+  border: var(--node-stroke-width, 1.5px) dashed var(--node-stroke); border-radius: 8px;
   background: var(--subgraph-fill);
 }
 .subgraph-node.selected { border-color: var(--accent); border-style: solid; }

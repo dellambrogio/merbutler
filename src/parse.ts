@@ -6,7 +6,7 @@
  * this API is not public and can change.
  */
 import mermaid from 'mermaid';
-import { canonicalOrder, normalizeNode, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
+import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
 import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
 
 export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
@@ -57,9 +57,12 @@ interface MermaidFlowDb {
   getDirection(): string | undefined;
   getVertices(): Map<string, MermaidVertex>;
   getEdges(): MermaidEdge[];
-  getClasses(): Map<string, unknown>;
+  getClasses(): Map<string, { id: string; styles: string[] }>;
   getSubGraphs(): MermaidSubgraph[];
 }
+
+/** The edge list also carries `linkStyle default …`. */
+type MermaidEdges = MermaidEdge[] & { defaultStyle?: string[]; defaultInterpolate?: string };
 
 
 const DIRECTION_FROM_MERMAID: Record<string, Direction> = {
@@ -130,16 +133,29 @@ function toDirection(raw: string): Direction {
   return direction;
 }
 
-function toSubgraph(s: MermaidSubgraph): FlowSubgraph {
-  if (s.classes.length > 0) unsupported(`class on subgraph ${s.id}`);
+/** Declarations as written, trimmed. Mermaid keeps `fill : #f00 ` as it is. */
+function cleanStyles(styles: readonly string[] | undefined): string[] {
+  return (styles ?? []).map((s) => s.trim()).filter((s) => s !== '');
+}
+
+/** Sets `classes` and `styles` only when there are some, so plain items stay plain. */
+function setStyling<T extends Styled>(item: T, classes: string[], styles: string[]): T {
+  if (classes.length > 0) item.classes = classes;
+  if (styles.length > 0) item.styles = styles;
+  return item;
+}
+
+/** A subgraph's `style` statement is stored on a vertex with the subgraph id. */
+function toSubgraph(s: MermaidSubgraph, vertex: MermaidVertex | undefined): FlowSubgraph {
   if (s.metadata) unsupported(`metadata on subgraph ${s.id}`);
-  return {
+  const subgraph: FlowSubgraph = {
     id: s.id,
     label: decodeEntities(s.title || s.id),
     markdown: s.labelType === 'markdown',
     parent: null,
     direction: s.dir ? toDirection(s.dir) : null,
   };
+  return setStyling(subgraph, [...s.classes], cleanStyles(vertex?.styles));
 }
 
 /** True if the code gives the node `@{ … }` data somewhere (`A@{ shape: diam }`). */
@@ -155,12 +171,11 @@ function toNode(v: MermaidVertex, text: string): FlowNode {
   const atSyntax = v.type != null && usesAtSyntax(text, v.id);
   const shape = v.type == null ? 'rect' : (atSyntax ? SHAPE_FROM_AT_NAME : SHAPE_FROM_BRACKETS).get(v.type);
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
-  if (v.styles.length > 0) unsupported(`style on node ${v.id}`);
   // `click` adds the class "clickable". With securityLevel 'strict' a callback leaves only that class.
   if (v.link || v.haveCallback || v.classes.includes('clickable')) unsupported(`click on node ${v.id}`);
-  if (v.classes.some((c) => c !== 'default')) unsupported(`class on node ${v.id}`);
   const node: FlowNode = { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
   if (atSyntax && v.type) node.shapeName = v.type;
+  setStyling(node, v.classes.filter((c) => c !== 'default'), cleanStyles(v.styles));
   return normalizeNode(node);
 }
 
@@ -170,7 +185,6 @@ function toEdge(e: MermaidEdge, index: number): FlowEdge {
   if (!ends) unsupported(`arrow type "${e.type}" (${where})`);
   const stroke = STROKE_FROM_MERMAID[e.stroke ?? 'normal'];
   if (!stroke) unsupported(`stroke "${e.stroke}" (${where})`);
-  if (e.style && e.style.length > 0) unsupported(`linkStyle (${where})`);
   const edge: FlowEdge = { id: `e${index + 1}`, source: e.start, target: e.end, label: decodeEntities(e.text), markdown: e.labelType === 'markdown', stroke, ...ends };
   if (e.length && e.length > 1) edge.length = e.length;
   if (e.isUserDefinedId && e.id) {
@@ -178,7 +192,16 @@ function toEdge(e: MermaidEdge, index: number): FlowEdge {
     const options = toEdgeOptions(e, where);
     if (Object.keys(options).length > 0) edge.options = options;
   }
-  return edge;
+  if (e.interpolate !== undefined) edge.curve = e.interpolate;
+  if (e.classes.length > 0 && !edge.ref) unsupported(`class on an edge without an id (${where})`);
+  return setStyling(edge, [...e.classes], linkStyles(e.style));
+}
+
+/** Mermaid adds `fill:none` to every `linkStyle`. It is not part of the code. */
+function linkStyles(style: readonly string[] | undefined): string[] {
+  const styles = cleanStyles(style);
+  if (styles.at(-1)?.replace(/\s/g, '') === 'fill:none') styles.pop();
+  return styles;
 }
 
 function toEdgeOptions(e: MermaidEdge, where: string): EdgeOptions {
@@ -189,7 +212,6 @@ function toEdgeOptions(e: MermaidEdge, where: string): EdgeOptions {
     options.animation = e.animation;
   }
   if (e.step !== undefined) options.step = e.step;
-  if (e.interpolate !== undefined) options.curve = e.interpolate;
   return options;
 }
 
@@ -216,18 +238,19 @@ export async function parse(text: string): Promise<ParseResult> {
       return { ok: false, error: `Only flowcharts are supported (found "${diagram.type}").` };
     }
     const db = diagram.db as unknown as MermaidFlowDb;
-    if (db.getClasses().size > 0) unsupported('classDef');
     const direction = toDirection(db.getDirection() ?? 'TB');
+    const vertices = db.getVertices();
 
     const rawSubgraphs = db.getSubGraphs();
-    const subgraphs = rawSubgraphs.map(toSubgraph);
+    const subgraphs = rawSubgraphs.map((s) => toSubgraph(s, vertices.get(s.id)));
     const subgraphById = new Map(subgraphs.map((s) => [s.id, s]));
 
     // An edge end can be a node id or a subgraph id.
-    const edges = db.getEdges().map(toEdge);
+    const rawEdges = db.getEdges() as MermaidEdges;
+    const edges = rawEdges.map(toEdge);
 
     // An edge to a subgraph also creates a vertex with the subgraph id. It is not a node.
-    const nodes = [...db.getVertices().values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text));
+    const nodes = [...vertices.values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text));
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
     // Mermaid lists inner subgraphs first, and keeps each id in one subgraph only.
@@ -239,6 +262,16 @@ export async function parse(text: string): Promise<ParseResult> {
     }
 
     const model: FlowModel = { direction, nodes, subgraphs, edges };
+    const classDefs = [...db.getClasses().values()].map((c) => ({ name: c.id, styles: cleanStyles(c.styles) }));
+    if (classDefs.length > 0) model.classDefs = classDefs;
+    for (const item of [...nodes, ...subgraphs, ...edges]) {
+      if (item.classes) item.classes = sortClasses(item.classes, classDefs);
+    }
+    const linkDefaults: NonNullable<FlowModel['linkDefaults']> = {};
+    const defaultStyles = cleanStyles(rawEdges.defaultStyle);
+    if (defaultStyles.length > 0) linkDefaults.styles = defaultStyles;
+    if (rawEdges.defaultInterpolate) linkDefaults.curve = rawEdges.defaultInterpolate;
+    if (Object.keys(linkDefaults).length > 0) model.linkDefaults = linkDefaults;
     const preamble = preambleOf(text);
     if (preamble) model.preamble = preamble;
     return { ok: true, model: canonicalOrder(model) };

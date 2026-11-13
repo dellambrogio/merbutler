@@ -121,6 +121,7 @@ just dev        # open the URL that Vite prints
 | Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>` |
 | Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`: kept in the code, not drawn yet |
 | Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are. The canvas shows the `title` |
+| Styling | `classDef` (also `default`), `class`, `:::`, `style` on nodes and subgraphs, `linkStyle` (by index and `default`, also `interpolate`), classes on edges with an id. The canvas draws fill, stroke, stroke width, dashes, text color and font; other properties are kept in the code. Edit classes and style in the inspector |
 | Labels | quoted text with any characters (`"a & (b)"`), `<br>` line breaks, Markdown strings (`` "`**bold** and *italic*`" ``) on nodes, edges and subgraphs |
 | Subgraphs | `subgraph id [Label] … end`, nested, optional `direction` inside, edges to or from a subgraph (`ingest --> store`) |
 
@@ -143,8 +144,7 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (icon and image shapes, `classDef`, `style`,
-`linkStyle`, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
+Code with other features (icon and image shapes, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
 
 ## Known limitations
@@ -166,6 +166,10 @@ deleting those parts.
   the code but shown as text on the canvas; only `<br>` is shown as a line break. HTML from pasted code never runs.
 - In a plain label a line break is saved as `<br>`; in a Markdown label as a real newline.
 - The canvas shows Markdown bold and italic only, as Mermaid does in labels.
+- Classes are written back as `class` statements (`A:::hot` becomes `class A hot`), in `classDef` order, which is
+  also the order Mermaid applies them in. Edge curves (`interpolate`, `curve`) are kept but drawn as the default curve.
+- A style value with quotes, comments or `url(…)` is kept in the code but not drawn. A fill without a text color
+  gets dark or light text on the canvas so the label stays readable.
 - `src/parse.ts` uses Mermaid internals (`mermaidAPI.getDiagramFromText` and the flowchart DB).
   The `mermaid` version is pinned. Run `just test` after you update it.
 
@@ -177,6 +181,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | File | Purpose |
 |---|---|
 | `src/model.ts` | Graph model and edit operations |
+| `src/styling.ts` | How classDef/class/style/linkStyle look on the canvas |
 | `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
 | `src/parse.ts` | Mermaid text → model |
 | `src/serialize.ts` | Model → Mermaid text |

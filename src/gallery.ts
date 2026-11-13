@@ -233,10 +233,10 @@ export const GALLERY: GalleryGroup[] = [
     examples: [
       { id: 'style', title: 'style', code: fc('  id1(Start)-->id2(Stop)\n  style id1 fill:#f9f,stroke:#333,stroke-width:4px\n') },
       { id: 'classdef', title: 'classDef and class', code: fc('  A --> B\n  classDef hot fill:#f96,stroke:#333\n  class A hot\n') },
-      { id: 'class-shorthand', title: ':::class shorthand', code: fc('  A:::hot --> B\n  classDef hot fill:#f96\n') },
+      { id: 'class-shorthand', title: ':::class shorthand', code: fc('  A:::hot --> B\n  classDef hot fill:#f96\n'), note: 'Canvas edits write it as a class statement.' },
       { id: 'class-default', title: 'Default class', code: fc('  A --> B\n  classDef default fill:#f9f,stroke:#333\n') },
       { id: 'linkstyle', title: 'linkStyle', code: fc('  A --> B --> C\n  linkStyle 1 stroke:#ff3,stroke-width:4px,color:red\n') },
-      { id: 'edge-class', title: 'Class on an edge', code: fc('  A e1@--> B\n  classDef animate stroke-dasharray: 9\\,5,animation: dash 25s linear infinite\n  class e1 animate\n') },
+      { id: 'edge-class', title: 'Class on an edge', code: fc('  A e1@--> B\n  classDef animate stroke-dasharray: 9\\,5,animation: dash 25s linear infinite\n  class e1 animate\n'), note: 'Kept in the code. The canvas draws the dashes, not the animation.' },
     ],
   },
   {

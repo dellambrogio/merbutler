@@ -187,10 +187,7 @@ describe('parse', () => {
   test.each([
     ['syntax error', 'flowchart LR\n  A --> -->'],
     ['other diagram type', 'sequenceDiagram\n  A->>B: hi'],
-    ['classDef', 'flowchart LR\n  a\n  classDef red fill:#f00'],
-    ['style', 'flowchart LR\n  a\n  style a fill:#f00'],
     ['unknown @{} shape', 'flowchart LR\n  a@{ shape: nonsense }'],
-    ['linkStyle', 'flowchart LR\n  a --> b\n  linkStyle 0 stroke:#f00'],
     ['click', 'flowchart LR\n  a\n  click a "https://example.com"'],
   ])('rejects %s', async (_name, text) => {
     const result = await parse(text);

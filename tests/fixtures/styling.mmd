@@ -1,0 +1,24 @@
+flowchart LR
+  A:::hot --> B
+  B e1@--> C
+  C --> D
+  subgraph grp [Group]
+    D
+  end
+  classDef hot fill:#f96,stroke:#333,stroke-width:4px
+  classDef cold,warm color:#00f
+  classDef default fill:#eee
+  classDef dashed stroke-dasharray: 9\,5,stroke-dashoffset: 900
+  class B,C warm
+  class grp cold
+  class e1 dashed
+  style A color:#fff
+  style grp fill:#ffe,stroke:#cc0
+  linkStyle default stroke:#999
+  linkStyle default interpolate basis
+  linkStyle 0 stroke:#f00,stroke-width:3px
+  linkStyle 2 interpolate linear
+  class D zeta
+  class D hot
+  class D alpha
+  class D cold

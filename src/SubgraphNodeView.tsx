@@ -4,6 +4,7 @@ import type { SubgraphNode } from './layout';
 import { toEditText } from './labels';
 import { LabelText } from './LabelText';
 import { RenameContext } from './ShapeNodeView';
+import { boxVars, textStyle } from './styling';
 
 /** A subgraph box. Double-click the title to rename it. */
 export function SubgraphNodeView({ id, data, width, height, selected }: NodeProps<SubgraphNode>): JSX.Element {
@@ -29,12 +30,13 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
   };
 
   return (
-    <div className={`subgraph-node${selected ? ' selected' : ''}`} style={{ width, height }}>
+    <div className={`subgraph-node${selected ? ' selected' : ''}`} style={{ width, height, ...boxVars(data.look) }}>
       <Handle type="target" position={data.targetPosition} />
       <Handle type="source" position={data.sourcePosition} />
       {draft === null ? (
         <div
           className="subgraph-title"
+          style={textStyle(data.look)}
           onDoubleClick={() => {
             editing.current = true;
             setDraft(toEditText(data.label));

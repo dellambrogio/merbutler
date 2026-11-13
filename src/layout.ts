@@ -4,6 +4,7 @@ import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from 
 import { MARKER_IDS } from './EdgeMarkers';
 import { labelLines, markdownRuns } from './labels';
 import { get, readConfig } from './config';
+import { BUNDLED_PREFIXES, LABEL_ICON } from './icons';
 import { SHAPE_INFO } from './shapes';
 import { diagramTheme } from './themes';
 import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
@@ -121,7 +122,16 @@ function measure(text: string, font: string, bold: boolean): number | null {
 function lineWidth(line: string, markdown: boolean, settings: TextSettings): number {
   const runs = markdown ? markdownRuns(line) : [{ text: line, bold: false }];
   let width = 0;
-  for (const run of runs) width += measure(run.text, settings.font, run.bold) ?? run.text.length * CHAR_WIDTH;
+  for (const run of runs) {
+    // A bundled icon (`fa:fa-name`) is drawn 1em wide; other tokens stay text.
+    let text = run.text;
+    for (const m of run.text.matchAll(LABEL_ICON)) {
+      if (!BUNDLED_PREFIXES.has(m[1])) continue;
+      text = text.replace(m[0], '');
+      width += FONT_SIZE;
+    }
+    width += measure(text, settings.font, run.bold) ?? text.length * CHAR_WIDTH;
+  }
   return width;
 }
 

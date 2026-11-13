@@ -261,3 +261,8 @@ button.danger { color: var(--danger); }
 
 /* Mermaid themes (themes.ts). */
 .react-flow { font-family: var(--diagram-font, inherit); }
+
+/* FontAwesome icons in labels (fa:fa-name) and in icon nodes. The icons use currentColor. */
+.label-icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; }
+.asset-icon.drawn { color: var(--text); padding: 18%; }
+.asset-icon-svg { width: 100%; height: 100%; display: block; }

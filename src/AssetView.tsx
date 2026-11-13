@@ -1,5 +1,6 @@
 import { createContext, useContext, type CSSProperties, type JSX } from 'react';
 import { ASSET_GAP, assetPicture } from './layout';
+import { useIcon } from './icons';
 import { LabelText } from './LabelText';
 import type { Asset } from './model';
 
@@ -67,6 +68,24 @@ function ImagePicture({ url, width, height, keepRatio }: { url: string; width: n
 }
 
 /**
+ * The icon of an icon node on its background (`form`). A bundled FontAwesome icon is drawn;
+ * other icon sets show the name without its pack prefix (`mdi:cloud` shows `cloud`).
+ */
+function IconPicture({ name, form, width, height }: { name: string; form?: string; width: number; height: number }): JSX.Element {
+  const icon = useIcon(name);
+  return (
+    <span className={`asset-icon form-${form ?? 'none'}${icon ? ' drawn' : ''}`} style={{ width, height }} title={`Icon ${name}`}>
+      {icon ? (
+        // The SVG comes from the bundled icon packs, not from the diagram code.
+        <svg className="asset-icon-svg" viewBox={icon.viewBox} role="img" aria-label={name} dangerouslySetInnerHTML={{ __html: icon.body }} />
+      ) : (
+        <span className="asset-icon-name">{name.slice(name.indexOf(':') + 1)}</span>
+      )}
+    </span>
+  );
+}
+
+/**
  * An icon or image node: the picture with its label above (`pos: t`) or below it.
  * Icons need an icon pack, which the app does not bundle: the canvas draws the background
  * (`form`) and the icon name.
@@ -82,10 +101,7 @@ export function AssetView({ asset, label, markdown, labelStyle }: { asset: Asset
   return (
     <span className="asset-node" style={{ gap: ASSET_GAP, flexDirection: labelFirst ? 'column-reverse' : 'column' }}>
       {asset.kind === 'icon' ? (
-        <span className={`asset-icon form-${asset.form ?? 'none'}`} style={{ width: picture.width, height: picture.height }} title={`Icon ${asset.icon}`}>
-          {/* The name without its pack prefix: `fa:user` shows `user`. */}
-          <span className="asset-icon-name">{asset.icon.slice(asset.icon.indexOf(':') + 1)}</span>
-        </span>
+        <IconPicture name={asset.icon} form={asset.form} width={picture.width} height={picture.height} />
       ) : (
         <ImagePicture url={asset.img} width={picture.width} height={picture.height} keepRatio={asset.constraint === 'on'} />
       )}

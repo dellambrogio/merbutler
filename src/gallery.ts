@@ -146,7 +146,7 @@ export const GALLERY: GalleryGroup[] = [
       {
         id: 'icon-shape',
         title: 'Icon shape',
-        note: 'The canvas draws the background and the icon name: icons need an icon pack registered in Mermaid.',
+        note: 'FontAwesome (fa, fas, far, fab) is bundled; other icon sets show their name. Your Mermaid needs the icon pack registered.',
         code: fc('  A@{ icon: "fa:user", form: "square", label: "User Icon", pos: "t", h: 60 }\n'),
       },
       {
@@ -154,7 +154,12 @@ export const GALLERY: GalleryGroup[] = [
         title: 'Image shape',
         code: fc(`  A@{ img: "${IMAGE}", label: "Image", pos: "t", h: 60, constraint: "on" }\n`),
       },
-      { id: 'fontawesome', title: 'FontAwesome in labels', code: fc('  B["fa:fa-twitter for peace"] --> C[fa:fa-ban forbidden]\n', 'TD'), note: 'Kept in the code. The canvas shows the icon names as text.' },
+      {
+        id: 'fontawesome',
+        title: 'FontAwesome in labels',
+        code: fc('  B["fa:fa-twitter for peace"] --> C[fa:fa-ban forbidden]\n  B --> D(fa:fa-spinner)\n  B --> E(A fab:fa-github perhaps?)\n', 'TD'),
+        note: 'Your Mermaid needs the FontAwesome icon packs registered (or the FontAwesome CSS) to show these.',
+      },
     ],
   },
   {

@@ -2,9 +2,18 @@ import { useEffect, useState, type JSX } from 'react';
 import mermaid from 'mermaid';
 import { GALLERY, type GalleryExample } from './gallery';
 import { parse } from './parse';
+import { BUNDLED_PREFIXES, mermaidIconPacks } from './icons';
 
 /** What the visual editor does with an example: edit it, or show it read-only with a reason. */
 type Status = { editable: true } | { editable: false; reason: string };
+
+// The same icon packs as the canvas, so previews and canvas agree. They load when a preview needs an icon.
+mermaid.registerIconPacks(
+  [...BUNDLED_PREFIXES].map((name) => ({
+    name,
+    loader: async () => (await mermaidIconPacks()).find((p) => p.name === name)!.icons,
+  })),
+);
 
 /** Rendered SVG (or an error) per example id. Kept between openings of the gallery. */
 const previews = new Map<string, { svg: string } | { error: string }>();

@@ -10,6 +10,7 @@ import {
   type FlowModel,
   type FlowSubgraph,
   type Shape,
+  type Stroke,
   type TreeItem,
 } from './model';
 
@@ -308,6 +309,13 @@ function layoutScope(ctx: LayoutContext, scope: string | null, direction: Direct
   return result;
 }
 
+const STROKE_DASHES: Record<Stroke, string | undefined> = {
+  normal: undefined,
+  thick: undefined,
+  dotted: '5 5',
+  invisible: '1 5',
+};
+
 export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: LabelEdge[] } {
   const parentOf = new Map<string, string | null>();
   const childrenOf = new Map<string | null, string[]>();
@@ -385,7 +393,9 @@ export function layoutModel(model: FlowModel): { nodes: CanvasNode[]; edges: Lab
     markerStart: edge.bothEnds ? marker(edge.end) : undefined,
     style: {
       strokeWidth: edge.stroke === 'thick' ? 3.5 : 1.5,
-      strokeDasharray: edge.stroke === 'dotted' ? '5 5' : undefined,
+      strokeDasharray: STROKE_DASHES[edge.stroke],
+      // Mermaid does not draw an invisible link. The canvas shows it faintly, so it can be selected.
+      opacity: edge.stroke === 'invisible' ? 0.4 : undefined,
     },
   }));
 

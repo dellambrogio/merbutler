@@ -114,12 +114,13 @@ just dev        # open the URL that Vite prints
 |---|---|
 | Diagram | `flowchart` / `graph` with `TB`, `TD`, `BT`, `LR`, `RL` |
 | Shapes | `[rect]`, `(round)`, `([stadium])`, `[[subroutine]]`, `[(cylinder)]`, `((circle))`, `(((double circle)))`, `>flag]`, `{diamond}`, `{{hexagon}}`, `[/parallelogram/]`, `[\parallelogram\]`, `[/trapezoid\]`, `[\inverted trapezoid/]` |
-| Edge strokes | normal `--`, dotted `-.-`, thick `==` |
+| Shapes, new syntax | `A@{ shape: diam, label: "…" }` with the names and aliases that Mermaid draws like the shapes above: `rect`, `rounded`, `stadium`, `fr-rect`, `cyl`, `circle`, `dbl-circ`, `odd`, `diam`, `hex`, `lean-r`, `lean-l`, `trap-b`, `trap-t` (and aliases such as `database`, `decision`, `process`). The syntax and name are kept |
+| Edge strokes | normal `--`, dotted `-.-`, thick `==`, invisible `~~~` (drawn faintly on the canvas so you can select it) |
 | Edge ends | `>` arrow, `o` circle, `x` cross or none, on one end (`-->`, `--o`, `-.-x`, `==>`) or both (`<-->`, `o--o`, `x-.-x`, `<==>`) |
 | Edge labels | `-->|label|` or `-- label -->` |
 | Edge length | `--->`, `---->` (2 or 3 ranks) for every stroke: `-..->`, `===>` |
 | Edge ids | `A e1@--> B` with `e1@{ animate, animation, step, curve }`: kept in the code, not drawn yet |
-| Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are |
+| Before the `flowchart` line | front matter (`title`, `config`), `%%{init}%%` directives and comments: kept as they are. The canvas shows the `title` |
 | Labels | quoted text with any characters (`"a & (b)"`), `<br>` line breaks, Markdown strings (`` "`**bold** and *italic*`" ``) on nodes, edges and subgraphs |
 | Subgraphs | `subgraph id [Label] … end`, nested, optional `direction` inside, edges to or from a subgraph (`ingest --> store`) |
 
@@ -142,7 +143,7 @@ flowchart LR
 
 Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
 
-Code with other features (invisible links `~~~`, most `A@{ shape: … }` shapes, icon and image shapes, `classDef`, `style`,
+Code with other features (other `A@{ shape: … }` shapes such as `cloud` or `doc`, icon and image shapes, `classDef`, `style`,
 `linkStyle`, `click`, collapsed subgraphs) shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts.
 

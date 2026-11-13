@@ -191,3 +191,9 @@ button.danger { color: var(--danger); }
   .badge.ok, .gallery-note.ok { color: #5fd18f; }
   .badge.warn, .gallery-note.warn { color: #f0b45a; }
 }
+
+/* The front matter `title`, above the diagram. Read-only: edit it in the code. */
+.diagram-title {
+  position: absolute; white-space: nowrap; pointer-events: none;
+  font-size: 18px; font-weight: 600; color: var(--text);
+}

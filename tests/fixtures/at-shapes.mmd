@@ -1,0 +1,11 @@
+flowchart LR
+  a@{ shape: diam, label: "Decision" }
+  b@{ shape: database, label: "Alias of cyl" }
+  c@{ shape: rounded }
+  d@{ shape: circle, label: "**bold** and *italic*" }
+  e@{ shape: trap-t, label: "Line one
+  Line two" }
+  f@{ shape: hex, label: "Quotes #quot;x#quot;, #35;35; {braces} a\\b" }
+  g((Bracket circle)) --> a
+  a --> b & c
+  d -.-> e ==> f

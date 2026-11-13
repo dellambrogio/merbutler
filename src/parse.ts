@@ -6,7 +6,7 @@
  * this API is not public and can change.
  */
 import mermaid from 'mermaid';
-import { canonicalOrder, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Shape, type Stroke } from './model';
+import { canonicalOrder, keepsAtSyntax, type Direction, type EdgeEnd, type EdgeOptions, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Shape, type Stroke } from './model';
 
 export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
 
@@ -60,9 +60,9 @@ interface MermaidFlowDb {
   getSubGraphs(): MermaidSubgraph[];
 }
 
-const SHAPE_FROM_MERMAID: Record<string, Shape> = {
+/** Shape types from the bracket syntax (`A[(…)]` is `cylinder`, `A>…]` is `odd`). */
+const SHAPE_FROM_BRACKETS: Record<string, Shape> = {
   square: 'rect',
-  rect: 'rect',
   round: 'round',
   stadium: 'stadium',
   subroutine: 'subroutine',
@@ -76,6 +76,34 @@ const SHAPE_FROM_MERMAID: Record<string, Shape> = {
   lean_left: 'lean-left',
   trapezoid: 'trapezoid',
   inv_trapezoid: 'inv-trapezoid',
+};
+
+/**
+ * Names and aliases from the `A@{ shape: … }` syntax that Mermaid draws exactly like a bracket
+ * shape (checked by comparing Mermaid's SVG output). Other names, such as `flag` (paper tape),
+ * are different shapes and are not supported yet.
+ */
+const SHAPE_FROM_AT_SYNTAX: Record<string, Shape> = {
+  ...Object.fromEntries(
+    (
+      [
+        ['rect', ['rect', 'proc', 'process', 'rectangle']],
+        ['round', ['rounded', 'event']],
+        ['stadium', ['stadium', 'pill', 'terminal']],
+        ['subroutine', ['fr-rect', 'framed-rectangle', 'subproc', 'subprocess', 'subroutine']],
+        ['cylinder', ['cyl', 'cylinder', 'database', 'db']],
+        ['circle', ['circle', 'circ']],
+        ['double-circle', ['dbl-circ', 'double-circle']],
+        ['flag', ['odd']],
+        ['diamond', ['diam', 'decision', 'diamond', 'question']],
+        ['hexagon', ['hex', 'hexagon', 'prepare']],
+        ['lean-right', ['lean-r', 'lean-right', 'in-out']],
+        ['lean-left', ['lean-l', 'lean-left', 'out-in']],
+        ['trapezoid', ['trap-b', 'trapezoid', 'trapezoid-bottom', 'priority']],
+        ['inv-trapezoid', ['trap-t', 'inv-trapezoid', 'trapezoid-top', 'manual']],
+      ] as Array<[Shape, string[]]>
+    ).flatMap(([shape, names]) => names.map((name) => [name, shape])),
+  ),
 };
 
 const DIRECTION_FROM_MERMAID: Record<string, Direction> = {
@@ -101,6 +129,7 @@ const STROKE_FROM_MERMAID: Record<string, Stroke> = {
   normal: 'normal',
   dotted: 'dotted',
   thick: 'thick',
+  invisible: 'invisible',
 };
 
 class UnsupportedError extends Error {}
@@ -157,16 +186,27 @@ function toSubgraph(s: MermaidSubgraph): FlowSubgraph {
   };
 }
 
-function toNode(v: MermaidVertex): FlowNode {
-  const shape = v.type == null ? 'rect' : SHAPE_FROM_MERMAID[v.type];
+/** True if the code gives the node `@{ … }` data somewhere (`A@{ shape: diam }`). */
+function usesAtSyntax(text: string, id: string): boolean {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[^\\w-])${escaped}@\\{`, 'm').test(text);
+}
+
+function toNode(v: MermaidVertex, text: string): FlowNode {
   if (v.icon) unsupported(`icon shape (node ${v.id})`);
   if (v.img) unsupported(`image shape (node ${v.id})`);
+  // Bracket and `@{ shape }` names overlap (`circle`, `stadium`, …), so look at the code.
+  const atSyntax = v.type != null && usesAtSyntax(text, v.id);
+  const shape = v.type == null ? 'rect' : atSyntax ? SHAPE_FROM_AT_SYNTAX[v.type] : SHAPE_FROM_BRACKETS[v.type];
   if (!shape) unsupported(`shape "${v.type}" (node ${v.id})`);
   if (v.styles.length > 0) unsupported(`style on node ${v.id}`);
   // `click` adds the class "clickable". With securityLevel 'strict' a callback leaves only that class.
   if (v.link || v.haveCallback || v.classes.includes('clickable')) unsupported(`click on node ${v.id}`);
   if (v.classes.some((c) => c !== 'default')) unsupported(`class on node ${v.id}`);
-  return { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
+  const node: FlowNode = { id: v.id, label: decodeEntities(v.text ?? v.id), shape, markdown: v.labelType === 'markdown', parent: null };
+  if (atSyntax && v.type) node.shapeName = v.type;
+  if (node.shapeName !== undefined && !keepsAtSyntax(node)) delete node.shapeName;
+  return node;
 }
 
 function toEdge(e: MermaidEdge, index: number): FlowEdge {
@@ -232,7 +272,7 @@ export async function parse(text: string): Promise<ParseResult> {
     const edges = db.getEdges().map(toEdge);
 
     // An edge to a subgraph also creates a vertex with the subgraph id. It is not a node.
-    const nodes = [...db.getVertices().values()].filter((v) => !subgraphById.has(v.id)).map(toNode);
+    const nodes = [...db.getVertices().values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text));
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
     // Mermaid lists inner subgraphs first, and keeps each id in one subgraph only.

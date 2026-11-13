@@ -4,6 +4,7 @@
  */
 import {
   buildTree,
+  keepsAtSyntax,
   normalizeNodeLabel,
   type EdgeEnd,
   type FlowEdge,
@@ -41,6 +42,8 @@ const EDGE_LINES: Record<Stroke, (n: number) => { open: string; body: string }> 
   normal: (n) => ({ open: '-'.repeat(n + 2), body: '-'.repeat(n + 1) }),
   dotted: (n) => ({ open: `-${'.'.repeat(n)}-`, body: `-${'.'.repeat(n)}-` }),
   thick: (n) => ({ open: '='.repeat(n + 2), body: '='.repeat(n + 1) }),
+  // No markers: `~~~`, `~~~~`.
+  invisible: (n) => ({ open: '~'.repeat(n + 2), body: '~'.repeat(n + 2) }),
 };
 
 const END_CHARS: Record<Exclude<EdgeEnd, 'none'>, { start: string; end: string }> = {
@@ -52,7 +55,7 @@ const END_CHARS: Record<Exclude<EdgeEnd, 'none'>, { start: string; end: string }
 /** For example: `-->`, `-.-o`, `<==>`, `x--x`, `---`, `--->` (length 2). */
 export function edgeOperator(edge: Pick<FlowEdge, 'stroke' | 'end' | 'bothEnds' | 'length'>): string {
   const line = EDGE_LINES[edge.stroke](edge.length ?? 1);
-  if (edge.end === 'none') return line.open;
+  if (edge.end === 'none' || edge.stroke === 'invisible') return line.open;
   const chars = END_CHARS[edge.end];
   return `${edge.bothEnds ? chars.start : ''}${line.body}${chars.end}`;
 }
@@ -73,8 +76,26 @@ export function quoteText(text: string, markdown = false): string {
   return markdown ? `"\`${escaped.replaceAll('`', '#96;')}\`"` : `"${escaped}"`;
 }
 
+/**
+ * A label in `@{ label: "…" }`. Mermaid reads it as a YAML string: `\\` and `\n` are escapes.
+ * Entities work as in other labels.
+ */
+function atLabel(text: string): string {
+  const escaped = text
+    .replace(/#(?=\w+;)/g, '#35;')
+    .replaceAll('"', '#quot;')
+    .replaceAll('\\', '\\\\')
+    .replaceAll('\n', '\\n');
+  return `"${escaped}"`;
+}
+
 function nodeLine(node: FlowNode): string {
   const label = normalizeNodeLabel(node.label, node.id, node.markdown);
+  if (keepsAtSyntax(node)) {
+    const fields = [`shape: ${node.shapeName}`];
+    if (node.markdown) fields.push(`label: ${atLabel(label)}`);
+    return `${node.id}@{ ${fields.join(', ')} }`;
+  }
   if (node.shape === 'rect' && label === node.id && !node.markdown) return node.id;
   const [open, close] = SHAPE_BRACKETS[node.shape];
   return `${node.id}${open}${quoteText(label, node.markdown)}${close}`;

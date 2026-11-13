@@ -29,6 +29,23 @@ exports[`round-trip > all-shapes.mmd 1`] = `
 "
 `;
 
+exports[`round-trip > at-shapes.mmd 1`] = `
+"flowchart LR
+  a@{ shape: diam, label: "Decision" }
+  b@{ shape: database, label: "Alias of cyl" }
+  c@{ shape: rounded }
+  d@{ shape: circle, label: "**bold** and *italic*" }
+  e@{ shape: trap-t, label: "Line one<br/>Line two" }
+  f@{ shape: hex, label: "Quotes #quot;x#quot;, #35;35; {braces} a\\\\b" }
+  g((Bracket circle))
+  g --> a
+  a --> b
+  a --> c
+  d -.-> e
+  e ==> f
+"
+`;
+
 exports[`round-trip > basic.mmd 1`] = `
 "flowchart LR
   A[Start]
@@ -131,6 +148,19 @@ exports[`round-trip > graph-td.mmd 1`] = `
   a --> c
   b --> d
   c --> d
+"
+`;
+
+exports[`round-trip > invisible.mmd 1`] = `
+"flowchart TB
+  a
+  b
+  c
+  d
+  a ~~~ b
+  a ~~~~ c
+  b --> d
+  c ~~~|hidden label| d
 "
 `;
 

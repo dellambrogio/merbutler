@@ -8,6 +8,7 @@ import {
   addSubgraph,
   canonicalOrder,
   connect,
+  diagramTitle,
   EDGE_ENDS,
   removeElements,
   setParent,
@@ -169,7 +170,7 @@ describe('parse', () => {
     ['classDef', 'flowchart LR\n  a\n  classDef red fill:#f00'],
     ['style', 'flowchart LR\n  a\n  style a fill:#f00'],
     ['shape from @{} syntax', 'flowchart LR\n  a@{ shape: bolt }'],
-    ['invisible link', 'flowchart LR\n  a ~~~ b'],
+    ['paper tape, not the bracket flag', 'flowchart LR\n  a@{ shape: flag }'],
     ['linkStyle', 'flowchart LR\n  a --> b\n  linkStyle 0 stroke:#f00'],
     ['click', 'flowchart LR\n  a\n  click a "https://example.com"'],
   ])('rejects %s', async (_name, text) => {
@@ -410,5 +411,61 @@ describe('rejected instead of dropped', () => {
     const result = await parse(text);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain(message);
+  });
+});
+
+describe('@{ shape } syntax', () => {
+  test('aliases map to the bracket shapes and keep the name as written', async () => {
+    const model = await parseOk('flowchart LR\n  a@{ shape: decision }\n  b@{ shape: db, label: "Store" }\n  c>Bracket flag]\n  d@{ shape: odd }\n');
+    expect(model.nodes.map((n) => [n.id, n.shape, n.shapeName])).toEqual([
+      ['a', 'diamond', 'decision'],
+      ['b', 'cylinder', 'db'],
+      ['c', 'flag', undefined],
+      ['d', 'flag', 'odd'],
+    ]);
+  });
+
+  test('a new shape from the inspector keeps the syntax, with the short name', async () => {
+    const model = await parseOk('flowchart LR\n  a@{ shape: decision, label: "Go?" }\n');
+    expect(serialize(updateNode(model, 'a', { shape: 'hexagon' }))).toBe('flowchart LR\n  a@{ shape: hex, label: "Go?" }\n');
+  });
+
+  test('a plain label switches to brackets, because @{ label } is always Markdown', async () => {
+    const model = await parseOk('flowchart LR\n  a@{ shape: diam, label: "Go?" }\n');
+    expect(serialize(updateNode(model, 'a', { markdown: false }))).toBe('flowchart LR\n  a{Go?}\n');
+    // Without a label, the text is the id: the syntax stays.
+    const bare = await parseOk('flowchart LR\n  a@{ shape: diam }\n');
+    expect(serialize(updateNode(bare, 'a', { shape: 'circle' }))).toBe('flowchart LR\n  a@{ shape: circle }\n');
+    // Renaming it gives a plain label, so it switches too.
+    expect(serialize(updateNode(bare, 'a', { label: 'Go?' }))).toBe('flowchart LR\n  a{Go?}\n');
+  });
+
+  test('bracket text and @{ shape } on the same node: the plain text wins, written with brackets', async () => {
+    const model = await parseOk('flowchart LR\n  a[Old text] --> b\n  a@{ shape: diam }\n');
+    expect(model.nodes[0]).toMatchObject({ label: 'Old text', shape: 'diamond', markdown: false });
+    expect(model.nodes[0].shapeName).toBeUndefined();
+  });
+});
+
+describe('invisible links', () => {
+  test('have no markers', async () => {
+    const model = await parseOk('flowchart LR\n  a --> b\n');
+    const id = model.edges[0].id;
+    const edited = updateEdge(model, id, { stroke: 'invisible' });
+    expect(edited.edges[0]).toMatchObject({ stroke: 'invisible', end: 'none', bothEnds: false });
+    expect(serialize(edited)).toContain('a ~~~ b');
+    expect(serialize(updateEdge(edited, id, { length: 2 }))).toContain('a ~~~~ b');
+  });
+});
+
+describe('diagram title', () => {
+  test.each([
+    ['---\ntitle: Checkout flow\n---', 'Checkout flow'],
+    ['---\ntitle: "Quoted: yes"\nconfig:\n  look: classic\n---', 'Quoted: yes'],
+    ['---\nconfig:\n  title: nested is not the title\n---', null],
+    ['%% title: in a comment', null],
+    [undefined, null],
+  ])('%s', (preamble, title) => {
+    expect(diagramTitle({ direction: 'TB', nodes: [], subgraphs: [], edges: [], preamble })).toBe(title);
   });
 });

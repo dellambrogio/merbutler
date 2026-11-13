@@ -16,7 +16,8 @@ export type Shape =
   | 'lean-left'
   | 'trapezoid'
   | 'inv-trapezoid';
-export type Stroke = 'normal' | 'dotted' | 'thick';
+/** `invisible` is `~~~`: the layout uses the link, Mermaid does not draw it. */
+export type Stroke = 'normal' | 'dotted' | 'thick' | 'invisible';
 export type EdgeEnd = 'none' | 'arrow' | 'circle' | 'cross';
 
 export const DIRECTIONS: readonly Direction[] = ['TB', 'LR', 'BT', 'RL'];
@@ -36,7 +37,28 @@ export const SHAPES: readonly Shape[] = [
   'trapezoid',
   'inv-trapezoid',
 ];
-export const STROKES: readonly Stroke[] = ['normal', 'dotted', 'thick'];
+/**
+ * The short name for each shape in the `id@{ shape: … }` syntax (Mermaid 11.3+). Mermaid draws
+ * these exactly like the bracket forms. Other names and aliases are in parse.ts.
+ */
+export const AT_SHAPE_NAMES: Record<Shape, string> = {
+  rect: 'rect',
+  round: 'rounded',
+  stadium: 'stadium',
+  subroutine: 'fr-rect',
+  cylinder: 'cyl',
+  circle: 'circle',
+  'double-circle': 'dbl-circ',
+  flag: 'odd',
+  diamond: 'diam',
+  hexagon: 'hex',
+  'lean-right': 'lean-r',
+  'lean-left': 'lean-l',
+  trapezoid: 'trap-b',
+  'inv-trapezoid': 'trap-t',
+};
+
+export const STROKES: readonly Stroke[] = ['normal', 'dotted', 'thick', 'invisible'];
 export const EDGE_ENDS: readonly EdgeEnd[] = ['none', 'arrow', 'circle', 'cross'];
 /** Minimum edge length in ranks: 1 for `-->`, 2 for `--->`, 3 for `---->`. */
 export const EDGE_LENGTHS: readonly number[] = [1, 2, 3];
@@ -57,6 +79,11 @@ export interface FlowNode {
   markdown: boolean;
   /** Id of the subgraph that contains the node, or null at the top level. */
   parent: string | null;
+  /**
+   * The name written in `id@{ shape: … }` (for example `diam` or its alias `decision`).
+   * Missing for the bracket syntax. See `keepsAtSyntax`.
+   */
+  shapeName?: string;
 }
 
 export interface FlowSubgraph {
@@ -150,6 +177,14 @@ function relabel<T extends { label: string; markdown: boolean }>(old: T, next: T
   return !old.markdown && next.markdown ? toEditText(next.label) : next.label;
 }
 
+/**
+ * The `@{ … }` syntax has no plain-text label: `label: "…"` is always Markdown, and without
+ * `label:` the text is the id. A node with another plain label is written with brackets.
+ */
+export function keepsAtSyntax(node: FlowNode): boolean {
+  return node.shapeName !== undefined && (node.markdown || node.label === node.id);
+}
+
 export function updateNode(
   model: FlowModel,
   id: string,
@@ -160,7 +195,11 @@ export function updateNode(
     nodes: model.nodes.map((n) => {
       if (n.id !== id) return n;
       const node = { ...n, ...patch };
-      return { ...node, label: normalizeNodeLabel(relabel(n, node), id, node.markdown) };
+      node.label = normalizeNodeLabel(relabel(n, node), id, node.markdown);
+      // A new shape keeps the syntax the code used.
+      if (node.shapeName !== undefined && patch.shape && patch.shape !== n.shape) node.shapeName = AT_SHAPE_NAMES[patch.shape];
+      if (node.shapeName !== undefined && !keepsAtSyntax(node)) delete node.shapeName;
+      return node;
     }),
   };
 }
@@ -187,6 +226,8 @@ export function updateEdge(model: FlowModel, id: string, patch: Partial<Omit<Flo
       if (e.id !== id) return e;
       const edge = { ...e, ...patch };
       edge.label = fromEditText(relabel(e, edge), edge.markdown);
+      // An invisible link has no markers.
+      if (edge.stroke === 'invisible') edge.end = 'none';
       // Mermaid has no "both ends" line without markers.
       return edge.end === 'none' ? { ...edge, bothEnds: false } : edge;
     }),
@@ -293,4 +334,14 @@ export function canonicalOrder(model: FlowModel): FlowModel {
   };
   walk(buildTree(model));
   return { ...model, nodes, subgraphs };
+}
+
+/** The `title:` from the front matter in the preamble, or null. */
+export function diagramTitle(model: FlowModel): string | null {
+  const front = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(model.preamble ?? '');
+  const line = front ? /^title:[ \t]*(.*?)[ \t]*$/m.exec(front[1]) : null;
+  if (!line) return null;
+  // A YAML scalar, maybe quoted.
+  const title = line[1].replace(/^(["'])(.*)\1$/, '$2');
+  return title === '' ? null : title;
 }

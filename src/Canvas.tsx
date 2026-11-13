@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   ReactFlow,
+  ViewportPortal,
   applyEdgeChanges,
   applyNodeChanges,
   useReactFlow,
@@ -25,6 +26,7 @@ import {
   addNode,
   addSubgraph,
   connect,
+  diagramTitle,
   nextEdgeId,
   nextNodeId,
   nextSubgraphId,
@@ -124,9 +126,21 @@ function keepSelection<T extends { id: string; selected?: boolean }>(next: T[], 
   return next.map((x) => (selected.has(x.id) ? { ...x, selected: true } : x));
 }
 
+/** Top center of the top-level nodes and subgraphs, where Mermaid draws the diagram title. */
+function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
+  const top = nodes.filter((n) => !n.parentId);
+  if (top.length === 0) return null;
+  const left = Math.min(...top.map((n) => n.position.x));
+  const right = Math.max(...top.map((n) => n.position.x + (n.width ?? 0)));
+  const y = Math.min(...top.map((n) => n.position.y));
+  return { x: (left + right) / 2, y: y - 12 };
+}
+
 export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element {
   const { fitView } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
+  const title = diagramTitle(model);
+  const titleAnchor = useMemo(() => titlePosition(nodes), [nodes]);
   const [edges, setEdges] = useState<Edge[]>([]);
   /** Node ids and direction at the last fit. A change means nodes were added or removed, or the layout turned. */
   const lastFitKey = useRef('');
@@ -375,6 +389,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             End
             <select
               value={edge.end}
+              disabled={edge.stroke === 'invisible'}
               onChange={(e) => onChange(updateEdge(model, edge.id, { end: e.target.value as EdgeEnd }))}
             >
               {EDGE_ENDS.map((end) => (
@@ -386,7 +401,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             <input
               type="checkbox"
               checked={edge.bothEnds}
-              disabled={edge.end === 'none'}
+              disabled={edge.end === 'none' || edge.stroke === 'invisible'}
               onChange={(e) => onChange(updateEdge(model, edge.id, { bothEnds: e.target.checked }))}
             />
             Both ends
@@ -418,6 +433,16 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         >
           <Background />
           <Controls showInteractive={false} />
+          {title && titleAnchor && (
+            <ViewportPortal>
+              <div
+                className="diagram-title"
+                style={{ transform: `translate(${titleAnchor.x}px, ${titleAnchor.y}px) translate(-50%, -100%)` }}
+              >
+                {title}
+              </div>
+            </ViewportPortal>
+          )}
         </ReactFlow>
       </RenameContext.Provider>
     </div>

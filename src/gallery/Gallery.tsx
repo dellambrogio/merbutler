@@ -3,7 +3,7 @@ import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryEx
 import { parse } from '../core/parse';
 import { renderMermaid, type RenderResult } from '../preview/render';
 import { structuredKind } from '../structured/StructuredEditor';
-import { loadSettings } from '../core/settings';
+import { useSettings } from '../core/settings';
 import { docForGallery } from '../syntax/syntaxDocs';
 import { SyntaxReference } from '../syntax/SyntaxReference';
 
@@ -113,6 +113,7 @@ export function Gallery({ open, view: typeId, onView, onOpen, onClose }: Gallery
   // Bumped when a preview or status arrives, to re-render with the module-level caches.
   const [, setVersion] = useState(0);
   const [query, setQuery] = useState('');
+  const previewScale = useSettings().galleryPreviewScale;
   const [filters, setFilters] = useState<ReadonlySet<Support>>(new Set());
   const body = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -209,8 +210,7 @@ export function Gallery({ open, view: typeId, onView, onOpen, onClose }: Gallery
       aria-label="Gallery"
       aria-hidden={!open}
       inert={!open}
-      // Read when the gallery renders, so a later settings panel takes effect on the next opening.
-      style={{ '--gallery-preview-scale': loadSettings().galleryPreviewScale } as CSSProperties}
+      style={{ '--gallery-preview-scale': previewScale } as CSSProperties}
     >
       <div className="gallery-head">
         {type ? (

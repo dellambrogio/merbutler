@@ -1,6 +1,6 @@
 /**
- * Finds the syntax reference entries for the token under the cursor, or for the selected text.
- * Used by the Syntax panel and by the code editor's hover tooltips.
+ * Finds the syntax reference entries for a token in the code (for the code editor's hover tooltips,
+ * and the Syntax panel when it highlights the syntax at the cursor), and the reference for some code.
  */
 import { HEADER_LINE, typeOfKeyword } from '../core/diagramTypes';
 import { COMMON, docForType, type SyntaxDoc, type SyntaxEntry, type Token } from './syntaxDocs';
@@ -58,12 +58,6 @@ function arrowAt(line: string, column: number): string | null {
   return /[ox]/.test(text) && /[^ox]/.test(text) ? text : null;
 }
 
-/** The token for a selection: the selected text, trimmed, when it is short and on one line. */
-export function selectionToken(text: string): string | null {
-  const t = text.trim();
-  return t !== '' && t.length <= 40 && !t.includes('\n') ? t : null;
-}
-
 const matchesToken = (token: Token, text: string, loose: boolean): boolean =>
   typeof token === 'string' ? (loose ? token.toLowerCase() === text.toLowerCase() : token === text) : token.test(text);
 
@@ -71,6 +65,12 @@ const matchesToken = (token: Token, text: string, loose: boolean): boolean =>
 function variants(text: string): string[] {
   const trimmed = text.replace(/^[|:]+|[|:;]+$/g, '');
   return trimmed !== text && trimmed !== '' ? [text, trimmed] : [text];
+}
+
+/** The token for a selection: the selected text, trimmed, when it is short and on one line. */
+export function selectionToken(text: string): string | null {
+  const t = text.trim();
+  return t !== '' && t.length <= 40 && !t.includes('\n') ? t : null;
 }
 
 export interface Match {

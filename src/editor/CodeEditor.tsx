@@ -28,6 +28,9 @@ import { cursorTokens, syntaxHover } from '../syntax/syntaxHover';
  */
 const fontTheme = new Compartment();
 const fontSizeTheme = (px: number) => EditorView.theme({ '&': { fontSize: `${px}px` } });
+/** Settings that switch an extension on or off. */
+const wrapping = new Compartment();
+const tooltips = new Compartment();
 
 /** Marks a change that comes from the `value` prop, so it is not reported back through onChange. */
 const External = Annotation.define<boolean>();
@@ -124,11 +127,15 @@ interface CodeEditorProps {
   completionData: CompletionData;
   /** Font size in px. */
   fontSize: number;
-  /** The tokens at the cursor, or the selected text, for the syntax reference. Called when they may have changed. */
+  /** Long lines wrap. */
+  lineWrap: boolean;
+  /** Hovering over a keyword or arrow shows its syntax reference. */
+  syntaxTooltips: boolean;
+  /** The tokens at the cursor, or the selected text, for the Syntax panel. Called when they may have changed. */
   onCursor?: (tokens: string[]) => void;
 }
 
-export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize, onCursor }: CodeEditorProps): JSX.Element {
+export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize, lineWrap, syntaxTooltips, onCursor }: CodeEditorProps): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -156,10 +163,10 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
         ),
         appTheme,
         fontTheme.of(fontSizeTheme(fontSize)),
-        EditorView.lineWrapping,
+        wrapping.of(lineWrap ? EditorView.lineWrapping : []),
         mermaidSyntax(),
         mermaidCompletion(() => completionRef.current),
-        syntaxHover(),
+        tooltips.of(syntaxTooltips ? syntaxHover() : []),
         lintGutter(),
         // Tab indents (Escape, then Tab, leaves the editor, as CodeMirror documents).
         keymap.of([indentWithTab]),
@@ -175,7 +182,7 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
           },
         }),
         EditorView.updateListener.of((update) => {
-          if (update.selectionSet || update.docChanged) onCursorRef.current?.(cursorTokens(update.state));
+          if ((update.selectionSet || update.docChanged) && onCursorRef.current) onCursorRef.current(cursorTokens(update.state));
           const external = update.transactions.some((t) => t.annotation(External));
           if (!update.docChanged || external) return;
           const typing = update.transactions.every((t) => !t.docChanged || t.isUserEvent('input.type') || t.isUserEvent('delete'));
@@ -204,9 +211,18 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
     });
   }, [value]);
 
+  // A new listener (the Syntax panel started following the cursor) gets the tokens at once.
+  useEffect(() => {
+    if (onCursor && view.current) onCursor(cursorTokens(view.current.state));
+  }, [onCursor]);
+
   useEffect(() => {
     view.current?.dispatch({ effects: fontTheme.reconfigure(fontSizeTheme(fontSize)) });
   }, [fontSize]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: [wrapping.reconfigure(lineWrap ? EditorView.lineWrapping : []), tooltips.reconfigure(syntaxTooltips ? syntaxHover() : [])] });
+  }, [lineWrap, syntaxTooltips]);
 
   // Mark the parse error on its line. The error comes from the app's parse, after the code settles.
   useEffect(() => {

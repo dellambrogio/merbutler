@@ -60,7 +60,7 @@ export function syntaxHover() {
           if (match.entries.length > MAX_ENTRIES) {
             const more = document.createElement('div');
             more.className = 'cm-syntax-more';
-            more.textContent = `${match.entries.length - MAX_ENTRIES} more in the Syntax panel`;
+            more.textContent = `and ${match.entries.length - MAX_ENTRIES} more in the Syntax panel`;
             dom.append(more);
           }
           return { dom };

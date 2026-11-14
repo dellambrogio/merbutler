@@ -10,6 +10,9 @@ import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
 import { About } from './about/About';
+import { SettingsDialog } from './settings/SettingsDialog';
+import { applyTheme } from './settings/theme';
+import { DEFAULT_SETTINGS, getSettings, saveSettings, useSettings } from './core/settings';
 import { SyntaxPanel } from './syntax/SyntaxPanel';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
 import type { DiagramType } from './core/diagramTypes';
@@ -61,23 +64,12 @@ function loadCode(): string {
   }
 }
 
-const FONT_KEY = 'merbutler:editorFontSize';
 const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
-const DEFAULT_FONT_SIZE = 13;
 
-function loadFontSize(): number {
-  try {
-    const size = Number(localStorage.getItem(FONT_KEY));
-    return FONT_SIZES.includes(size) ? size : DEFAULT_FONT_SIZE;
-  } catch {
-    return DEFAULT_FONT_SIZE;
-  }
-}
-
-/** The next size in FONT_SIZES, up or down. */
+/** The next size in FONT_SIZES, up or down (from a size between two, the nearest one that way). */
 function stepFontSize(size: number, step: 1 | -1): number {
-  const i = FONT_SIZES.indexOf(size);
-  return FONT_SIZES[Math.min(FONT_SIZES.length - 1, Math.max(0, (i < 0 ? FONT_SIZES.indexOf(DEFAULT_FONT_SIZE) : i) + step))];
+  if (step === 1) return FONT_SIZES.find((s) => s > size) ?? FONT_SIZES[FONT_SIZES.length - 1];
+  return [...FONT_SIZES].reverse().find((s) => s < size) ?? FONT_SIZES[0];
 }
 
 function saveCode(code: string): void {
@@ -98,12 +90,14 @@ export function App(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  /** The tokens at the code editor's cursor (or its selection), for the Syntax panel. */
+  const closeAbout = useCallback(() => setAboutOpen(false), []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  /** The tokens at the code editor's cursor (or its selection), when the Syntax panel highlights them. */
   const [cursorTokens, setCursorTokens] = useState<string[]>([]);
   const onCursor = useCallback((tokens: string[]): void => {
     setCursorTokens((prev) => (prev.length === tokens.length && prev.every((t, i) => t === tokens[i]) ? prev : tokens));
   }, []);
-  const closeAbout = useCallback(() => setAboutOpen(false), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
 
   // ---- Diagrams saved in this browser (core/library.ts) ----
   const [diagrams, setDiagrams] = useState<SavedDiagram[]>(loadDiagrams);
@@ -158,23 +152,19 @@ export function App(): JSX.Element {
   const closeGallery = useCallback(() => setGalleryOpen(false), []);
   /** The gallery's type page (null: the overview). */
   const [galleryView, setGalleryView] = useState<string | null>(loadView);
-  const [fontSize, setFontSize] = useState(loadFontSize);
+  const settings = useSettings();
+  const fontSize = settings.editorFontSize;
   /** The canvas panels: which are open, where they were dragged. Kept in the URL. */
   const [panels, setPanels] = useState<PanelLayout>(NO_PANELS);
   /** Widths in percent of the code editor and of an outline or table editor (null: default). Kept in the URL. */
   const [split, setSplit] = useState<number | null>(null);
   const [editorSplit, setEditorSplit] = useState<number | null>(null);
   const changeFont = useCallback((step: 1 | -1 | 0): void => {
-    setFontSize((size) => {
-      const next = step === 0 ? DEFAULT_FONT_SIZE : stepFontSize(size, step);
-      try {
-        localStorage.setItem(FONT_KEY, String(next));
-      } catch {
-        // Storage is a convenience only.
-      }
-      return next;
-    });
+    const size = getSettings().editorFontSize;
+    saveSettings({ editorFontSize: step === 0 ? DEFAULT_SETTINGS.editorFontSize : stepFontSize(size, step) });
   }, []);
+  // The theme: a forced one on the root element, or none to follow the system.
+  useEffect(() => applyTheme(settings.theme), [settings.theme]);
   /** Ids and classes of the last parsed diagram, for autocompletion. */
   const completionData = useMemo(
     () => ({
@@ -535,15 +525,19 @@ export function App(): JSX.Element {
         <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
           Gallery
         </button>
+        <button onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" title="Settings, kept in this browser">
+          Settings
+        </button>
         <button onClick={() => setAboutOpen(true)} aria-haspopup="dialog" title="About Merbutler">
           About
         </button>
       </header>
       <About open={aboutOpen} onClose={closeAbout} />
+      <SettingsDialog open={settingsOpen} onClose={closeSettings} />
       <main className="panes">
         <div className="pane side-pane">
           <PanelSection id="code" title="Code" grow>
-            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} onCursor={onCursor} />
+            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} lineWrap={settings.editorLineWrap} syntaxTooltips={settings.syntaxTooltips} onCursor={settings.syntaxFollowCursor ? onCursor : undefined} />
             {error && (
               <div className="error" role="alert">
                 <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
@@ -561,7 +555,7 @@ export function App(): JSX.Element {
               <button onClick={() => changeFont(-1)} title="Smaller text (Ctrl+Alt+−)" aria-label="Smaller text" disabled={fontSize === FONT_SIZES[0]}>
                 A−
               </button>
-              <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0)">
+              <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0); more in Settings">
                 {fontSize}px
               </button>
               <button onClick={() => changeFont(1)} title="Larger text (Ctrl+Alt+=)" aria-label="Larger text" disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}>
@@ -570,7 +564,7 @@ export function App(): JSX.Element {
             </div>
           </PanelSection>
           <PanelSection id="syntax" title="Syntax">
-            <SyntaxPanel code={code} cursor={cursorTokens} />
+            <SyntaxPanel code={code} cursor={settings.syntaxFollowCursor ? cursorTokens : null} />
           </PanelSection>
           <PanelSection id="io" title="Save & open">
             <DiagramLibrary diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />

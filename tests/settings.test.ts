@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../src/core/settings';
+import { DEFAULT_SETTINGS, getSettings, loadSettings, resetSettings, saveSettings } from '../src/core/settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());
 
-  test('defaults: gallery previews at double size', () => {
+  test('defaults', () => {
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
     expect(loadSettings().galleryPreviewScale).toBe(2);
+    expect(loadSettings().theme).toBe('system');
+    expect(loadSettings().syntaxFollowCursor).toBe(false);
   });
 
   test('stored values are kept when valid, and fall back to the default otherwise', () => {
@@ -16,7 +18,25 @@ describe('settings', () => {
     expect(loadSettings().galleryPreviewScale).toBe(2);
     localStorage.setItem('merbutler:settings', '{broken');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
-    localStorage.setItem('merbutler:settings', '{"galleryPreviewScale":"big","unknown":1}');
+    localStorage.setItem('merbutler:settings', '{"galleryPreviewScale":"big","theme":"pink","editorLineWrap":"yes","unknown":1}');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+
+  test('every kind of setting is stored', () => {
+    const changed = { theme: 'dark', editorFontSize: 16, editorLineWrap: false, syntaxTooltips: false, syntaxFollowCursor: true } as const;
+    saveSettings(changed);
+    expect(loadSettings()).toEqual({ ...DEFAULT_SETTINGS, ...changed });
+    expect(getSettings().theme).toBe('dark');
+    resetSettings();
+    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+    expect(getSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+
+  test('the code font size stored before it was a setting is kept', () => {
+    localStorage.setItem('merbutler:editorFontSize', '18');
+    expect(loadSettings().editorFontSize).toBe(18);
+    saveSettings({ theme: 'light' });
+    expect(localStorage.getItem('merbutler:editorFontSize')).toBeNull();
+    expect(loadSettings().editorFontSize).toBe(18);
   });
 });

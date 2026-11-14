@@ -13,16 +13,14 @@ export function RichText({ text }: { text: string }): JSX.Element {
 }
 
 /**
- * A diagram type's syntax reference: its sections and the common one. Entries in `highlight`
- * are marked, and the first is scrolled into view inside its scroll container.
+ * A diagram type's syntax reference: its sections, and the one common to every diagram. Entries in
+ * `highlight` are marked, and the first is scrolled into view inside its scroll container.
  */
 export function SyntaxReference({ doc, highlight = [], showCommon = true }: { doc: SyntaxDoc; highlight?: readonly SyntaxEntry[]; showCommon?: boolean }): JSX.Element {
   const root = useRef<HTMLDivElement>(null);
   const first = highlight[0];
-
   useEffect(() => {
-    if (!first) return;
-    root.current?.querySelector('.syntax-entry.match')?.scrollIntoView({ block: 'nearest' });
+    if (first) root.current?.querySelector('.syntax-entry.match')?.scrollIntoView({ block: 'nearest' });
   }, [first]);
 
   const sections = showCommon ? [...doc.sections, COMMON] : doc.sections;

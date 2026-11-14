@@ -3,7 +3,7 @@ import { useState, type JSX } from 'react';
 import { toEditText } from '../core/labels';
 import { commentsFromText, commentsToText, isSwimlane, type FlowModel, type Styled } from '../core/model';
 import { stylesFromText, stylesToText } from '../flowchart/styling';
-import { AppearanceFields, ClassSelect } from './styleControls';
+import { AppearanceFields, ClassSelect, OwnStyleSection } from './styleControls';
 
 /** What every inspector gets: the model, a way to change it, and the delete action. */
 export interface InspectorProps {
@@ -93,7 +93,8 @@ export function TextField({ value, onCommit, placeholder, list }: { value: strin
 
 /**
  * Classes and own style of a node, subgraph or edge: the class pull-down, then the appearance controls
- * (colors, widths, dashes, text), then the style as text under "Advanced". The own style is
+ * (colors, widths, dashes, text), then the style as text under "Advanced". The controls show
+ * only while the own style's Edit toggle is on; otherwise a read-only summary. The own style is
  * written as `style id …` (`linkStyle n …` for an edge) and wins over the classes.
  */
 export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
@@ -109,29 +110,21 @@ export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
   return (
     <div className="style-fields">
       <ClassSelect model={model} classes={item.classes} onChange={(classes) => onChange({ classes })} />
-      <div className="style-fields-own">
-        <span className="style-fields-heading" title={styleTitle}>
-          Own style
-          {(item.styles?.length ?? 0) > 0 && (
-            <button type="button" className="link-button" onClick={() => onChange({ styles: [] })} title="Remove this element's own style">
-              Reset
-            </button>
-          )}
-        </span>
+      <OwnStyleSection heading="Own style" title={styleTitle} styles={item.styles ?? []} onReset={(item.styles?.length ?? 0) > 0 ? () => onChange({ styles: [] }) : undefined}>
         <AppearanceFields key={`${id}:${styles}`} styles={item.styles} kind={kind} onChange={(next) => onChange({ styles: next })} />
-      </div>
-      <details className="style-advanced">
-        <summary>Advanced: style as text</summary>
-        <label title={styleTitle}>
-          Style
-          <TextField
-            key={`${id}:styles:${styles}`}
-            value={styles}
-            placeholder="fill:#f96; stroke:#333"
-            onCommit={(text) => onChange({ styles: stylesFromText(text) })}
-          />
-        </label>
-      </details>
+        <details className="style-advanced">
+          <summary>Advanced: style as text</summary>
+          <label title={styleTitle}>
+            Style
+            <TextField
+              key={`${id}:styles:${styles}`}
+              value={styles}
+              placeholder="fill:#f96; stroke:#333"
+              onCommit={(text) => onChange({ styles: stylesFromText(text) })}
+            />
+          </label>
+        </details>
+      </OwnStyleSection>
     </div>
   );
 }

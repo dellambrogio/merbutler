@@ -1,13 +1,12 @@
 /**
- * The diagrams saved in this browser, in a drawer over the code: create, open, rename, duplicate
- * and delete. The open diagram saves itself as it changes (App.tsx); this drawer only lists them
- * and asks for the changes.
+ * The diagrams saved in local storage, shown in the Save & open panel: create, open, rename,
+ * duplicate and delete. The open diagram saves itself as it changes (App.tsx); this list only shows
+ * them and asks for the changes.
  */
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { diagramKind, type SavedDiagram } from '../core/library';
 
 interface DiagramLibraryProps {
-  open: boolean;
   diagrams: SavedDiagram[];
   /** The diagram in the editor, or null when it is not saved. */
   openId: string | null;
@@ -19,7 +18,6 @@ interface DiagramLibraryProps {
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
-  onClose: () => void;
 }
 
 const when = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
@@ -38,31 +36,13 @@ export function changedText(updated: number, now = Date.now()): string {
   return date.format(updated);
 }
 
-export function DiagramLibrary({ open, diagrams, openId, unsavedWork, onNew, onSaveCurrent, onOpen, onRename, onDuplicate, onDelete, onClose }: DiagramLibraryProps): JSX.Element {
+export function DiagramLibrary({ diagrams, openId, unsavedWork, onNew, onSaveCurrent, onOpen, onRename, onDuplicate, onDelete }: DiagramLibraryProps): JSX.Element {
   const [filter, setFilter] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   /** A diagram to open once the user decides about the unsaved one. */
   const [pendingOpen, setPendingOpen] = useState<string | null>(null);
-  const search = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setRenaming(null);
-      setDeleting(null);
-      setPendingOpen(null);
-      return;
-    }
-    search.current?.focus();
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   const words = filter.trim().toLowerCase();
   const shown = words ? diagrams.filter((d) => d.name.toLowerCase().includes(words) || d.code.toLowerCase().includes(words)) : diagrams;
@@ -77,30 +57,26 @@ export function DiagramLibrary({ open, diagrams, openId, unsavedWork, onNew, onS
     setRenaming(null);
   };
   const requestOpen = (id: string): void => {
-    if (id === openId) return onClose();
+    if (id === openId) return;
     if (unsavedWork) return setPendingOpen(id);
     onOpen(id);
   };
 
   return (
-    <aside className={`library${open ? ' open' : ''}`} role="dialog" aria-label="Diagrams saved in this browser" aria-hidden={!open} inert={!open}>
+    <div className="library" aria-label="Diagrams saved in local storage">
       <div className="library-head">
-        <strong>Diagrams</strong>
-        <span className="muted">{diagrams.length === 0 ? 'none saved' : diagrams.length}</span>
+        <span className="io-label">Local storage</span>
+        <span className="muted">{diagrams.length === 0 ? 'none saved' : `${diagrams.length} saved`}</span>
         <span className="spacer" />
-        <button onClick={onNew} title="Start a new diagram and save it here">
+        <button onClick={onNew} title="Start a new diagram and save it in local storage">
           + New
         </button>
-        <button onClick={onClose} title="Close (Esc)" aria-label="Close">
-          ✕
-        </button>
       </div>
-      <p className="muted library-hint">Saved in this browser only. The open diagram saves itself as you edit.</p>
       {openId === null && (
         <div className="library-unsaved">
           <span>The open diagram is not saved.</span>
-          <button onClick={onSaveCurrent} title="Save it here (Ctrl+S)">
-            Save it
+          <button onClick={onSaveCurrent} title="Save it in local storage (Ctrl+S)">
+            Save
           </button>
         </div>
       )}
@@ -128,7 +104,7 @@ export function DiagramLibrary({ open, diagrams, openId, unsavedWork, onNew, onS
           <button onClick={() => setPendingOpen(null)}>Cancel</button>
         </div>
       )}
-      {diagrams.length > 0 && <input ref={search} className="library-search" type="search" placeholder="Find by name or content" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Find a diagram" />}
+      {diagrams.length > 0 && <input className="library-search" type="search" placeholder="Find by name or content" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Find a diagram" />}
       <ul className="library-list">
         {shown.map((d) => {
           const kind = diagramKind(d.code);
@@ -182,7 +158,7 @@ export function DiagramLibrary({ open, diagrams, openId, unsavedWork, onNew, onS
                       setRenaming(null);
                       setDeleting(d.id);
                     }}
-                    title="Delete from this browser"
+                    title="Delete from local storage"
                   >
                     Delete
                   </button>
@@ -194,6 +170,6 @@ export function DiagramLibrary({ open, diagrams, openId, unsavedWork, onNew, onS
         {diagrams.length > 0 && shown.length === 0 && <li className="muted library-empty">No diagram matches.</li>}
         {diagrams.length === 0 && <li className="muted library-empty">No diagrams yet. Save the open one, or start a new one.</li>}
       </ul>
-    </aside>
+    </div>
   );
 }

@@ -34,6 +34,9 @@ interface ClassPanelProps {
   onClose: () => void;
 }
 
+/** The drag data of a palette class: JSON `{ name, styles }`. */
+export const CLASS_DRAG_TYPE = 'application/x-merbutler-class';
+
 const selectionSize = (s: Selection): number => s.nodes.length + s.subgraphs.length + s.edges.length;
 
 /** Why a new class name cannot be used, or null. */
@@ -48,7 +51,6 @@ export function ClassPanel({ model, selection, readOnly, onChange, onClose }: Cl
   const [open, setOpen] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
-  const [sets, setSets] = useState(false);
   const defs = model.classDefs ?? [];
   const selected = selectionSize(selection);
 
@@ -122,10 +124,8 @@ export function ClassPanel({ model, selection, readOnly, onChange, onClose }: Cl
       )}
       {!readOnly && (
         <div className="class-sets">
-          <button type="button" className="link-button" aria-expanded={sets} onClick={() => setSets(!sets)}>
-            {sets ? '▾' : '▸'} Add classes from a palette
-          </button>
-          {sets && CLASS_SETS.map((set) => {
+          <span className="muted class-sets-hint">Palettes: drag a color onto an element to apply its class.</span>
+          {CLASS_SETS.map((set) => {
             const missing = set.classes.filter((c) => !defs.some((d) => d.name === c.name));
             return (
               <div key={set.name} className="class-set">
@@ -143,9 +143,18 @@ export function ClassPanel({ model, selection, readOnly, onChange, onClose }: Cl
                     {missing.length === 0 ? 'Added' : missing.length === set.classes.length ? '＋ Add' : `＋ Add ${missing.length}`}
                   </button>
                 </div>
-                <div className="class-set-preview" aria-hidden="true">
+                <div className="class-set-preview">
                   {set.classes.map((c, i) => (
-                    <span key={c.name} title={`${c.name}: ${c.styles.join('; ')}`} style={{ background: set.colors[i] }} />
+                    <span
+                      key={c.name}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(CLASS_DRAG_TYPE, JSON.stringify(c));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      title={`${c.name}: drag onto an element to apply it`}
+                      style={{ background: set.colors[i] }}
+                    />
                   ))}
                 </div>
               </div>

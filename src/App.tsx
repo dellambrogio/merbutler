@@ -4,6 +4,7 @@ import { Canvas } from './canvas/Canvas';
 import { Splitter } from './Splitter';
 import { extractMermaid } from './core/clipboard';
 import { CodeEditor } from './editor/CodeEditor';
+import { PanelSection } from './sidebar/PanelSection';
 import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
@@ -26,6 +27,7 @@ import {
   type SavedDiagram,
 } from './core/library';
 import { DiagramLibrary } from './library/DiagramLibrary';
+import { EMPTY_HISTORY, record, redo as redoStep, undo as undoStep, undoKey, type History } from './core/history';
 
 const STORAGE_KEY = 'merbutler:code';
 /** The key used before the app was renamed. Read once so saved code is not lost. */
@@ -128,8 +130,6 @@ export function App(): JSX.Element {
     },
     [flushOpen],
   );
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const closeLibrary = useCallback(() => setLibraryOpen(false), []);
   // Leaving the page saves the last edit too.
   useEffect(() => {
     window.addEventListener('pagehide', flushOpen);
@@ -187,6 +187,23 @@ export function App(): JSX.Element {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [changeFont]);
+  // ---- Undo and redo (core/history.ts): every editor changes the code, so the history keeps code ----
+  const [history, setHistoryState] = useState<History>(EMPTY_HISTORY);
+  const historyRef = useRef(history);
+  const setHistory = useCallback((h: History): void => {
+    historyRef.current = h;
+    setHistoryState(h);
+  }, []);
+  /** Records the step to new code, before it is set. `group`: see `record`. */
+  const recordChange = useCallback(
+    (next: string, group: string | null): void => {
+      if (next === codeRef.current) return;
+      setHistory(record(historyRef.current, codeRef.current, group, Date.now()));
+      codeRef.current = next;
+    },
+    [setHistory],
+  );
+
   const parseSeq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -210,32 +227,39 @@ export function App(): JSX.Element {
 
   /** Code -> canvas: parse after the user stops typing. */
   const onCodeChange = useCallback(
-    (text: string): void => {
+    (text: string, typing: boolean): void => {
+      recordChange(text, typing ? 'type' : null);
       setCode(text);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => void runParse(text), PARSE_DELAY_MS);
     },
-    [runParse],
+    [runParse, recordChange],
   );
 
   /** Canvas -> code: the model is the source of truth, so regenerate the text. */
-  const onModelChange = useCallback((next: FlowModel): void => {
-    clearTimeout(timer.current);
-    parseSeq.current++; // Drop any parse that is still running.
-    setModel(next);
-    setPreview(null);
-    setError(null);
-    setCode(serialize(next));
-  }, []);
+  const onModelChange = useCallback(
+    (next: FlowModel): void => {
+      clearTimeout(timer.current);
+      parseSeq.current++; // Drop any parse that is still running.
+      const text = serialize(next);
+      recordChange(text, 'canvas');
+      setModel(next);
+      setPreview(null);
+      setError(null);
+      setCode(text);
+    },
+    [recordChange],
+  );
 
   /** A structured editor (outline, table) changed the diagram: the code follows at once. */
   const onStructuredChange = useCallback(
     (next: string): void => {
       clearTimeout(timer.current);
+      recordChange(next, 'structured');
       setCode(next);
       void runParse(next);
     },
-    [runParse],
+    [runParse, recordChange],
   );
 
   /** Replaces the whole code with pasted text. Markdown code fences are removed. */
@@ -245,12 +269,14 @@ export function App(): JSX.Element {
       if (next.trim() === '') return;
       clearTimeout(timer.current);
       // New code from outside: a new, unsaved diagram, so a saved one is not overwritten.
+      // Undo brings the code before back (unsaved).
       setOpenId(null);
+      recordChange(next, null);
       setCode(next);
       setNotice(null);
       void runParse(next);
     },
-    [runParse, setOpenId],
+    [runParse, setOpenId, recordChange],
   );
 
   const onPasteButton = async (): Promise<void> => {
@@ -297,11 +323,12 @@ export function App(): JSX.Element {
       clearTimeout(timer.current);
       // A link with other code: a new, unsaved diagram.
       setOpenId(null);
+      recordChange(state.code, null);
       setCode(state.code);
       void runParse(state.code);
       return true;
     },
-    [runParse, setOpenId],
+    [runParse, setOpenId, recordChange],
   );
 
   // On start: the URL's state wins over the code saved in this browser.
@@ -309,6 +336,7 @@ export function App(): JSX.Element {
     void (async () => {
       const brought = applyUrl(await readHash(window.location.hash));
       if (!brought) void runParse(codeRef.current);
+      setHistory(EMPTY_HISTORY); // The code on start is where undo stops.
       setUrlRead(true);
     })();
     // Once, on start.
@@ -356,16 +384,53 @@ export function App(): JSX.Element {
     return () => clearTimeout(t);
   }, [code, openId, commitDiagrams, setOpenId]);
 
-  /** Puts code in the editor, as a diagram's own code (no parse delay). */
+  /**
+   * Puts a saved diagram's code in the editor (no parse delay). Its history starts here: undo must not
+   * bring another diagram's code into it, where the autosave would keep it.
+   */
   const showCode = useCallback(
     (text: string): void => {
       clearTimeout(timer.current);
+      codeRef.current = text;
+      setHistory(EMPTY_HISTORY);
       setCode(text);
       setNotice(null);
       void runParse(text);
     },
-    [runParse],
+    [runParse, setHistory],
   );
+
+  /** Goes one step back or forward in the history. */
+  const travel = useCallback(
+    (direction: 'undo' | 'redo'): void => {
+      const step = (direction === 'undo' ? undoStep : redoStep)(historyRef.current, codeRef.current);
+      if (!step) return;
+      clearTimeout(timer.current);
+      setHistory(step.history);
+      codeRef.current = step.code;
+      setCode(step.code);
+      setNotice(null);
+      void runParse(step.code);
+    },
+    [runParse, setHistory],
+  );
+  const onUndo = useCallback(() => travel('undo'), [travel]);
+  const onRedo = useCallback(() => travel('redo'), [travel]);
+
+  // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y on the canvas and elsewhere. Text fields keep their own undo;
+  // the code editor calls onUndo/onRedo itself.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const action = undoKey(e);
+      if (!action || e.defaultPrevented) return;
+      const target = e.target;
+      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"], .cm-editor')) return;
+      e.preventDefault();
+      travel(action);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [travel]);
 
   /** Saves the code in the editor as a new diagram, and makes it the open one. */
   const saveCurrent = useCallback((): void => {
@@ -381,14 +446,12 @@ export function App(): JSX.Element {
       if (!commitDiagrams(list)) return;
       setOpenId(diagram.id);
       showCode(diagram.code);
-      setLibraryOpen(false);
     },
     onOpen: (id: string): void => {
       const diagram = diagramsRef.current.find((d) => d.id === id);
       if (!diagram) return;
       setOpenId(id);
       showCode(diagram.code);
-      setLibraryOpen(false);
     },
     onRename: (id: string, name: string): void => void commitDiagrams(updateDiagram(diagramsRef.current, id, { name })),
     onDuplicate: (id: string): void => {
@@ -425,6 +488,7 @@ export function App(): JSX.Element {
     clearTimeout(timer.current);
     // A file is a new, unsaved diagram until it is saved here.
     setOpenId(null);
+    recordChange(text, null);
     setCode(text);
     void runParse(text);
   };
@@ -443,54 +507,70 @@ export function App(): JSX.Element {
       <header className="app-header">
         <strong>Merbutler</strong>
         <span className="muted">Mermaid diagram editor</span>
-        <button className="diagram-name" onClick={() => { setGalleryOpen(false); setLibraryOpen((o) => !o); }} aria-expanded={libraryOpen} title="Diagrams saved in this browser">
-          {openDiagram ? openDiagram.name : 'Unsaved diagram'} ▾
-        </button>
-        {openDiagram ? (
+        <span className="diagram-name" title={openDiagram ? 'Saved in local storage' : 'Not saved: see Save & open'}>
+          {openDiagram ? openDiagram.name : 'Unsaved diagram'}
+        </span>
+        {openDiagram && (
           <span className="muted saved-state" title="Saved in this browser as you edit">
             saved
           </span>
-        ) : (
-          <button onClick={saveCurrent} title="Save in this browser (Ctrl+S)">
-            Save
-          </button>
         )}
+        <button onClick={onUndo} disabled={history.past.length === 0} title="Undo (Ctrl+Z)" aria-label="Undo">
+          ↶
+        </button>
+        <button onClick={onRedo} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z or Ctrl+Y)" aria-label="Redo">
+          ↷
+        </button>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
-        <button onClick={() => { setLibraryOpen(false); setGalleryOpen((open) => !open); }} aria-expanded={galleryOpen} title="Examples of every diagram type">
+        <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
           Gallery
         </button>
-        <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
-          Paste
-        </button>
-        <button onClick={() => fileInput.current?.click()}>Open .mmd</button>
-        <button onClick={onSaveFile}>Save .mmd</button>
-        <button onClick={() => void navigator.clipboard.writeText(code)}>Copy</button>
-        <input ref={fileInput} type="file" accept=".mmd,.md,.txt" hidden onChange={(e) => void onOpenFile(e)} />
       </header>
       <main className="panes">
-        <section className="pane code-pane">
-          <div className="code-toolbar">
-            <span className="muted">Mermaid</span>
-            <span className="spacer" />
-            <button onClick={() => changeFont(-1)} title="Smaller text (Ctrl+Alt+−)" aria-label="Smaller text" disabled={fontSize === FONT_SIZES[0]}>
-              A−
-            </button>
-            <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0)">
-              {fontSize}px
-            </button>
-            <button onClick={() => changeFont(1)} title="Larger text (Ctrl+Alt+=)" aria-label="Larger text" disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}>
-              A+
-            </button>
-          </div>
-          <CodeEditor value={code} onChange={onCodeChange} error={error} completionData={completionData} fontSize={fontSize} />
-          {error && (
-            <div className="error" role="alert">
-              <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
-              <pre>{error}</pre>
+        <div className="pane side-pane">
+          <PanelSection id="code" title="Code" grow>
+            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} />
+            {error && (
+              <div className="error" role="alert">
+                <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
+                <pre>{error}</pre>
+              </div>
+            )}
+            <div className="code-footer">
+              <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
+                Paste
+              </button>
+              <button onClick={() => void navigator.clipboard.writeText(code)} title="Copy the code to the clipboard">
+                Copy
+              </button>
+              <span className="code-footer-sep" aria-hidden="true" />
+              <button onClick={() => changeFont(-1)} title="Smaller text (Ctrl+Alt+−)" aria-label="Smaller text" disabled={fontSize === FONT_SIZES[0]}>
+                A−
+              </button>
+              <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0)">
+                {fontSize}px
+              </button>
+              <button onClick={() => changeFont(1)} title="Larger text (Ctrl+Alt+=)" aria-label="Larger text" disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}>
+                A+
+              </button>
             </div>
-          )}
-        </section>
+          </PanelSection>
+          <PanelSection id="io" title="Save & open">
+            <DiagramLibrary diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />
+            <div className="io-group">
+              <span className="io-label">File</span>
+              <button onClick={() => fileInput.current?.click()} title="Open a Mermaid file from disk">
+                Open .mmd
+              </button>
+              <button onClick={onSaveFile} title={`Download the code as ${fileName}`}>
+                Save .mmd
+              </button>
+              <span className="muted io-file" title="The name used by Save .mmd">{fileName}</span>
+              <input ref={fileInput} type="file" accept=".mmd,.md,.txt" hidden onChange={(e) => void onOpenFile(e)} />
+            </div>
+          </PanelSection>
+        </div>
         <section className="pane canvas-pane">
           {preview && hasStructuredEditor(preview.type.name) ? (
             <div className="structured-layout">
@@ -511,7 +591,6 @@ export function App(): JSX.Element {
           )}
         </section>
         <Splitter value={split} onChange={setSplit} minFirst={220} minSecond={320} label="Code editor width" />
-        <DiagramLibrary open={libraryOpen} diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} onClose={closeLibrary} {...library} />
         {/* Always mounted, so it slides in and out and keeps its previews. */}
         <Gallery
           open={galleryOpen}

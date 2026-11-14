@@ -1,9 +1,22 @@
 import { useEffect, useRef, type JSX } from 'react';
-import { basicSetup, EditorView } from 'codemirror';
-import { Annotation, Compartment } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
-import { indentWithTab, isolateHistory } from '@codemirror/commands';
-import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { EditorView } from 'codemirror';
+import { Annotation, Compartment, EditorState, Prec, type Text } from '@codemirror/state';
+import {
+  crosshairCursor,
+  drawSelection,
+  dropCursor,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from '@codemirror/view';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting } from '@codemirror/language';
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { lintGutter, lintKeymap, setDiagnostics } from '@codemirror/lint';
 import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
 import { extractMermaid } from '../core/clipboard';
 
@@ -17,6 +30,44 @@ const fontSizeTheme = (px: number) => EditorView.theme({ '&': { fontSize: `${px}
 
 /** Marks a change that comes from the `value` prop, so it is not reported back through onChange. */
 const External = Annotation.define<boolean>();
+
+/**
+ * CodeMirror's basicSetup without its undo history: the app keeps one history for the code editor,
+ * the canvas and the other editors (core/history.ts), and Ctrl+Z here uses it.
+ */
+const setup = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...foldKeymap, ...completionKeymap, ...lintKeymap]),
+];
+
+/** The part of `doc` that differs from `text`: replace from..to in doc with `insert`. */
+export function diffText(doc: string, text: string): { from: number; to: number; insert: string } | null {
+  if (doc === text) return null;
+  let start = 0;
+  const max = Math.min(doc.length, text.length);
+  while (start < max && doc.charCodeAt(start) === text.charCodeAt(start)) start++;
+  let end = 0;
+  while (end < max - start && doc.charCodeAt(doc.length - 1 - end) === text.charCodeAt(text.length - 1 - end)) end++;
+  return { from: start, to: doc.length - end, insert: text.slice(start, text.length - end) };
+}
+
+/** Text documents compare by content. */
+const docText = (doc: Text): string => doc.toString();
 
 /**
  * If the pasted text has a Markdown code fence and the paste replaces the whole document
@@ -37,7 +88,6 @@ function replaceOnFencedPaste(event: ClipboardEvent, view: EditorView): boolean 
     changes: { from: 0, to: state.doc.length, insert: code },
     selection: { anchor: code.length },
     userEvent: 'input.paste',
-    annotations: isolateHistory.of('full'),
     scrollIntoView: true,
   });
   return true;
@@ -63,7 +113,10 @@ const appTheme = EditorView.theme({
 
 interface CodeEditorProps {
   value: string;
-  onChange: (value: string) => void;
+  /** `typing`: typed or deleted characters, which join one undo step. */
+  onChange: (value: string, typing: boolean) => void;
+  onUndo: () => void;
+  onRedo: () => void;
   /** Parse error of the current code, marked on its line. */
   error: string | null;
   /** Ids and class names of the last parsed diagram, for autocompletion. */
@@ -72,11 +125,13 @@ interface CodeEditorProps {
   fontSize: number;
 }
 
-export function CodeEditor({ value, onChange, error, completionData, fontSize }: CodeEditorProps): JSX.Element {
+export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize }: CodeEditorProps): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const historyRef = useRef({ onUndo, onRedo });
+  historyRef.current = { onUndo, onRedo };
   const completionRef = useRef(completionData);
   completionRef.current = completionData;
 
@@ -86,7 +141,14 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
       parent: host.current,
       doc: value,
       extensions: [
-        basicSetup,
+        setup,
+        Prec.highest(
+          keymap.of([
+            { key: 'Mod-z', run: () => (historyRef.current.onUndo(), true), preventDefault: true },
+            { key: 'Mod-y', run: () => (historyRef.current.onRedo(), true), preventDefault: true },
+            { key: 'Mod-Shift-z', run: () => (historyRef.current.onRedo(), true), preventDefault: true },
+          ]),
+        ),
         appTheme,
         fontTheme.of(fontSizeTheme(fontSize)),
         EditorView.lineWrapping,
@@ -95,10 +157,22 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
         lintGutter(),
         // Tab indents (Escape, then Tab, leaves the editor, as CodeMirror documents).
         keymap.of([indentWithTab]),
-        EditorView.domEventHandlers({ paste: replaceOnFencedPaste }),
+        EditorView.domEventHandlers({
+          paste: replaceOnFencedPaste,
+          // Undo and redo from the browser's Edit menu.
+          beforeinput: (event) => {
+            if (event.inputType !== 'historyUndo' && event.inputType !== 'historyRedo') return false;
+            event.preventDefault();
+            if (event.inputType === 'historyUndo') historyRef.current.onUndo();
+            else historyRef.current.onRedo();
+            return true;
+          },
+        }),
         EditorView.updateListener.of((update) => {
           const external = update.transactions.some((t) => t.annotation(External));
-          if (update.docChanged && !external) onChangeRef.current(update.state.doc.toString());
+          if (!update.docChanged || external) return;
+          const typing = update.transactions.every((t) => !t.docChanged || t.isUserEvent('input.type') || t.isUserEvent('delete'));
+          onChangeRef.current(docText(update.state.doc), typing);
         }),
       ],
     });
@@ -111,14 +185,16 @@ export function CodeEditor({ value, onChange, error, completionData, fontSize }:
   useEffect(() => {
     const v = view.current;
     if (!v) return;
-    const current = v.state.doc.toString();
-    if (current !== value) {
-      // A separate undo step, so Ctrl+Z restores the code before a paste or a canvas edit.
-      v.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-        annotations: [External.of(true), isolateHistory.of('full')],
-      });
-    }
+    // Only the part that changed, so the cursor and the scroll stay where they were.
+    const change = diffText(docText(v.state.doc), value);
+    if (!change) return;
+    // In the editor (undo, redo), the cursor goes to the change.
+    const focused = v.hasFocus;
+    v.dispatch({
+      changes: change,
+      annotations: External.of(true),
+      ...(focused ? { selection: { anchor: change.from + change.insert.length }, scrollIntoView: true } : {}),
+    });
   }, [value]);
 
   useEffect(() => {

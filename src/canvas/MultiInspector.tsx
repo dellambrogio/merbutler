@@ -24,7 +24,7 @@ import {
 } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
 import { ShapePicker } from './ShapePicker';
-import { AppearanceFields, ClassSelect, CurvePicker, EndPicker, LengthPicker, StrokePicker } from './styleControls';
+import { AppearanceFields, ClassSelect, CurvePicker, EndPicker, LengthPicker, OwnStyleSection, StrokePicker } from './styleControls';
 
 /** A value that matches no option of a picker: the selected elements differ. */
 const MIXED = '\u0000mixed';
@@ -45,6 +45,11 @@ export function sharedDeclarations(lists: ReadonlyArray<readonly string[] | unde
     if (v !== MIXED && v !== '') out.push(`${p}:${v}`);
   }
   return out;
+}
+
+/** Whether the own styles of several elements are not all the same. */
+function differ(lists: ReadonlyArray<readonly string[] | undefined>): boolean {
+  return new Set(lists.map((l) => (l ?? []).join(';'))).size > 1;
 }
 
 /**
@@ -183,40 +188,36 @@ export function MultiInspector({ model, nodes, subgraphs, edges, flowchart, onCh
             }}
           />
           {boxes.length > 0 && (
-            <div className="style-fields-own">
-              <span className="style-fields-heading" title="Written as: style id … for each element">
-                {edges.length > 0 ? 'Own style of the nodes' : 'Own style'}
-                {boxes.some((b) => (b.styles?.length ?? 0) > 0) && (
-                  <button type="button" className="link-button" onClick={() => onChange(eachBox(model, () => ({ styles: [] })))} title="Remove the own style of every selected node">
-                    Reset
-                  </button>
-                )}
-              </span>
+            <OwnStyleSection
+              heading={edges.length > 0 ? 'Own style of the nodes' : 'Own style'}
+              title="Written as: style id … for each element"
+              styles={boxStyles}
+              mixed={differ(boxes.map((b) => b.styles))}
+              onReset={boxes.some((b) => (b.styles?.length ?? 0) > 0) ? () => onChange(eachBox(model, () => ({ styles: [] }))) : undefined}
+            >
               <AppearanceFields
                 key={boxStyles.join(';')}
                 styles={boxStyles}
                 kind="box"
                 onChange={(after) => onChange(eachBox(model, (b) => ({ styles: applyDeclarationChange(b.styles, boxStyles, after) })))}
               />
-            </div>
+            </OwnStyleSection>
           )}
           {styledEdges.length > 0 && (
-            <div className="style-fields-own">
-              <span className="style-fields-heading" title="Written as: linkStyle n … for each edge">
-                {boxes.length > 0 ? 'Own style of the edges' : 'Own style'}
-                {styledEdges.some((e) => (e.styles?.length ?? 0) > 0) && (
-                  <button type="button" className="link-button" onClick={() => onChange(eachEdge(model, () => ({ styles: [] })))} title="Remove the own style of every selected edge">
-                    Reset
-                  </button>
-                )}
-              </span>
+            <OwnStyleSection
+              heading={boxes.length > 0 ? 'Own style of the edges' : 'Own style'}
+              title="Written as: linkStyle n … for each edge"
+              styles={edgeStyles}
+              mixed={differ(styledEdges.map((e) => e.styles))}
+              onReset={styledEdges.some((e) => (e.styles?.length ?? 0) > 0) ? () => onChange(eachEdge(model, () => ({ styles: [] }))) : undefined}
+            >
               <AppearanceFields
                 key={edgeStyles.join(';')}
                 styles={edgeStyles}
                 kind="edge"
                 onChange={(after) => onChange(eachEdge(model, (e) => ({ styles: applyDeclarationChange(e.styles, edgeStyles, after) })))}
               />
-            </div>
+            </OwnStyleSection>
           )}
         </div>
       )}

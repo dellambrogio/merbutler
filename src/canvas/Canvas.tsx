@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type JSX } from 'react';
 import {
   Background,
   Controls,
@@ -22,6 +22,7 @@ import {
   DIRECTIONS,
   addNode,
   addSubgraph,
+  addClassDef,
   connect,
   diagramTitle,
   groupInSubgraph,
@@ -31,6 +32,7 @@ import {
   nextSubgraphId,
   removeElements,
   setParent,
+  toggleClassOn,
   updateNode,
   updateSubgraph,
   type Direction,
@@ -38,7 +40,7 @@ import {
 } from '../core/model';
 import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
-import { ClassPanel, type Selection } from './ClassPanel';
+import { CLASS_DRAG_TYPE, ClassPanel, type Selection } from './ClassPanel';
 import { MultiInspector } from './MultiInspector';
 import { LayoutPanel } from './LayoutPanel';
 import { OpenClassesContext } from './styleControls';
@@ -473,8 +475,41 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     if (rect) openMenu(rect.left + Math.min(rect.width / 2, 120), rect.top + Math.min(rect.height / 2, 60), target);
   };
 
+  /** The node, subgraph or edge under a drag, as its React Flow element. */
+  const classDropTarget = (target: EventTarget | null): HTMLElement | null =>
+    target instanceof Element ? (target.closest('.react-flow__node, .react-flow__edge') as HTMLElement | null) : null;
+  const classDropHover = useRef<HTMLElement | null>(null);
+  const setClassDropHover = (el: HTMLElement | null): void => {
+    if (classDropHover.current === el) return;
+    classDropHover.current?.classList.remove('class-drop-target');
+    el?.classList.add('class-drop-target');
+    classDropHover.current = el;
+  };
+  /** A palette color dropped on an element adds its class (creating the classDef if needed). */
+  const onClassDragOver = (e: DragEvent): void => {
+    if (readOnly || !e.dataTransfer.types.includes(CLASS_DRAG_TYPE)) return;
+    const el = classDropTarget(e.target);
+    setClassDropHover(el);
+    if (!el) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+  const onClassDrop = (e: DragEvent): void => {
+    setClassDropHover(null);
+    const raw = e.dataTransfer.getData(CLASS_DRAG_TYPE);
+    const el = classDropTarget(e.target);
+    const id = el?.dataset.id;
+    if (readOnly || !raw || !el || !id) return;
+    e.preventDefault();
+    const { name, styles } = JSON.parse(raw) as { name: string; styles: string[] };
+    const kind = el.classList.contains('react-flow__edge') ? 'edges' : model.subgraphs.some((s) => s.id === id) ? 'subgraphs' : 'nodes';
+    const item = kind === 'edges' ? model.edges.find((x) => x.id === id) : kind === 'subgraphs' ? model.subgraphs.find((x) => x.id === id) : model.nodes.find((x) => x.id === id);
+    if (!item || item.classes?.includes(name)) return;
+    onChange(toggleClassOn(addClassDef(model, name, styles), name, { [kind]: [id] }));
+  };
+
   return (
-    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick}>
+    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick} onDragOver={onClassDragOver} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setClassDropHover(null); }} onDrop={onClassDrop}>
       <OpenClassesContext.Provider value={openClasses}>
       {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
       {layoutOpen && <LayoutPanel model={model} readOnly={readOnly} onChange={onChange} onClose={() => setPanelOpen('layout', false)} />}

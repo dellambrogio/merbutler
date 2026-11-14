@@ -121,17 +121,27 @@ just dev        # open the URL that Vite prints
   editor's, also when comments were removed).
 - **Editing:** Ctrl+/ toggles `%%` comments, Tab indents (Esc then Tab leaves the editor), lines inside a subgraph
   indent automatically and `end` steps back, brackets and quotes close, Ctrl+F searches.
-- **Text size:** **A−** / **A+** above the code (Ctrl+Alt+− / Ctrl+Alt+=, Ctrl+Alt+0 resets). It is remembered.
+- **Text size:** **A−** / **A+** below the code (Ctrl+Alt+− / Ctrl+Alt+=, Ctrl+Alt+0 resets). It is remembered.
+
+## Undo and redo
+
+- **↶** / **↷** in the header, or **Ctrl+Z** and **Ctrl+Shift+Z** / **Ctrl+Y** (Cmd on a Mac), in the code panel or
+  on the canvas. One history covers the code, the canvas and the outline and table editors: an edit on the canvas
+  is undone from the code panel too.
+- Typing is one step until a pause of a second. A color dragged in a picker is one step.
+- Pasting, opening a `.mmd` file, an example or a link can be undone. Opening a saved diagram starts its own history.
+- Inspector fields keep the browser's own undo while you type in them.
 
 ## Saved diagrams
 
 Diagrams are kept in this browser's local storage: nothing goes to a server, and another browser or a private
 window does not see them.
 
-- Click the diagram's name in the header (**Unsaved diagram** at first) to list the saved diagrams: open, rename,
-  copy or delete them, find one by name or content, or start a **+ New** one.
+- The left column stacks panels you open and close with their triangle: **Code** on top, and **Save & open** below.
+- **Save & open** lists the diagrams in **Local storage**: open, rename, copy or delete them, find one by name or
+  content, or start a **+ New** one. Below it, **Open .mmd** / **Save .mmd** read and write files on disk.
 - **Save** (or **Ctrl+S**) keeps the open code under its front matter `title`, its file name, or "Untitled".
-- The open saved diagram saves itself as you edit (also when you leave the page). The header says **saved**.
+- The open saved diagram saves itself as you edit (also when you leave the page). The header shows its name and **saved**.
 - Pasting, opening a `.mmd` file, an example from the gallery, or a link with other code starts a new, unsaved
   diagram, so it never overwrites a saved one. Opening a saved diagram over unsaved work asks first.
 - A deleted diagram cannot be restored. Deleting the open one keeps its code in the editor, unsaved.
@@ -144,7 +154,7 @@ window does not see them.
   This lets you copy an agent's answer as it is.
 - Ctrl+V in the code panel removes the fence only when the paste replaces all the code
   (empty editor or all text selected). Other pastes insert the text as it is.
-- Ctrl+Z in the code panel undoes a paste.
+- **Ctrl+Z** (or **↶**) undoes a paste, wherever the focus is.
 - The Paste button needs clipboard permission. If the browser blocks it, use Ctrl+V on the canvas.
 
 ## Canvas actions

@@ -3,7 +3,7 @@
  * styles, class pull-down, and the line and marker pickers of edges. They read and write the
  * declarations of `style`, `linkStyle` and `classDef` (see `withDeclaration` in styling.ts).
  */
-import { createContext, useContext, useEffect, useRef, useState, type JSX } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 import { curvePath } from './curves';
 import { EDGE_CURVES, EDGE_LENGTHS, type EdgeEnd, type FlowModel, type Stroke } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
@@ -507,5 +507,89 @@ export function LengthPicker({ value, onChange }: { value: number; onChange: (le
       }))}
       onChange={(v) => onChange(Number(v))}
     />
+  );
+}
+
+const OWN_STYLE_KEY = 'merbutler:editOwnStyle';
+let editOwnStyle = ((): boolean => {
+  try {
+    return localStorage.getItem(OWN_STYLE_KEY) === '1';
+  } catch {
+    return false;
+  }
+})();
+const ownStyleListeners = new Set<() => void>();
+
+/** Whether the own-style controls are shown, the same in every inspector and remembered in this browser. */
+function useEditOwnStyle(): [boolean, (on: boolean) => void] {
+  const on = useSyncExternalStore(
+    (listener) => {
+      ownStyleListeners.add(listener);
+      return () => ownStyleListeners.delete(listener);
+    },
+    () => editOwnStyle,
+  );
+  const set = (next: boolean): void => {
+    editOwnStyle = next;
+    try {
+      localStorage.setItem(OWN_STYLE_KEY, next ? '1' : '0');
+    } catch {
+      // Storage is a convenience only.
+    }
+    ownStyleListeners.forEach((l) => l());
+  };
+  return [on, set];
+}
+
+/**
+ * The own style of one or more elements. Classes are the preferred way to style, so by default it
+ * shows only a read-only summary; the Edit toggle (shared by all inspectors) shows the controls.
+ */
+export function OwnStyleSection({ heading, title, styles, mixed = false, onReset, children }: {
+  heading: string;
+  title: string;
+  /** The declarations to summarize (for several elements: the ones they share). */
+  styles: readonly string[];
+  /** Several elements whose own styles differ. */
+  mixed?: boolean;
+  /** Removes the own style; omitted when there is none. */
+  onReset?: () => void;
+  /** The editing controls. */
+  children: ReactNode;
+}): JSX.Element {
+  const [editing, setEditing] = useEditOwnStyle();
+  return (
+    <div className="style-fields-own">
+      <span className="style-fields-heading" title={title}>
+        <button
+          type="button"
+          className="own-style-toggle"
+          aria-expanded={editing}
+          onClick={() => setEditing(!editing)}
+          title={editing ? 'Hide the own-style controls' : 'Show the controls for the own style. Prefer classes: they style many elements at once.'}
+        >
+          <span className="own-style-caret" aria-hidden="true">{editing ? '▾' : '▸'}</span>
+          {heading}
+        </button>
+        {onReset && (
+          <span className="style-fields-actions">
+            <button type="button" className="link-button" onClick={onReset} title="Remove the own style">
+              Reset
+            </button>
+          </span>
+        )}
+      </span>
+      {editing ? (
+        children
+      ) : styles.length > 0 || mixed ? (
+        <div className="own-style-summary" title={title}>
+          {styles.length > 0 && <StyleSwatch styles={styles} />}
+          <code>{styles.join('; ')}</code>
+          {mixed && <span className="own-style-mixed">{styles.length > 0 ? '+ more that differ' : 'Differs between the elements'}</span>}
+        </div>
+      ) : (
+        <div className="own-style-summary own-style-none">None</div>
+      )}
+    </div>
   );
 }

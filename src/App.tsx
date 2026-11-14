@@ -5,7 +5,7 @@ import { extractMermaid } from './core/clipboard';
 import { CodeEditor } from './editor/CodeEditor';
 import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
-import { readHash, writeHash, type UrlState } from './core/urlState';
+import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
 import type { DiagramType } from './core/diagramTypes';
@@ -73,6 +73,8 @@ export function App(): JSX.Element {
   /** The gallery's type page (null: the overview). */
   const [galleryView, setGalleryView] = useState<string | null>(loadView);
   const [fontSize, setFontSize] = useState(loadFontSize);
+  /** The canvas panels: which are open, where they were dragged. Kept in the URL. */
+  const [panels, setPanels] = useState<PanelLayout>(NO_PANELS);
   const changeFont = useCallback((step: 1 | -1 | 0): void => {
     setFontSize((size) => {
       const next = step === 0 ? DEFAULT_FONT_SIZE : stepFontSize(size, step);
@@ -205,6 +207,7 @@ export function App(): JSX.Element {
   const applyUrl = useCallback(
     (state: UrlState): boolean => {
       setGalleryOpen(state.gallery !== null);
+      setPanels(state.panels ?? NO_PANELS);
       if (state.gallery !== null) setGalleryView(GALLERY_TYPES.some((t) => t.id === state.gallery) ? state.gallery : null);
       if (state.code === undefined || state.code === codeRef.current) return false;
       clearTimeout(timer.current);
@@ -242,7 +245,7 @@ export function App(): JSX.Element {
     if (!urlRead) return;
     let alive = true;
     const t = setTimeout(() => {
-      void writeHash({ code, gallery: galleryOpen ? (galleryView ?? '') : null }).then((hash) => {
+      void writeHash({ code, gallery: galleryOpen ? (galleryView ?? '') : null, panels }).then((hash) => {
         if (!alive || hash === window.location.hash.replace(/^#/, '')) return;
         writtenHash.current = hash;
         window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${hash}`);
@@ -252,7 +255,7 @@ export function App(): JSX.Element {
       alive = false;
       clearTimeout(t);
     };
-  }, [code, galleryOpen, galleryView, urlRead]);
+  }, [code, galleryOpen, galleryView, panels, urlRead]);
 
   useEffect(() => saveCode(code), [code]);
 
@@ -329,7 +332,7 @@ export function App(): JSX.Element {
             <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} />
           ) : model ? (
             <ReactFlowProvider>
-              <Canvas model={model} readOnly={error !== null} onChange={onModelChange} />
+              <Canvas model={model} readOnly={error !== null} onChange={onModelChange} panels={panels} onPanelsChange={setPanels} />
             </ReactFlowProvider>
           ) : (
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>

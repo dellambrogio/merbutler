@@ -7,6 +7,9 @@
  *   CompressionStream write `text=` (plain UTF-8, base64url) instead; both are read.
  * - `gallery`: the gallery is open, on the overview (`gallery=`) or a type's page (`gallery=<type id>`).
  *   Missing: the gallery is closed.
+ * - `open`: the canvas panels that can be closed and are open, `.`-separated (`open=classes`).
+ * - `move`: canvas panels the user dragged, as `name_x_y` in pixels, `.`-separated
+ *   (`move=toolbar_40_0.inspector_-120_30`). A panel left out is in its own place.
  *
  * Unknown keys are ignored, so later versions can add more.
  */
@@ -16,6 +19,48 @@ export interface UrlState {
   code?: string;
   /** null: the gallery is closed. '': the overview. Otherwise a type id. */
   gallery: string | null;
+  /** The canvas panels; missing when all are closed and in their own place. */
+  panels?: PanelLayout;
+}
+
+/** An offset in pixels from a panel's own place. */
+export interface PanelOffset {
+  x: number;
+  y: number;
+}
+
+/** Which canvas panels are open, and where the user dragged them. */
+export interface PanelLayout {
+  /** Names of the open panels among those that can be closed. */
+  open: string[];
+  /** Offsets of the dragged panels, by name. */
+  at: Record<string, PanelOffset>;
+}
+
+export const NO_PANELS: PanelLayout = { open: [], at: {} };
+
+const PANEL_NAME = /^[a-z][a-z0-9-]*$/;
+
+function writePanels(panels: PanelLayout | undefined): string[] {
+  if (!panels) return [];
+  const params: string[] = [];
+  const open = panels.open.filter((n) => PANEL_NAME.test(n));
+  if (open.length > 0) params.push(`open=${open.join('.')}`);
+  const moved = Object.entries(panels.at)
+    .filter(([n, at]) => PANEL_NAME.test(n) && (Math.round(at.x) !== 0 || Math.round(at.y) !== 0))
+    .map(([n, at]) => `${n}_${Math.round(at.x)}_${Math.round(at.y)}`);
+  if (moved.length > 0) params.push(`move=${moved.join('.')}`);
+  return params;
+}
+
+function readPanels(params: URLSearchParams): PanelLayout | undefined {
+  const open = (params.get('open') ?? '').split('.').filter((n) => PANEL_NAME.test(n));
+  const at: Record<string, PanelOffset> = {};
+  for (const part of (params.get('move') ?? '').split('.')) {
+    const m = /^([a-z][a-z0-9-]*)_(-?\d+)_(-?\d+)$/.exec(part);
+    if (m && (m[2] !== '0' || m[3] !== '0')) at[m[1]] = { x: Number(m[2]), y: Number(m[3]) };
+  }
+  return open.length > 0 || Object.keys(at).length > 0 ? { open, at } : undefined;
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -46,6 +91,7 @@ const canCompress = (): boolean => typeof CompressionStream === 'function' && ty
 export async function writeHash(state: UrlState): Promise<string> {
   const params: string[] = [];
   if (state.gallery !== null) params.push(`gallery=${encodeURIComponent(state.gallery)}`);
+  params.push(...writePanels(state.panels));
   if (state.code !== undefined) {
     const bytes = new TextEncoder().encode(state.code);
     params.push(canCompress() ? `code=${toBase64Url(await pipe(bytes, new CompressionStream('deflate-raw')))}` : `text=${toBase64Url(bytes)}`);
@@ -57,6 +103,8 @@ export async function writeHash(state: UrlState): Promise<string> {
 export async function readHash(hash: string): Promise<UrlState> {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const state: UrlState = { gallery: params.has('gallery') ? params.get('gallery') ?? '' : null };
+  const panels = readPanels(params);
+  if (panels) state.panels = panels;
   try {
     const code = params.get('code');
     const text = params.get('text');

@@ -147,8 +147,8 @@ button.danger { color: var(--danger); }
   border: 1px solid var(--border); border-radius: 8px; padding: 6px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
 }
-.toolbar { top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; }
-.inspector { top: 10px; right: 10px; width: 264px; max-height: calc(100% - 20px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+.toolbar { top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; translate: var(--toolbar-x, 0) var(--toolbar-y, 0); }
+.inspector { top: 10px; right: 10px; width: 264px; max-height: calc(100% - 20px - var(--inspector-y, 0px)); translate: var(--inspector-x, 0) var(--inspector-y, 0); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
 .inspector-title { font-weight: 600; }
 .inspector label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
 .inspector label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
@@ -555,9 +555,15 @@ button.danger { color: var(--danger); }
 .inspector-row { display: flex; gap: 8px; }
 .inspector-row label { flex: 1; min-width: 0; }
 
+/* Floating panels move by a drag on their background (draggablePanels.ts). */
+:is(.toolbar, .inspector, .class-panel) { cursor: grab; }
+:is(.toolbar, .inspector, .class-panel).dragging { cursor: grabbing; user-select: none; }
+:is(.toolbar, .inspector, .class-panel) :is(input, textarea, select, label, a, summary, [contenteditable]) { cursor: auto; }
+
 /* Style classes panel (ClassPanel.tsx), under the toolbar. */
 .class-panel {
-  position: absolute; z-index: 6; top: 58px; left: 10px; width: 290px; max-height: calc(100% - 70px);
+  position: absolute; z-index: 6; top: 58px; left: 10px; width: 290px; max-height: calc(100% - 70px - var(--classes-y, 0px));
+  translate: var(--classes-x, 0) var(--classes-y, 0);
   display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
 }

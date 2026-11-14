@@ -19,7 +19,8 @@ Everything runs in the browser: no server, no account.
 ![Typing code updates the canvas; renaming, reshaping, adding and connecting nodes on the canvas updates the code](docs/demo.gif)
 
 Type code and the canvas follows. Rename a node, change its shape, add and connect nodes, or flip the direction,
-and the code follows. ([MP4 version](docs/demo.mp4))
+and the code follows. The toolbar and the inspector can be dragged out of the way; the link keeps where they are.
+([MP4 version](docs/demo.mp4))
 
 ### How the sync works
 

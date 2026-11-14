@@ -41,6 +41,8 @@ import { OpenClassesContext } from './styleControls';
 import { menuFor, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
+import { useDraggablePanels } from './draggablePanels';
+import type { PanelLayout } from '../core/urlState';
 import { addNote, addPseudoState, canTransition } from '../state/stateDiagram';
 import { StateEdgeInspector, StateNodeInspector, StateSubgraphInspector } from '../state/StateInspector';
 import { addUseCaseNode, addUseCaseNote, canRelate } from '../usecase/usecaseDiagram';
@@ -64,6 +66,9 @@ interface CanvasProps {
   model: FlowModel;
   readOnly: boolean;
   onChange: (model: FlowModel) => void;
+  /** Which panels are open and where the user dragged them (kept in the URL). */
+  panels: PanelLayout;
+  onPanelsChange: (update: (panels: PanelLayout) => PanelLayout) => void;
 }
 
 /** Keeps the selection of the old elements on the new (re-laid-out) elements. */
@@ -105,7 +110,7 @@ function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
   return { x: (left + right) / 2, y: y - 12 };
 }
 
-export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element {
+export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: CanvasProps): JSX.Element {
   const { fitView } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const title = diagramTitle(model);
@@ -276,8 +281,18 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   const isLane = (id: string): boolean => swimlane && model.subgraphs.some((s) => s.id === id && s.parent === null);
 
   /** The style classes panel (toolbar → Classes). */
-  const [classesOpen, setClassesOpen] = useState(false);
-  const openClasses = useCallback(() => setClassesOpen(true), []);
+  const classesOpen = panels.open.includes('classes');
+  const setClassesOpen = useCallback(
+    (open: boolean | ((was: boolean) => boolean)): void =>
+      onPanelsChange((p) => {
+        const was = p.open.includes('classes');
+        const next = typeof open === 'function' ? open(was) : open;
+        if (next === was) return p;
+        return { ...p, open: next ? [...p.open, 'classes'] : p.open.filter((n) => n !== 'classes') };
+      }),
+    [onPanelsChange],
+  );
+  const openClasses = useCallback(() => setClassesOpen(true), [setClassesOpen]);
   const selection: Selection = {
     nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
     subgraphs: selectedNodes.filter((n) => n.type === 'subgraph').map((n) => n.id),
@@ -292,6 +307,12 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   // ---- Context menu (right-click, the ContextMenu key, or Shift+F10 on the selection) ----
   const canvasRef = useRef<HTMLDivElement>(null);
+  const panelDrag = useDraggablePanels(canvasRef, panels.at, (name, at) =>
+    onPanelsChange((p) => {
+      const { [name]: _old, ...rest } = p.at;
+      return { ...p, at: at ? { ...rest, [name]: at } : rest };
+    }),
+  );
   const [menu, setMenu] = useState<{ x: number; y: number; target: MenuTarget } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
@@ -351,7 +372,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   };
 
   return (
-    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown}>
+    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick}>
       <OpenClassesContext.Provider value={openClasses}>
       {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}

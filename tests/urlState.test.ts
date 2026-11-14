@@ -27,4 +27,14 @@ describe('state in the URL hash', () => {
     expect(await readHash('#code=not-deflate&gallery=pie-chart')).toEqual({ gallery: 'pie-chart' });
     expect(await readHash('#unknown=1')).toEqual({ gallery: null });
   });
+
+  test('open and dragged panels round-trip', async () => {
+    const panels = { open: ['classes'], at: { toolbar: { x: 40, y: 0 }, inspector: { x: -120, y: 30 } } };
+    const hash = await writeHash({ code, gallery: null, panels });
+    expect(hash).toContain('open=classes&move=toolbar_40_0.inspector_-120_30');
+    expect(await readHash(hash)).toEqual({ code, gallery: null, panels });
+    // Panels in their own place and none open: nothing written.
+    expect(await writeHash({ gallery: null, panels: { open: [], at: { toolbar: { x: 0, y: 0.2 } } } })).toBe('');
+    expect(await readHash('#move=toolbar_x_1.inspector_3_-4&open=Bad.classes')).toEqual({ gallery: null, panels: { open: ['classes'], at: { inspector: { x: 3, y: -4 } } } });
+  });
 });

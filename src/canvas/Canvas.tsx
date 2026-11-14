@@ -36,6 +36,7 @@ import {
 } from '../core/model';
 import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
+import { ClassPanel, type Selection } from './ClassPanel';
 import { menuFor, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
@@ -273,6 +274,14 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   const swimlane = isSwimlane(model);
   const isLane = (id: string): boolean => swimlane && model.subgraphs.some((s) => s.id === id && s.parent === null);
 
+  /** The style classes panel (toolbar → Classes). */
+  const [classesOpen, setClassesOpen] = useState(false);
+  const selection: Selection = {
+    nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
+    subgraphs: selectedNodes.filter((n) => n.type === 'subgraph').map((n) => n.id),
+    edges: selectedEdges.filter((e) => !model.edges.find((m) => m.id === e.id)?.noteLink).map((e) => e.id),
+  };
+
   const deleteSelected = (): void => {
     onChange(removeElements(model, selectedNodes.map((n) => n.id), selectedEdges.map((e) => e.id)));
   };
@@ -341,6 +350,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   return (
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown}>
+      {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
       <div className="toolbar">
         {usecaseDiagram && (
@@ -399,6 +409,9 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             ))}
           </select>
         </label>
+        <button onClick={() => setClassesOpen((o) => !o)} aria-pressed={classesOpen} title="Style classes (classDef): create, edit, apply">
+          Classes{(model.classDefs?.length ?? 0) > 0 ? ` ${model.classDefs!.length}` : ''}
+        </button>
         <button onClick={() => void relayout()} title="Discard manual moves">
           Re-layout
         </button>

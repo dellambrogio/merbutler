@@ -11,6 +11,7 @@ import { tags as t } from '@lezer/highlight';
 import { loadIconPacks } from '../flowchart/icons';
 import { SHAPE_INFO, SHAPES } from '../flowchart/shapes';
 import { THEMES } from '../flowchart/themes';
+import { EDGE_CURVES } from '../core/model';
 import { DIAGRAM_TYPES, HEADER_LINE, typeOfKeyword, type DiagramType } from '../core/diagramTypes';
 
 // ---------------------------------------------------------------------------------------------
@@ -279,7 +280,7 @@ const HEADER: Completion[] = DIAGRAM_TYPES.filter((t) => t.name !== 'Info').flat
   t.keywords.map((k, i) => ({ label: k, detail: t.name, type: 'keyword', apply: `${k}${t.name === 'Flowchart' || t.name === 'Swimlane' ? ' ' : '\n  '}`, boost: i === 0 ? 1 : 0 })),
 );
 const DIRECTIONS: Completion[] = ['TB', 'TD', 'BT', 'LR', 'RL'].map((d) => ({ label: d, type: 'constant', detail: { TB: 'top to bottom', TD: 'top down', BT: 'bottom to top', LR: 'left to right', RL: 'right to left' }[d] }));
-const CURVES = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
+const CURVES = [...EDGE_CURVES];
 const enumValues = (values: string[], detail?: string): Completion[] => values.map((v) => ({ label: v, type: 'enum', ...(detail ? { detail } : {}) }));
 
 const SHAPE_COMPLETIONS: Completion[] = SHAPES.flatMap((shape) => {

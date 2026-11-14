@@ -13,6 +13,9 @@ export const DIRECTIONS: readonly Direction[] = ['TB', 'LR', 'BT', 'RL'];
 
 export const STROKES: readonly Stroke[] = ['normal', 'dotted', 'thick', 'invisible'];
 export const EDGE_ENDS: readonly EdgeEnd[] = ['none', 'arrow', 'circle', 'cross'];
+/** Edge curves Mermaid knows (`id@{ curve }`, `linkStyle n interpolate`). */
+export const EDGE_CURVES: readonly string[] = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
+
 /** Minimum edge length in ranks: 1 for `-->`, 2 for `--->`, 3 for `---->`. */
 export const EDGE_LENGTHS: readonly number[] = [1, 2, 3];
 
@@ -210,6 +213,73 @@ export function sortClasses(classes: readonly string[], classDefs: readonly Clas
   const rank = new Map((classDefs ?? []).map((c, i) => [c.name, i]));
   const key = (name: string): number => rank.get(name) ?? Number.MAX_SAFE_INTEGER;
   return [...new Set(classes)].sort((a, b) => key(a) - key(b) || (a < b ? -1 : a > b ? 1 : 0));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Style classes (`classDef`). Classes are shared by nodes, subgraphs and edges.
+
+/** A class name Mermaid accepts in `classDef`, `class` and `:::`. */
+export function isClassName(name: string): boolean {
+  return /^[A-Za-z_][\w-]*$/.test(name);
+}
+
+/** How many nodes, subgraphs and edges use a class. */
+export function classUsage(model: FlowModel, name: string): number {
+  return [...model.nodes, ...model.subgraphs, ...model.edges].filter((item) => item.classes?.includes(name)).length;
+}
+
+/** Adds a `classDef`. The model is unchanged if the name is invalid or taken. */
+export function addClassDef(model: FlowModel, name: string, styles: string[] = []): FlowModel {
+  if (!isClassName(name) || model.classDefs?.some((c) => c.name === name)) return model;
+  return { ...model, classDefs: [...(model.classDefs ?? []), { name, styles }] };
+}
+
+export function updateClassDef(model: FlowModel, name: string, styles: string[]): FlowModel {
+  return { ...model, classDefs: (model.classDefs ?? []).map((c) => (c.name === name ? { ...c, styles } : c)) };
+}
+
+/** Changes every use of a class at once. */
+function mapClasses(model: FlowModel, f: (classes: string[]) => string[]): FlowModel {
+  const fix = <T extends Styled>(item: T): T => {
+    if (!item.classes) return item;
+    const classes = f(item.classes);
+    if (classes.length === item.classes.length && classes.every((c, i) => c === item.classes![i])) return item;
+    const next: T = { ...item, classes };
+    if (classes.length === 0) delete (next as Styled).classes;
+    return next;
+  };
+  return { ...model, nodes: model.nodes.map(fix), subgraphs: model.subgraphs.map(fix), edges: model.edges.map(fix) };
+}
+
+/** Renames a class in its `classDef` and wherever it is used. Unchanged if the new name is invalid or taken. */
+export function renameClassDef(model: FlowModel, from: string, to: string): FlowModel {
+  if (from === to || !isClassName(to) || model.classDefs?.some((c) => c.name === to) || !model.classDefs?.some((c) => c.name === from)) return model;
+  const renamed = { ...model, classDefs: model.classDefs.map((c) => (c.name === from ? { ...c, name: to } : c)) };
+  return mapClasses(renamed, (classes) => classes.map((c) => (c === from ? to : c)));
+}
+
+/** Removes a `classDef` and the class from every element that used it. */
+export function removeClassDef(model: FlowModel, name: string): FlowModel {
+  const classDefs = (model.classDefs ?? []).filter((c) => c.name !== name);
+  const { classDefs: _old, ...rest } = model;
+  return mapClasses(classDefs.length > 0 ? { ...rest, classDefs } : rest, (classes) => classes.filter((c) => c !== name));
+}
+
+/** Adds a class to elements (nodes, subgraphs, edges by id), or removes it from them all if they all have it. */
+export function toggleClassOn(model: FlowModel, name: string, ids: { nodes?: string[]; subgraphs?: string[]; edges?: string[] }): FlowModel {
+  const targets: Styled[] = [
+    ...model.nodes.filter((n) => ids.nodes?.includes(n.id)),
+    ...model.subgraphs.filter((s) => ids.subgraphs?.includes(s.id)),
+    ...model.edges.filter((e) => ids.edges?.includes(e.id)),
+  ];
+  if (targets.length === 0) return model;
+  const remove = targets.every((t) => t.classes?.includes(name));
+  const change = (classes: string[] | undefined): string[] => (remove ? (classes ?? []).filter((c) => c !== name) : [...(classes ?? []), name]);
+  let next = model;
+  for (const id of ids.nodes ?? []) next = updateNode(next, id, { classes: change(next.nodes.find((n) => n.id === id)?.classes) });
+  for (const id of ids.subgraphs ?? []) next = updateSubgraph(next, id, { classes: change(next.subgraphs.find((s) => s.id === id)?.classes) });
+  for (const id of ids.edges ?? []) next = updateEdge(next, id, { classes: change(next.edges.find((e) => e.id === id)?.classes) });
+  return next;
 }
 
 /** Comment lines from inspector text: one `%% ` line per non-empty line. */

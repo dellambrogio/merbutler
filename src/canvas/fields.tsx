@@ -2,7 +2,8 @@
 import { useState, type JSX } from 'react';
 import { toEditText } from '../core/labels';
 import { commentsFromText, commentsToText, isSwimlane, type FlowModel, type Styled } from '../core/model';
-import { classesFromText, stylesFromText, stylesToText } from '../flowchart/styling';
+import { stylesFromText, stylesToText } from '../flowchart/styling';
+import { AppearanceFields, ClassChips } from './styleControls';
 
 /** What every inspector gets: the model, a way to change it, and the delete action. */
 export interface InspectorProps {
@@ -91,41 +92,47 @@ export function TextField({ value, onCommit, placeholder, list }: { value: strin
 }
 
 /**
- * Classes and own style of a node, subgraph or edge. Classes are names from `classDef`;
- * the style is declarations separated by `;` (written as `style`/`linkStyle`, comma-separated, in the code).
+ * Classes and own style of a node, subgraph or edge: class chips, then the appearance controls
+ * (colors, widths, dashes, text), then the style as text under "Advanced". The own style is
+ * written as `style id …` (`linkStyle n …` for an edge) and wins over the classes.
  */
-export function StyleFields({ id, item, model, styleTitle, onChange }: {
+export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
   id: string;
   item: Styled;
   model: FlowModel;
   styleTitle: string;
+  /** `box`: a node or subgraph (fill, border, text). `edge`: a line (color, width, label). */
+  kind: 'box' | 'edge';
   onChange: (patch: Styled) => void;
 }): JSX.Element {
-  const classes = (item.classes ?? []).join(' ');
   const styles = stylesToText(item.styles);
-  const defined = (model.classDefs ?? []).map((c) => c.name).filter((n) => n !== 'default');
   return (
-    <>
-      <label title={defined.length > 0 ? `Defined: ${defined.join(', ')}` : 'Define classes with classDef in the code'}>
-        Classes
-        <TextField
-          key={`${id}:classes:${classes}`}
-          value={classes}
-          placeholder={defined.length > 0 ? defined.slice(0, 3).join(' ') : 'none defined'}
-          list="class-names"
-          onCommit={(text) => onChange({ classes: classesFromText(text) })}
-        />
-      </label>
-      <label title={styleTitle}>
-        Style
-        <TextField
-          key={`${id}:styles:${styles}`}
-          value={styles}
-          placeholder="fill:#f96; stroke:#333"
-          onCommit={(text) => onChange({ styles: stylesFromText(text) })}
-        />
-      </label>
-    </>
+    <div className="style-fields">
+      <ClassChips model={model} classes={item.classes} onChange={(classes) => onChange({ classes })} />
+      <div className="style-fields-own">
+        <span className="style-fields-heading" title={styleTitle}>
+          Own style
+          {(item.styles?.length ?? 0) > 0 && (
+            <button type="button" className="link-button" onClick={() => onChange({ styles: [] })} title="Remove this element's own style">
+              Reset
+            </button>
+          )}
+        </span>
+        <AppearanceFields key={`${id}:${styles}`} styles={item.styles} kind={kind} onChange={(next) => onChange({ styles: next })} />
+      </div>
+      <details className="style-advanced">
+        <summary>Advanced: style as text</summary>
+        <label title={styleTitle}>
+          Style
+          <TextField
+            key={`${id}:styles:${styles}`}
+            value={styles}
+            placeholder="fill:#f96; stroke:#333"
+            onCommit={(text) => onChange({ styles: stylesFromText(text) })}
+          />
+        </label>
+      </details>
+    </div>
   );
 }
 

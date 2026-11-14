@@ -65,7 +65,7 @@ export function UseCaseNodeInspector({ model, node, onChange, onDelete }: Inspec
         <TextField key={`${node.id}:st:${uc.stereotype ?? ''}`} value={uc.stereotype ?? ''} placeholder="written as <<text>>" onCommit={(stereotype) => set({ stereotype: stereotype.trim() || undefined })} />
       </label>
       <ParentSelect model={model} value={node.parent} exclude={new Set()} onSelect={(parent) => onChange(setParent(model, node.id, parent))} />
-      <StyleFields id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
+      <StyleFields kind="box" id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
       <button className="danger" onClick={onDelete}>
         Delete {uc.kind === 'actor' ? 'actor' : 'use case'}
       </button>
@@ -90,7 +90,7 @@ export function UseCaseBoundaryInspector({ model, subgraph, onChange, onDelete }
         />
         Package
       </label>
-      <StyleFields id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
+      <StyleFields kind="box" id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
       <button className="danger" onClick={onDelete} title="Its actors and use cases move out of it">
         Delete boundary (keep contents)
       </button>

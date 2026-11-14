@@ -93,6 +93,37 @@ export function stylesFromText(text: string): string[] {
     .filter((s) => s.includes(':'));
 }
 
+/** Properties that set the same thing: setting one removes the others. */
+const SAME_PROPERTY: Record<string, string[]> = {
+  fill: ['fill', 'background', 'background-color'],
+};
+
+const propertyOf = (declaration: string): string => declaration.slice(0, Math.max(0, declaration.indexOf(':'))).trim().toLowerCase();
+
+/** The value of a property in a list of declarations (the last one wins, as in CSS), or ''. */
+export function declarationValue(styles: readonly string[] | undefined, property: string): string {
+  const names = SAME_PROPERTY[property] ?? [property];
+  let value = '';
+  for (const d of styles ?? []) if (names.includes(propertyOf(d))) value = d.slice(d.indexOf(':') + 1).trim();
+  return value;
+}
+
+/**
+ * Sets a property in a list of declarations, or removes it for an empty value. The property keeps
+ * its place; other declarations are kept as written.
+ */
+export function withDeclaration(styles: readonly string[] | undefined, property: string, value: string): string[] {
+  const names = SAME_PROPERTY[property] ?? [property];
+  const list = [...(styles ?? [])];
+  const at = list.findIndex((d) => names.includes(propertyOf(d)));
+  const rest = list.filter((d) => !names.includes(propertyOf(d)));
+  if (value.trim() === '') return rest;
+  const declaration = `${property}:${value.trim()}`;
+  if (at < 0) return [...rest, declaration];
+  rest.splice(Math.min(at, rest.length), 0, declaration);
+  return rest;
+}
+
 /** Class names from inspector text: separated by spaces or commas. */
 export function classesFromText(text: string): string[] {
   return [...new Set(text.split(/[\s,]+/).filter((c) => /^[\w-]+$/.test(c)))];

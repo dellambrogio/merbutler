@@ -2,9 +2,8 @@
 import { useState, type JSX } from 'react';
 import {
   DIRECTIONS,
-  EDGE_ENDS,
+  EDGE_CURVES,
   EDGE_LENGTHS,
-  STROKES,
   commentsToText,
   setParent,
   subgraphWithDescendants,
@@ -13,15 +12,14 @@ import {
   updateSubgraph,
   type Asset,
   type Direction,
-  type EdgeEnd,
   type FlowEdge,
   type FlowNode,
   type FlowSubgraph,
   type Shape,
-  type Stroke,
   SHAPES,
 } from '../core/model';
 import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
+import { EndPicker, StrokePicker } from '../canvas/styleControls';
 import { checkClick } from './parseFlowchart';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 
@@ -175,7 +173,7 @@ export function FlowNodeInspector({ model, node, onChange, onDelete }: Inspector
         comments={node.comments}
         onCommit={(comments) => onChange(updateNode(model, node.id, { comments }))}
       />
-      <StyleFields
+      <StyleFields kind="box"
         id={node.id}
         item={node}
         model={model}
@@ -242,7 +240,7 @@ export function FlowSubgraphInspector({ model, subgraph, onChange, onDelete, lan
         comments={subgraph.comments}
         onCommit={(comments) => onChange(updateSubgraph(model, subgraph.id, { comments }))}
       />
-      <StyleFields
+      <StyleFields kind="box"
         id={subgraph.id}
         item={subgraph}
         model={model}
@@ -275,59 +273,46 @@ export function FlowEdgeInspector({ model, edge, onChange, onDelete }: Inspector
         checked={edge.markdown}
         onToggle={(markdown) => onChange(updateEdge(model, edge.id, { markdown }))}
       />
-      <label>
-        Stroke
-        <select
-          value={edge.stroke}
-          onChange={(e) => onChange(updateEdge(model, edge.id, { stroke: e.target.value as Stroke }))}
-        >
-          {STROKES.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </label>
-      <label title="Minimum length in ranks: --> is 1, ---> is 2, ----> is 3">
-        Length
-        <select
-          value={edge.length ?? 1}
-          onChange={(e) => {
-            const length = Number(e.target.value);
-            onChange(updateEdge(model, edge.id, { length: length === 1 ? undefined : length }));
-          }}
-        >
-          {EDGE_LENGTHS.map((n) => (
-            <option key={n}>{n}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        End
-        <select
-          value={edge.end}
-          disabled={edge.stroke === 'invisible'}
-          onChange={(e) => onChange(updateEdge(model, edge.id, { end: e.target.value as EdgeEnd }))}
-        >
-          {EDGE_ENDS.map((end) => (
-            <option key={end}>{end}</option>
-          ))}
-        </select>
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={edge.bothEnds}
-          disabled={edge.end === 'none' || edge.stroke === 'invisible'}
-          onChange={(e) => onChange(updateEdge(model, edge.id, { bothEnds: e.target.checked }))}
-        />
-        Both ends
-      </label>
+      <StrokePicker value={edge.stroke} onChange={(stroke) => onChange(updateEdge(model, edge.id, { stroke }))} />
+      <EndPicker
+        value={edge.end}
+        bothEnds={edge.bothEnds}
+        disabled={edge.stroke === 'invisible'}
+        onChange={(end) => onChange(updateEdge(model, edge.id, { end }))}
+        onBothEnds={(bothEnds) => onChange(updateEdge(model, edge.id, { bothEnds }))}
+      />
+      <div className="inspector-row">
+        <label title="Minimum length in ranks: --> is 1, ---> is 2, ----> is 3">
+          Length
+          <select
+            value={edge.length ?? 1}
+            onChange={(e) => {
+              const length = Number(e.target.value);
+              onChange(updateEdge(model, edge.id, { length: length === 1 ? undefined : length }));
+            }}
+          >
+            {EDGE_LENGTHS.map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+        </label>
+        <label title="Written as id@{ curve: … } for an edge with an id, else linkStyle n interpolate …. The canvas draws linear and step curves; smooth ones look alike on the canvas.">
+          Curve
+          <select value={edge.curve ?? ''} onChange={(e) => onChange(updateEdge(model, edge.id, { curve: e.target.value || undefined }))}>
+            <option value="">Diagram default</option>
+            {EDGE_CURVES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <CommentField
         key={`${edge.id}:${commentsToText(edge.comments)}`}
         id={edge.id}
         comments={edge.comments}
         onCommit={(comments) => onChange(updateEdge(model, edge.id, { comments }))}
       />
-      <StyleFields
+      <StyleFields kind="edge"
         id={edge.id}
         item={edge}
         model={model}

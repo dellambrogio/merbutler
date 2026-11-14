@@ -51,7 +51,7 @@ export function StateNodeInspector({ model, node, onChange, onDelete }: Inspecto
         <ParentSelect model={model} value={node.parent} exclude={new Set()} onSelect={(parent) => onChange(setParent(model, node.id, parent))} />
       )}
       {!pseudo && node.state !== 'note' && (
-        <StyleFields id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
+        <StyleFields kind="box" id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
       )}
       <button className="danger" onClick={onDelete}>
         Delete {node.state === 'note' ? 'note' : 'state'}
@@ -122,7 +122,7 @@ export function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: 
       <button onClick={addRegion} title="Concurrent regions, separated by -- in the code">
         + Concurrent region
       </button>
-      <StyleFields id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
+      <StyleFields kind="box" id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
       <button className="danger" onClick={onDelete} title="The states inside move up one level">
         Delete composite (keep states)
       </button>

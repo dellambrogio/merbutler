@@ -1,8 +1,8 @@
 /**
- * Example diagrams for the gallery: one per feature of the Mermaid flowchart syntax
- * (https://mermaid.js.org/syntax/flowchart.html), then examples of every Mermaid diagram type
- * (mermaidExamples.ts), by type. The gallery shows Mermaid's own rendering of each example, and whether
- * the visual editor supports it.
+ * Example diagrams for the gallery: examples of every Mermaid diagram type (mermaidExamples.ts),
+ * grouped into families, and for flowcharts also one example per feature of the syntax
+ * (https://mermaid.js.org/syntax/flowchart.html). The gallery shows Mermaid's own rendering of
+ * each example, and how the app edits it.
  */
 import { MERMAID_EXAMPLES } from './mermaidExamples';
 
@@ -20,11 +20,22 @@ export interface GalleryExample {
   note?: string;
 }
 
-export interface GalleryGroup {
+/** A titled list of examples: a type's own examples, or one feature of the flowchart syntax. */
+export interface GallerySection {
   title: string;
-  /** The part of the gallery the group is in. */
-  part: 'Flowchart syntax' | 'Every diagram type';
   examples: GalleryExample[];
+}
+
+export const FAMILIES = ['Graphs & flows', 'Trees & boards', 'Charts & data', 'Time & process', 'Strategy & grammar'] as const;
+export type Family = (typeof FAMILIES)[number];
+
+/** One diagram type: a tile in the gallery's overview, and a page with its examples. */
+export interface GalleryType {
+  /** The type's slug (the section id in mermaidExamples.ts). */
+  id: string;
+  title: string;
+  family: Family;
+  sections: GallerySection[];
 }
 
 /** A small inline image, so the gallery loads nothing from the network. */
@@ -90,7 +101,7 @@ const EXPANDED_SHAPES: Array<[string, string]> = [
   ['text', 'Text block'],
 ];
 
-const FLOWCHART_SYNTAX: Array<Omit<GalleryGroup, 'part'>> = [
+const FLOWCHART_SYNTAX: GallerySection[] = [
   {
     title: 'Basics',
     examples: [
@@ -268,11 +279,48 @@ const FLOWCHART_SYNTAX: Array<Omit<GalleryGroup, 'part'>> = [
   },
 ];
 
-/** The diagram types as groups. Ids are `ex-<section>-<example>`, so they never clash with the syntax examples. */
-const PAGE_EXAMPLES: GalleryGroup[] = MERMAID_EXAMPLES.map((section) => ({
-  title: section.title,
-  part: 'Every diagram type',
-  examples: section.examples.map((ex) => ({ id: `ex-${section.id}-${ex.id}`, title: ex.title, code: ex.code })),
-}));
+/** The family of each type, by its slug. The order here is the order in the gallery. */
+const FAMILY_OF: Record<Family, string[]> = {
+  'Graphs & flows': [
+    'flowchart',
+    'swimlane-diagram',
+    'state-diagram',
+    'use-case-diagram',
+    'sequence-diagram',
+    'class-diagram',
+    'entity-relationship-diagram',
+    'c4-diagram',
+    'architecture-diagram',
+    'block-diagram',
+    'requirement-diagram',
+  ],
+  'Trees & boards': ['mindmap', 'treeview', 'treemap', 'ishikawa-diagram', 'kanban-diagram'],
+  'Charts & data': ['pie-chart', 'xy-chart', 'sankey-diagram', 'radar-diagram', 'quadrant-chart', 'venn-diagram', 'packet-diagram'],
+  'Time & process': ['gantt-chart', 'timeline-diagram', 'user-journey-diagram', 'git-graph', 'event-modeling-diagram'],
+  'Strategy & grammar': ['wardley-maps', 'cynefin-framework', 'railroad-diagram-ir', 'railroad-diagram-ebnf', 'railroad-diagram-abnf', 'railroad-diagram-peg'],
+};
 
-export const GALLERY: GalleryGroup[] = [...FLOWCHART_SYNTAX.map((g) => ({ ...g, part: 'Flowchart syntax' as const })), ...PAGE_EXAMPLES];
+/**
+ * Every diagram type, by family. Example ids are `ex-<type>-<example>`, so they never clash with
+ * the flowchart syntax examples. Flowcharts also get the syntax examples, as more sections.
+ */
+export const GALLERY_TYPES: GalleryType[] = FAMILIES.flatMap((family) =>
+  FAMILY_OF[family].map((id): GalleryType => {
+    const section = MERMAID_EXAMPLES.find((s) => s.id === id);
+    if (!section) throw new Error(`No examples for diagram type ${id}`);
+    const own: GallerySection = {
+      title: id === 'flowchart' ? 'Examples' : section.title,
+      examples: section.examples.map((ex) => ({ id: `ex-${section.id}-${ex.id}`, title: ex.title, code: ex.code })),
+    };
+    return { id, title: section.title, family, sections: id === 'flowchart' ? [own, ...FLOWCHART_SYNTAX] : [own] };
+  }),
+);
+
+/** All examples of a type, in order. */
+export const typeExamples = (type: GalleryType): GalleryExample[] => type.sections.flatMap((s) => s.examples);
+
+/** Every example in the gallery. */
+export const GALLERY_EXAMPLES: GalleryExample[] = GALLERY_TYPES.flatMap(typeExamples);
+
+/** How many diagram types mermaidExamples.ts has (the gallery must show each). */
+export const MERMAID_TYPE_COUNT = MERMAID_EXAMPLES.length;

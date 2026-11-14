@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useRef, useState, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { GALLERY, type GalleryExample, type GalleryGroup } from './gallery';
+import { useEffect, useRef, useState, type JSX } from 'react';
+import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryExample, type GalleryType } from './gallery';
 import { parse } from './parse';
 import { renderMermaid, type RenderResult } from './render';
 import { structuredKind } from './StructuredEditor';
@@ -32,69 +32,104 @@ async function statusOf(example: GalleryExample): Promise<Status> {
   return status;
 }
 
-const PARTS = [...new Set(GALLERY.map((g) => g.part))];
-const groupKey = (g: GalleryGroup): string => `${g.part}/${g.title}`;
+/** How the app edits an example, in the gallery's words: the filter chips. */
+type Support = 'Canvas' | 'Outline' | 'Table' | 'Preview' | 'Read-only';
+const SUPPORTS: Support[] = ['Canvas', 'Outline', 'Table', 'Preview'];
 
-const GROUP_KEY = 'merbutler:galleryGroup';
+function supportOf(status: Status | undefined): Support | null {
+  if (!status) return null;
+  if (status.kind === 'editable') return 'Canvas';
+  if (status.kind === 'read-only') return 'Read-only';
+  const kind = structuredKind(status.typeName);
+  return kind === 'outline' ? 'Outline' : kind === 'table' ? 'Table' : 'Preview';
+}
 
-function loadGroup(): string {
-  try {
-    const saved = localStorage.getItem(GROUP_KEY);
-    if (GALLERY.some((g) => groupKey(g) === saved)) return saved!;
-  } catch {
-    // Storage is a convenience only.
+/** A type's support: the support of most of its examples (flowcharts have a few read-only ones). */
+function typeSupport(type: GalleryType): Support | null {
+  const counts = new Map<Support, number>();
+  for (const ex of typeExamples(type)) {
+    const s = supportOf(statuses.get(ex.id));
+    if (!s) return null;
+    counts.set(s, (counts.get(s) ?? 0) + 1);
   }
-  return groupKey(GALLERY[0]);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-function saveGroup(key: string): void {
-  try {
-    localStorage.setItem(GROUP_KEY, key);
-  } catch {
-    // Storage is a convenience only.
-  }
-}
-
-/** How the app edits a group's examples, once their statuses are known: one kind, or mixed. */
-function groupKind(group: GalleryGroup): Status['kind'] | 'mixed' | null {
-  const known = group.examples.map((ex) => statuses.get(ex.id)).filter((s): s is Status => s !== undefined);
-  if (known.length < group.examples.length) return null;
-  const kinds = new Set(known.map((s) => s.kind));
-  return kinds.size === 1 ? [...kinds][0] : 'mixed';
-}
-
-const KIND_TEXT: Record<Status['kind'] | 'mixed', string> = {
-  editable: 'Editable on the canvas',
-  preview: 'Preview, outline or table',
-  'read-only': 'Read-only',
-  mixed: 'Mixed support',
+const SUPPORT_HINT: Record<Support, string> = {
+  Canvas: 'Edited on the canvas',
+  Outline: 'Edited in an outline next to the preview',
+  Table: 'Edited in a table next to the preview',
+  Preview: 'Drawn by Mermaid; edited in the code',
+  'Read-only': 'The canvas shows it read-only',
 };
 
+const VIEW_KEY = 'merbutler:galleryView';
+
+function loadView(): string | null {
+  try {
+    const saved = localStorage.getItem(VIEW_KEY);
+    return GALLERY_TYPES.some((t) => t.id === saved) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveView(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(VIEW_KEY, id);
+    else localStorage.removeItem(VIEW_KEY);
+  } catch {
+    // Storage is a convenience only.
+  }
+}
+
+/** True if the example matches the search words (in its title, its type or its code). */
+function matches(example: GalleryExample, type: GalleryType, words: string[]): boolean {
+  if (words.length === 0) return true;
+  const text = `${type.title} ${example.title} ${example.code}`.toLowerCase();
+  return words.every((w) => text.includes(w));
+}
+
 interface GalleryProps {
-  /** The gallery is always mounted, so it can slide in and out and keep its previews. */
+  /** The gallery is always mounted, so it can fade in and out and keep its previews. */
   open: boolean;
   onOpen: (code: string) => void;
   onClose: () => void;
 }
 
 /**
- * The gallery, over the whole editor: on the left a list of groups, each with a preview of its
- * first example (scrolls top to bottom); on the right, larger, the chosen group's examples as a
- * grid. Previews are drawn by Mermaid, the chosen group's first.
+ * The gallery, over the whole editor. The overview shows one tile per diagram type, by family,
+ * with a preview and how the app edits it; a search box and filter chips narrow it. A tile opens
+ * the type's page with all its examples. Previews are drawn by Mermaid.
  */
 export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
   // Bumped when a preview or status arrives, to re-render with the module-level caches.
   const [, setVersion] = useState(0);
-  const [active, setActive] = useState<string>(loadGroup);
-  const group = GALLERY.find((g) => groupKey(g) === active) ?? GALLERY[0];
-  /** The chosen group, for the render loop (it reads it between renders). */
-  const activeGroup = useRef(group);
-  activeGroup.current = group;
-  const list = useRef<HTMLDivElement>(null);
-  const grid = useRef<HTMLDivElement>(null);
+  const [typeId, setTypeId] = useState<string | null>(loadView);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<ReadonlySet<Support>>(new Set());
+  const body = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
 
-  // One loop renders what is missing, one preview at a time: the chosen group's examples
-  // first, then the first example of each group for the list.
+  const type = GALLERY_TYPES.find((t) => t.id === typeId) ?? null;
+  const words = query.toLowerCase().split(/\s+/).filter((w) => w !== '');
+  const passes = (ex: GalleryExample, t: GalleryType): boolean => {
+    if (!matches(ex, t, words)) return false;
+    if (filters.size === 0) return true;
+    const s = supportOf(statuses.get(ex.id));
+    return s !== null && filters.has(s);
+  };
+  const shownTypes = GALLERY_TYPES.filter((t) => typeExamples(t).some((ex) => passes(ex, t)));
+
+  /** What to render next: the open type's examples, else the shown tiles' previews, in order. */
+  const wanted = useRef<GalleryExample[]>([]);
+  wanted.current = type ? typeExamples(type).filter((ex) => passes(ex, type)) : shownTypes.map((t) => tileExample(t, passes));
+  /** Wakes the render loop when it waits for the view to want more previews. */
+  const wake = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    wake.current?.();
+  });
+
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -102,137 +137,202 @@ export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
       if (alive) setVersion((v) => v + 1);
     };
     void (async () => {
-      for (const ex of GALLERY.flatMap((g) => g.examples)) await statusOf(ex);
+      for (const ex of GALLERY_EXAMPLES) await statusOf(ex);
       bump();
+      // One preview at a time; the list of wanted previews follows the view as it changes.
       while (alive) {
-        const next = activeGroup.current.examples.find((ex) => !previews.has(ex.id)) ?? GALLERY.map((g) => g.examples[0]).find((ex) => ex && !previews.has(ex.id));
-        if (!next) return;
+        const next = wanted.current.find((ex) => !previews.has(ex.id)) ?? GALLERY_TYPES.map((t) => typeExamples(t)[0]).find((ex) => !previews.has(ex.id));
+        if (!next) {
+          // Nothing to draw now: wait until the view changes (a type page, a search).
+          await new Promise<void>((resolve) => (wake.current = resolve));
+          wake.current = null;
+          continue;
+        }
         await renderPreview(next);
         bump();
       }
     })();
     return () => {
       alive = false;
+      wake.current?.();
     };
   }, [open]);
+
+  const show = (id: string | null): void => {
+    setTypeId(id);
+    saveView(id);
+    if (body.current) body.current.scrollTop = 0;
+  };
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !(e.target instanceof HTMLElement && e.target.closest('.cm-editor, input, textarea, .context-menu'))) onClose();
+      if (e.target instanceof HTMLElement && e.target.closest('.cm-editor, textarea, .context-menu')) return;
+      if (e.key === 'Escape') {
+        // Esc clears the search, then goes back to the overview, then closes.
+        if (e.target === search.current && query) setQuery('');
+        else if (typeId) show(null);
+        else onClose();
+      } else if (e.key === '/' && !(e.target instanceof HTMLInputElement)) {
+        e.preventDefault();
+        search.current?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  });
 
-  // A new group starts at its top; the chosen group stays in view in the list.
-  useEffect(() => {
-    if (grid.current) grid.current.scrollTop = 0;
-    const frame = requestAnimationFrame(() => {
-      const box = list.current;
-      const item = box?.querySelector<HTMLElement>('[aria-selected="true"]');
-      if (!box || !item) return;
-      const outer = box.getBoundingClientRect();
-      const r = item.getBoundingClientRect();
-      if (r.top < outer.top) box.scrollTop -= outer.top - r.top + 8;
-      else if (r.bottom > outer.bottom) box.scrollTop += r.bottom - outer.bottom + 8;
+  const toggle = (s: Support): void =>
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
     });
-    return () => cancelAnimationFrame(frame);
-  }, [active, open]);
 
-  const choose = (key: string): void => {
-    setActive(key);
-    saveGroup(key);
-  };
-
-  /** Up and down arrows move through the groups, as in a list box. */
-  const onListKey = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
-    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
-    if (step === 0 && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
-    const index = GALLERY.findIndex((g) => groupKey(g) === active);
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? GALLERY.length - 1 : Math.min(GALLERY.length - 1, Math.max(0, index + step));
-    choose(groupKey(GALLERY[next]));
-    requestAnimationFrame(() => list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus());
-  };
-
-  const all = GALLERY.flatMap((g) => g.examples);
-  const known = all.filter((ex) => statuses.has(ex.id));
-  const editable = known.filter((ex) => statuses.get(ex.id)?.kind === 'editable').length;
-  const kind = groupKind(group);
+  const counts = new Map<Support, number>();
+  for (const t of GALLERY_TYPES) {
+    const s = typeSupport(t);
+    if (s) counts.set(s, (counts.get(s) ?? 0) + 1);
+  }
 
   return (
     <div className={`gallery${open ? ' open' : ''}`} role="dialog" aria-label="Gallery" aria-hidden={!open} inert={!open}>
       <div className="gallery-head">
-        <strong>Gallery</strong>
-        <span className="muted gallery-summary">
-          {known.length === all.length ? `${all.length} examples in ${GALLERY.length} groups, ${editable} editable on the canvas.` : 'Examples drawn by Mermaid.'} Click
-          one to open it; Ctrl+Z in the code goes back.
+        {type ? (
+          <button className="gallery-back" onClick={() => show(null)} title="Back to all diagram types (Esc)">
+            ← All types
+          </button>
+        ) : (
+          <strong>Gallery</strong>
+        )}
+        <input
+          ref={search}
+          className="gallery-search"
+          type="search"
+          placeholder="Search examples and code  ( / )"
+          aria-label="Search the examples"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span className="gallery-chips" role="group" aria-label="Show types edited in">
+          {SUPPORTS.map((s) => (
+            <button key={s} className={`gallery-chip chip-${s.toLowerCase()}`} aria-pressed={filters.has(s)} title={SUPPORT_HINT[s]} onClick={() => toggle(s)}>
+              <span className="gallery-dot" aria-hidden="true" />
+              {s}
+              {counts.has(s) && <span className="gallery-count">{counts.get(s)}</span>}
+            </button>
+          ))}
         </span>
         <span className="spacer" />
         <button onClick={onClose} title="Close (Esc)">
           Close
         </button>
       </div>
-      <div className="gallery-split">
-        <div className="gallery-groups" role="listbox" aria-label="Groups" ref={list} onKeyDown={onListKey}>
-          {PARTS.map((part) => (
-            <Fragment key={part}>
-              <div className="gallery-groups-part" role="presentation">
-                {part}
-              </div>
-              {GALLERY.filter((g) => g.part === part).map((g) => {
-                const key = groupKey(g);
-                const selected = key === active;
-                const first = g.examples[0];
-                const preview = first ? previews.get(first.id) : undefined;
-                const gk = groupKind(g);
-                return (
-                  <button
-                    key={key}
-                    role="option"
-                    aria-selected={selected}
-                    tabIndex={selected ? 0 : -1}
-                    className={`gallery-group${selected ? ' selected' : ''}`}
-                    onClick={() => choose(key)}
-                  >
-                    <span className="gallery-group-head">
-                      <span className={`gallery-dot dot-${gk ?? 'unknown'}`} title={gk ? KIND_TEXT[gk] : undefined} aria-hidden="true" />
-                      <span className="gallery-group-title">{g.title}</span>
-                      <span className="gallery-count">{g.examples.length}</span>
-                    </span>
-                    <span className="gallery-thumb" aria-hidden="true">
-                      {preview && 'svg' in preview ? (
-                        // Mermaid renders with securityLevel 'strict', and the examples are fixed text in this app.
-                        <span className="gallery-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
-                      ) : (
-                        <span className="muted">{preview ? 'No preview' : '…'}</span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </Fragment>
-          ))}
-        </div>
-        <div className="gallery-main" ref={grid}>
-          <div className="gallery-main-head">
-            <h2>{group.title}</h2>
-            <span className="muted">
-              {group.examples.length} example{group.examples.length === 1 ? '' : 's'}
-              {kind ? ` · ${KIND_TEXT[kind]}` : ''}
-            </span>
-          </div>
-          <div className="gallery-grid" role="list" aria-label={`${group.title} examples`}>
-            {group.examples.map((ex) => (
-              <Card key={ex.id} example={ex} onOpen={onOpen} />
-            ))}
-          </div>
-        </div>
+      <div className="gallery-body" ref={body}>
+        {type ? (
+          <TypePage type={type} passes={passes} onOpen={onOpen} />
+        ) : (
+          <>
+            {shownTypes.length === 0 && <p className="muted gallery-empty">No example matches. Clear the search or the filters.</p>}
+            {FAMILIES.map((family) => {
+              const types = shownTypes.filter((t) => t.family === family);
+              if (types.length === 0) return null;
+              return (
+                <section key={family} className="gallery-family" aria-label={family}>
+                  <h2>{family}</h2>
+                  <div className="gallery-tiles">
+                    {types.map((t) => (
+                      <Tile key={t.id} type={t} example={tileExample(t, passes)} count={typeExamples(t).filter((ex) => passes(ex, t)).length} onOpen={() => show(t.id)} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+/** The example a tile shows: the type's first one that the search and filters let through. */
+function tileExample(type: GalleryType, passes: (ex: GalleryExample, t: GalleryType) => boolean): GalleryExample {
+  const all = typeExamples(type);
+  return all.find((ex) => passes(ex, type)) ?? all[0];
+}
+
+function Tile({ type, example, count, onOpen }: { type: GalleryType; example: GalleryExample; count: number; onOpen: () => void }): JSX.Element {
+  const preview = previews.get(example.id);
+  const support = typeSupport(type);
+  const total = typeExamples(type).length;
+  return (
+    <button className="gallery-tile" onClick={onOpen} title={`${type.title}: ${count === total ? total : `${count} of ${total}`} example${total === 1 ? '' : 's'}`}>
+      <span className="gallery-tile-preview" aria-hidden="true">
+        {preview && 'svg' in preview ? (
+          // Mermaid renders with securityLevel 'strict', and the examples are fixed text in this app.
+          <span className="gallery-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+        ) : (
+          <span className="muted">{preview ? 'No preview' : 'Rendering…'}</span>
+        )}
+      </span>
+      <span className="gallery-tile-foot">
+        <span className="gallery-tile-title">{type.title}</span>
+        {support && (
+          <span className={`gallery-support chip-${support.toLowerCase()}`} title={SUPPORT_HINT[support]}>
+            <span className="gallery-dot" aria-hidden="true" />
+            {support}
+          </span>
+        )}
+        <span className="gallery-count">{count === total ? total : `${count}/${total}`}</span>
+      </span>
+    </button>
+  );
+}
+
+/** One type's page: its examples, by section when it has several (flowcharts). */
+function TypePage({ type, passes, onOpen }: { type: GalleryType; passes: (ex: GalleryExample, t: GalleryType) => boolean; onOpen: (code: string) => void }): JSX.Element {
+  const support = typeSupport(type);
+  const total = typeExamples(type).length;
+  const shown = type.sections.map((s) => ({ ...s, examples: s.examples.filter((ex) => passes(ex, type)) })).filter((s) => s.examples.length > 0);
+  const count = shown.reduce((n, s) => n + s.examples.length, 0);
+  return (
+    <>
+      <div className="gallery-type-head">
+        <h2>{type.title}</h2>
+        <span className="muted">
+          {count === total ? `${total} example${total === 1 ? '' : 's'}` : `${count} of ${total} examples`} · {type.family}
+          {support ? ` · ${SUPPORT_HINT[support]}` : ''}
+        </span>
+      </div>
+      {count === 0 && <p className="muted gallery-empty">No example of this type matches. Clear the search or the filters.</p>}
+      {type.sections.length > 1 && shown.length > 1 && (
+        <nav className="gallery-toc" aria-label="Sections">
+          {shown.map((s) => (
+            <a key={s.title} href={`#gallery-${type.id}-${slug(s.title)}`} onClick={(e) => {
+              e.preventDefault();
+              document.getElementById(`gallery-${type.id}-${slug(s.title)}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            }}>
+              {s.title} <span className="gallery-count">{s.examples.length}</span>
+            </a>
+          ))}
+        </nav>
+      )}
+      {shown.map((s) => (
+        <section key={s.title} id={`gallery-${type.id}-${slug(s.title)}`} className="gallery-section">
+          {type.sections.length > 1 && <h3>{s.title}</h3>}
+          <div className="gallery-grid">
+            {s.examples.map((ex) => (
+              <Card key={ex.id} example={ex} onOpen={onOpen} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
+const slug = (text: string): string => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 function Card({ example, onOpen }: { example: GalleryExample; onOpen: (code: string) => void }): JSX.Element {
   const status = statuses.get(example.id);

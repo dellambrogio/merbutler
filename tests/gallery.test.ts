@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { GALLERY } from '../src/gallery';
+import { GALLERY_EXAMPLES, GALLERY_TYPES, MERMAID_TYPE_COUNT } from '../src/gallery';
 import { parse } from '../src/parse';
 import { structuredKind } from '../src/StructuredEditor';
 
-const examples = GALLERY.flatMap((g) => g.examples);
+const examples = GALLERY_EXAMPLES;
 
 describe('gallery', () => {
   test('ids are unique', () => {
@@ -16,8 +16,10 @@ describe('gallery', () => {
     }
   });
 
-  test('has the examples of every diagram type', () => {
+  test('has the examples of every diagram type, each type in one family', () => {
     expect(examples.filter((e) => e.id.startsWith('ex-')).length).toBe(81);
+    expect(GALLERY_TYPES.length).toBe(MERMAID_TYPE_COUNT);
+    expect(new Set(GALLERY_TYPES.map((t) => t.id)).size).toBe(GALLERY_TYPES.length);
   });
 
   test('every example parses with Mermaid (editable or preview)', async () => {

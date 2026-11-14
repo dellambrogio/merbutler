@@ -57,10 +57,11 @@ flowchart LR
 - 🗂️ **Every Mermaid diagram type**: the canvas edits flowcharts, swimlanes (`swimlane-beta`), state diagrams and
   use case diagrams;
   outline and table editors cover the others; the rest open as Mermaid's own drawing, with pan and zoom.
-- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax and 81 examples of every Mermaid
-  diagram type, drawn by Mermaid, over the whole editor. On the left, the groups with a preview each (↑ ↓ keys work
-  too); on the right, the chosen group's examples, each with a badge that says how the app edits it. Click one to
-  open it.
+- 🖼️ **Gallery**: examples of every Mermaid diagram type, drawn by Mermaid. The overview shows one tile per type,
+  grouped into families (graphs and flows, trees and boards, charts and data, time and process, strategy and
+  grammar), each with how the app edits it. Search the titles and code (`/`), or filter by Canvas, Outline, Table or
+  Preview. A tile opens the type's page with all its examples; the Flowchart page also has one example per feature
+  of the flowchart syntax. Click an example to open it; Esc goes back, then closes.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.
 
 ## Quick start

@@ -1,9 +1,8 @@
 /**
- * FlowModel -> Mermaid text. The output is deterministic: header, then the nesting tree
- * (at each level nodes first, then subgraph blocks), then all edges.
+ * Flowcharts and swimlane diagrams: FlowModel -> Mermaid text. The output is deterministic: header,
+ * then the nesting tree (at each level nodes first, then subgraph blocks), then all edges, then
+ * edge options, collapsed views, styling, clicks and comments.
  */
-import { serializeState } from './stateDiagram';
-import { serializeUsecase } from './usecaseDiagram';
 import {
   buildTree,
   keepsAtSyntax,
@@ -17,8 +16,8 @@ import {
   type FlowSubgraph,
   type Stroke,
   type TreeItem,
-} from './model';
-import { fromEditText } from './labels';
+} from '../core/model';
+import { fromEditText } from '../core/labels';
 import { SHAPE_INFO } from './shapes';
 
 
@@ -145,9 +144,7 @@ function treeLines(items: TreeItem[], depth: number, out: string[]): void {
   }
 }
 
-export function serialize(model: FlowModel): string {
-  if (model.kind === 'state') return serializeState(model);
-  if (model.kind === 'usecase') return serializeUsecase(model);
+export function serializeFlowchart(model: FlowModel): string {
   const lines = model.preamble ? [model.preamble] : [];
   lines.push(`${model.kind === 'swimlane' ? 'swimlane-beta' : 'flowchart'} ${model.direction}`);
   treeLines(buildTree(model), 1, lines);

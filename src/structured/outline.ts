@@ -4,7 +4,7 @@
  * editor can add, move, indent and rename items. The text of each line is kept as written;
  * typed fields (a mindmap shape, a treemap value, a tree view annotation) are read from it.
  */
-import { HEADER_LINE } from './diagramTypes';
+import { HEADER_LINE } from '../core/diagramTypes';
 
 export type OutlineType = 'Mindmap' | 'Ishikawa diagram' | 'TreeView' | 'Treemap' | 'Kanban' | 'Venn diagram';
 /** Kanban is an outline too: columns, then their cards. Venn: sets and unions, then their texts. */

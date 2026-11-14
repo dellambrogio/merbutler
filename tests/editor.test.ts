@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState, Text } from '@codemirror/state';
-import { completionSource, errorDiagnostic, mermaidLanguage } from '../src/mermaidEditor';
+import { completionSource, errorDiagnostic, mermaidLanguage } from '../src/editor/mermaidEditor';
 
 /** [text, token] pairs of a document, without whitespace. */
 function tokens(doc: string): Array<[string, string]> {

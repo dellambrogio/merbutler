@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import type { CanvasNode, SubgraphNode } from '../src/layout';
-import { layoutCanvas } from '../src/layoutEngine';
-import { addSubgraph, lanesOf, type FlowModel } from '../src/model';
-import { parse } from '../src/parse';
-import { serialize } from '../src/serialize';
+import type { CanvasNode, SubgraphNode } from '../src/canvas/layout';
+import { layoutCanvas } from '../src/canvas/layoutEngine';
+import { addSubgraph, lanesOf, type FlowModel } from '../src/core/model';
+import { parse } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

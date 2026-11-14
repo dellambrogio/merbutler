@@ -8,10 +8,10 @@ import { HighlightStyle, StreamLanguage, syntaxHighlighting, type StringStream }
 import type { Diagnostic } from '@codemirror/lint';
 import type { Extension, Text } from '@codemirror/state';
 import { tags as t } from '@lezer/highlight';
-import { loadIconPacks } from './icons';
-import { SHAPE_INFO, SHAPES } from './shapes';
-import { THEMES } from './themes';
-import { DIAGRAM_TYPES, HEADER_LINE, typeOfKeyword, type DiagramType } from './diagramTypes';
+import { loadIconPacks } from '../flowchart/icons';
+import { SHAPE_INFO, SHAPES } from '../flowchart/shapes';
+import { THEMES } from '../flowchart/themes';
+import { DIAGRAM_TYPES, HEADER_LINE, typeOfKeyword, type DiagramType } from '../core/diagramTypes';
 
 // ---------------------------------------------------------------------------------------------
 // Syntax highlighting

@@ -2,12 +2,12 @@
 import dagre from '@dagrejs/dagre';
 import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from '@xyflow/react';
 import { MARKER_IDS } from './EdgeMarkers';
-import { labelLines, markdownRuns } from './labels';
-import { get, readConfig } from './config';
-import { BUNDLED_PREFIXES, LABEL_ICON } from './icons';
-import { SHAPE_INFO } from './shapes';
-import { diagramTheme } from './themes';
-import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling';
+import { labelLines, markdownRuns } from '../core/labels';
+import { get, readConfig } from '../core/config';
+import { BUNDLED_PREFIXES, LABEL_ICON } from '../flowchart/icons';
+import { SHAPE_INFO } from '../flowchart/shapes';
+import { diagramTheme } from '../flowchart/themes';
+import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from '../flowchart/styling';
 import {
   buildTree,
   diagramCurve,
@@ -22,7 +22,7 @@ import {
   type Shape,
   type Stroke,
   type TreeItem,
-} from './model';
+} from '../core/model';
 
 export interface ShapeNodeData extends Record<string, unknown> {
   label: string;

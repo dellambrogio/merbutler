@@ -6,8 +6,8 @@
  * keeps the app's own colors, which follow light and dark mode.
  */
 import type { CSSProperties } from 'react';
-import { get, getString, readConfig, type ConfigMap } from './config';
-import type { FlowModel } from './model';
+import { get, getString, readConfig, type ConfigMap } from '../core/config';
+import type { FlowModel } from '../core/model';
 
 export interface Palette {
   background: string;

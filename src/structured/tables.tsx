@@ -4,7 +4,7 @@
  * headings); every other line stays as written, where it is. Editing a cell rewrites only its line.
  */
 import { useMemo, useState, type JSX } from 'react';
-import { HEADER_LINE } from './diagramTypes';
+import { HEADER_LINE } from '../core/diagramTypes';
 
 export interface TableEditorProps {
   code: string;

@@ -1,8 +1,8 @@
 import { Position } from '@xyflow/react';
 import { describe, expect, test } from 'vitest';
-import { MARKER_IDS } from '../src/EdgeMarkers';
-import { layoutModel, SUBGRAPH_PADDING, type CanvasNode, type ShapeNode } from '../src/layout';
-import { addNode, addSubgraph, connect, type FlowModel } from '../src/model';
+import { MARKER_IDS } from '../src/canvas/EdgeMarkers';
+import { layoutModel, SUBGRAPH_PADDING, type CanvasNode, type ShapeNode } from '../src/canvas/layout';
+import { addNode, addSubgraph, connect, type FlowModel } from '../src/core/model';
 
 function shape(node: CanvasNode): ShapeNode {
   if (node.type !== 'shape') throw new Error(`${node.id} is not a shape node`);

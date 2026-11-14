@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { fromEditText, labelLines, markdownRuns, textMetrics, toEditText } from '../src/labels';
-import { nodeSize } from '../src/layout';
+import { fromEditText, labelLines, markdownRuns, textMetrics, toEditText } from '../src/core/labels';
+import { nodeSize } from '../src/canvas/layout';
 
 describe('labels', () => {
   test('splits lines on <br> variants, and on newlines in Markdown only', () => {

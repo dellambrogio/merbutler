@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 import { Handle, type NodeProps } from '@xyflow/react';
 import type { SubgraphNode } from './layout';
-import { toEditText } from './labels';
+import { toEditText } from '../core/labels';
 import { LabelText } from './LabelText';
 import { EditRequestContext, RenameContext } from './ShapeNodeView';
-import { boxVars, textStyle } from './styling';
+import { boxVars, textStyle } from '../flowchart/styling';
 
 /** Lets a subgraph collapse or expand itself. Null when the canvas is read-only. */
 export const CollapseContext = createContext<((id: string) => void) | null>(null);

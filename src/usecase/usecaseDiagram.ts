@@ -7,10 +7,10 @@
  * boundaries, relationships and notes. What the canvas cannot keep (JSON nodes, edge ids and
  * animation, edge classes) throws UnsupportedError, so the app shows the preview instead.
  */
-import { preambleOf, scan, UnsupportedError } from './parse';
-import { canonicalOrder, sortClasses, type Direction, type EdgeEnd, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke, type UseCaseNode, type UseCaseRelation } from './model';
-import { noteLink } from './stateDiagram';
-import type { Shape } from './shapes';
+import { preambleOf, scan, UnsupportedError } from '../core/mermaid';
+import { canonicalOrder, sortClasses, type Direction, type EdgeEnd, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke, type UseCaseNode, type UseCaseRelation } from '../core/model';
+import { noteLink } from '../state/stateDiagram';
+import type { Shape } from '../flowchart/shapes';
 
 interface UcActor {
   id: string;

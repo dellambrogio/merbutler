@@ -3,8 +3,8 @@
  * canvas cannot edit. `mermaid.render` uses shared state, so renders run one at a time.
  */
 import mermaid from 'mermaid';
-import { BUNDLED_PREFIXES, mermaidIconPacks } from './icons';
-import { ensureInitialized, withMermaid } from './parse';
+import { BUNDLED_PREFIXES, mermaidIconPacks } from '../flowchart/icons';
+import { ensureInitialized, withMermaid } from '../core/mermaid';
 
 export type RenderResult = { svg: string } | { error: string };
 

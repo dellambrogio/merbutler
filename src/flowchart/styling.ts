@@ -6,7 +6,7 @@
  * (`url(…)`) or leave the property (`;`, quotes, braces) are ignored: the code can come from a paste.
  */
 import type { CSSProperties } from 'react';
-import { sortClasses, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph } from './model';
+import { sortClasses, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph } from '../core/model';
 
 export interface Look {
   fill?: string;

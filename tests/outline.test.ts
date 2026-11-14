@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { MERMAID_EXAMPLES } from '../src/mermaidExamples';
+import { MERMAID_EXAMPLES } from '../src/gallery/mermaidExamples';
 import {
   addChild,
   addSibling,
@@ -23,8 +23,8 @@ import {
   writeTreeViewNode,
   type Outline,
   type OutlineItem,
-} from '../src/outline';
-import { parse } from '../src/parse';
+} from '../src/structured/outline';
+import { parse } from '../src/core/parse';
 
 const TREE_SECTIONS = ['mindmap', 'ishikawa-diagram', 'treeview', 'treemap', 'kanban-diagram', 'venn-diagram'];
 const examples = MERMAID_EXAMPLES.filter((s) => TREE_SECTIONS.includes(s.id)).flatMap((s) => s.examples);

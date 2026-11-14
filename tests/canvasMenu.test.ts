@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import type { MenuItem } from '../src/ContextMenu';
-import { menuFor, type MenuActions, type MenuTarget } from '../src/canvasMenu';
-import { duplicateNode, reverseEdge, type FlowModel } from '../src/model';
-import { parse } from '../src/parse';
-import { serialize } from '../src/serialize';
+import type { MenuItem } from '../src/canvas/ContextMenu';
+import { menuFor, type MenuActions, type MenuTarget } from '../src/canvas/canvasMenu';
+import { duplicateNode, reverseEdge, type FlowModel } from '../src/core/model';
+import { parse } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

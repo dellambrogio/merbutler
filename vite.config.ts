@@ -7,5 +7,7 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 4000 },
   test: {
     environment: 'jsdom',
+    // Agent worktrees live under .claude/; their copies of the tests are not this checkout's.
+    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
   },
 });

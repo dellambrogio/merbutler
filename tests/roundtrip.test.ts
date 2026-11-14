@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { parse, statements } from '../src/parse';
-import { layoutModel } from '../src/layout';
-import { SHAPE_INFO } from '../src/shapes';
-import { serialize } from '../src/serialize';
+import { parse, statements } from '../src/core/parse';
+import { layoutModel } from '../src/canvas/layout';
+import { SHAPE_INFO } from '../src/flowchart/shapes';
+import { serialize } from '../src/core/serialize';
 import {
   addNode,
   addSubgraph,
@@ -21,7 +21,7 @@ import {
   updateSubgraph,
   visibleModel,
   type FlowModel,
-} from '../src/model';
+} from '../src/core/model';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 const fixtureNames: string[] = readdirSync(FIXTURES).filter((f) => f.endsWith('.mmd'));

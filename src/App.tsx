@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type JSX } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { Canvas } from './Canvas';
-import { extractMermaid } from './clipboard';
-import { CodeEditor } from './CodeEditor';
-import { Gallery, loadView } from './Gallery';
-import { GALLERY_TYPES } from './gallery';
-import { readHash, writeHash, type UrlState } from './urlState';
-import { Preview } from './Preview';
-import { hasStructuredEditor, StructuredEditor, structuredKind } from './StructuredEditor';
-import type { DiagramType } from './diagramTypes';
-import type { FlowModel } from './model';
-import { parse } from './parse';
-import { serialize } from './serialize';
+import { Canvas } from './canvas/Canvas';
+import { extractMermaid } from './core/clipboard';
+import { CodeEditor } from './editor/CodeEditor';
+import { Gallery, loadView } from './gallery/Gallery';
+import { GALLERY_TYPES } from './gallery/gallery';
+import { readHash, writeHash, type UrlState } from './core/urlState';
+import { Preview } from './preview/Preview';
+import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
+import type { DiagramType } from './core/diagramTypes';
+import type { FlowModel } from './core/model';
+import { parse } from './core/parse';
+import { serialize } from './core/serialize';
 
 const STORAGE_KEY = 'merbutler:code';
 /** The key used before the app was renamed. Read once so saved code is not lost. */

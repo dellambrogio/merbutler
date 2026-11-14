@@ -5,7 +5,7 @@ import { keymap } from '@codemirror/view';
 import { indentWithTab, isolateHistory } from '@codemirror/commands';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
-import { extractMermaid } from './clipboard';
+import { extractMermaid } from '../core/clipboard';
 
 /**
  * The text size, as part of the editor's theme. CodeMirror measures line heights itself: a size set

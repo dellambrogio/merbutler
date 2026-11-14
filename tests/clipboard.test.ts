@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { extractMermaid } from '../src/clipboard';
+import { extractMermaid } from '../src/core/clipboard';
 
 describe('extractMermaid', () => {
   test('keeps text without fences', () => {

@@ -21,7 +21,7 @@ import {
   type LabelEdge,
   type LayoutContext,
 } from './layout';
-import { diagramLayout, laneFlow, lanesOf, type Direction, type FlowModel, type FlowSubgraph } from './model';
+import { diagramLayout, laneFlow, lanesOf, type Direction, type FlowModel, type FlowSubgraph } from '../core/model';
 
 /** ELK is large (about 1.5 MB), so it loads on the first ELK layout, as its own chunk. */
 let elkInstance: Promise<{ layout: (graph: ElkNode) => Promise<ElkNode> }> | null = null;

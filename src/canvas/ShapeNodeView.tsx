@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent } from 'react';
 import { Handle, type NodeProps } from '@xyflow/react';
 import type { ShapeNode } from './layout';
-import { toEditText } from './labels';
+import { toEditText } from '../core/labels';
 import { LabelText } from './LabelText';
-import type { Shape } from './model';
-import { SHAPE_INFO, SLANT } from './shapes';
-import { boxVars, textStyle } from './styling';
+import type { Shape } from '../core/model';
+import { SHAPE_INFO, SLANT } from '../flowchart/shapes';
+import { boxVars, textStyle } from '../flowchart/styling';
 import { AssetView } from './AssetView';
 
 /** Lets a node rename itself without passing callbacks through node data. */

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { GALLERY_EXAMPLES, GALLERY_TYPES, MERMAID_TYPE_COUNT } from '../src/gallery';
-import { parse } from '../src/parse';
-import { structuredKind } from '../src/StructuredEditor';
+import { GALLERY_EXAMPLES, GALLERY_TYPES, MERMAID_TYPE_COUNT } from '../src/gallery/gallery';
+import { parse } from '../src/core/parse';
+import { structuredKind } from '../src/structured/StructuredEditor';
 
 const examples = GALLERY_EXAMPLES;
 

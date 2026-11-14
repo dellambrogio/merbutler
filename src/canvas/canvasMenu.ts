@@ -26,10 +26,10 @@ import {
   type FlowNode,
   type FlowSubgraph,
   type Shape,
-} from './model';
-import { SHAPE_INFO } from './shapes';
-import { addNote, addPseudoState, canTransition, setStateKind, STATE_KINDS } from './stateDiagram';
-import { addUseCaseNode, addUseCaseNote, allowedRelations, canRelate, forwardRelation, setRelation, USECASE_RELATIONS } from './usecaseDiagram';
+} from '../core/model';
+import { SHAPE_INFO } from '../flowchart/shapes';
+import { addNote, addPseudoState, canTransition, setStateKind, STATE_KINDS } from '../state/stateDiagram';
+import { addUseCaseNode, addUseCaseNote, allowedRelations, canRelate, forwardRelation, setRelation, USECASE_RELATIONS } from '../usecase/usecaseDiagram';
 
 export type MenuTarget = { kind: 'node'; id: string } | { kind: 'subgraph'; id: string } | { kind: 'edge'; id: string } | { kind: 'pane' };
 

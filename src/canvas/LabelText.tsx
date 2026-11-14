@@ -1,6 +1,6 @@
 import { Fragment, type JSX } from 'react';
-import { splitIcons, useIcon } from './icons';
-import { labelLines, markdownRuns } from './labels';
+import { splitIcons, useIcon } from '../flowchart/icons';
+import { labelLines, markdownRuns } from '../core/labels';
 
 /** A `fa:fa-name` token: the icon at text size, or the token as text if there is no such icon. */
 function LabelIcon({ name, source }: { name: string; source: string }): JSX.Element {

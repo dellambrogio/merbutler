@@ -7,9 +7,9 @@
  * Reads Mermaid's state DB (internal API, pinned like the flowchart DB in parse.ts): `getData()`
  * for what Mermaid draws (nodes, parents, edges) and the statement tree for what the code says.
  */
-import { decodeEntities, scan, preambleOf, UnsupportedError } from './parse';
-import { canonicalOrder, sortClasses, type Direction, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type StateKind } from './model';
-import type { Shape } from './shapes';
+import { decodeEntities, scan, preambleOf, UnsupportedError } from '../core/mermaid';
+import { canonicalOrder, sortClasses, type Direction, type FlowEdge, type FlowModel, type FlowNode, type FlowSubgraph, type StateKind } from '../core/model';
+import type { Shape } from '../flowchart/shapes';
 
 interface DataNode {
   id: string;

@@ -234,7 +234,7 @@ deleting those parts. Today every example in the Gallery is editable, and none l
   written as `id : text` lines.
 - Use case diagrams: a canvas edit writes actors, boundaries with their members, use cases, relationships and notes
   in that order, `class` statements instead of `:::`, and moves comments to the end.
-- `src/parse.ts`, `src/stateDiagram.ts` and `src/usecaseDiagram.ts` use Mermaid internals
+- `src/flowchart/parseFlowchart.ts`, `src/state/stateDiagram.ts` and `src/usecase/usecaseDiagram.ts` use Mermaid internals
   (`mermaidAPI.getDiagramFromText`, the flowchart, state and use case DBs). The `mermaid` version is pinned. Run `just test` after you update it.
 
 ## Project layout
@@ -242,34 +242,21 @@ deleting those parts. Today every example in the Gallery is editable, and none l
 Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://codemirror.net/),
 [ELK](https://eclipse.dev/elk/), [dagre](https://github.com/dagrejs/dagre) and [Mermaid](https://mermaid.js.org/)'s own parser.
 
-| File | Purpose |
+The code is grouped by diagram type where it is specific to one, and by concern where it is shared.
+
+| Folder | Purpose |
 |---|---|
-| `src/model.ts` | Graph model and edit operations |
-| `src/styling.ts` | How classDef/class/style/linkStyle look on the canvas |
-| `src/AssetView.tsx` | Icon and image nodes, and consent for remote images |
-| `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
-| `src/parse.ts` | Mermaid text → model, or the type to preview |
-| `src/serialize.ts` | Model → Mermaid text |
-| `src/stateDiagram.ts` | State diagrams: Mermaid's state DB → model, and model → `stateDiagram-v2` |
-| `src/usecaseDiagram.ts` | Use case diagrams: Mermaid's use case DB → model, and model → `usecase-beta` |
-| `src/diagramTypes.ts` | Every Mermaid diagram type: ids, header keywords, body keywords, support |
-| `src/Preview.tsx`, `src/render.ts` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
-| `src/outline.ts`, `src/OutlineEditor.tsx` | Indentation trees and the outline editor |
-| `src/tables.tsx`, `src/StructuredEditor.tsx` | Table editors per type, and the panel next to the preview |
-| `src/mermaidExamples.ts` | Examples of every diagram type, with the features of Mermaid's "All Diagram Examples" page |
-| `src/layout.ts`, `src/layoutEngine.ts` | Model → positioned React Flow nodes and edges, with dagre or ELK |
-| `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
-| `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |
-| `src/Canvas.tsx` | Canvas, toolbar and inspector |
-| `src/ContextMenu.tsx`, `src/canvasMenu.ts` | The context menu, and its entries per element and diagram kind |
-| `src/ShapeNodeView.tsx`, `src/SubgraphNodeView.tsx` | Shape outlines and subgraph boxes |
-| `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
-| `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
+| `src/core/` | Shared by every type: the graph model and its edits (`model.ts`), Mermaid setup and text helpers (`mermaid.ts`), parse and serialize by type (`parse.ts`, `serialize.ts`), the list of diagram types (`diagramTypes.ts`), labels, config, settings, the URL state, clipboard |
+| `src/flowchart/` | Flowcharts and swimlanes: Mermaid's flowchart DB → model (`parseFlowchart.ts`), model → code (`serializeFlowchart.ts`), shapes, styling, themes, icons, and the flowchart inspector |
+| `src/state/` | State diagrams: adapter, writer and edits (`stateDiagram.ts`), inspector |
+| `src/usecase/` | Use case diagrams: adapter, writer and edits (`usecaseDiagram.ts`), inspector |
+| `src/canvas/` | The canvas for every graph type: layout (dagre, ELK, lanes), node and edge views, toolbar, context menu, shared inspector fields |
+| `src/structured/` | Outline and table editors next to the preview (trees, data, relations) |
+| `src/preview/` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
+| `src/editor/` | The CodeMirror code panel: highlighting, completion, error marks |
+| `src/gallery/` | Example diagrams of every type, and the gallery catalog |
 | `src/App.tsx` | Split view and sync logic |
-| `src/urlState.ts` | The app's state in the URL hash: code (deflate, base64url) and gallery view |
-| `src/settings.ts` | App settings with defaults and ranges, stored per browser (no settings panel yet) |
-| `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples, the page's examples, and the gallery panel |
-| `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline and table tests, with `.mmd` fixtures |
+| `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 
 ## License
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { MERMAID_EXAMPLES } from '../src/mermaidExamples';
-import { parse } from '../src/parse';
-import { insertLine, moveLine, normalizeTable, readTable, removeLine, setCells, setSection, TABLE_SPECS, writeTable, type TableDoc } from '../src/tables';
+import { MERMAID_EXAMPLES } from '../src/gallery/mermaidExamples';
+import { parse } from '../src/core/parse';
+import { insertLine, moveLine, normalizeTable, readTable, removeLine, setCells, setSection, TABLE_SPECS, writeTable, type TableDoc } from '../src/structured/tables';
 
 const SECTIONS: Record<string, string> = {
   'pie-chart': 'Pie chart',

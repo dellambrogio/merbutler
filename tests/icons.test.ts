@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { iconSvg, loadIconPacks, mermaidIconPacks, splitIcons } from '../src/icons';
-import { textSize } from '../src/layout';
+import { iconSvg, loadIconPacks, mermaidIconPacks, splitIcons } from '../src/flowchart/icons';
+import { textSize } from '../src/canvas/layout';
 
 describe('icons', () => {
   test('labels: fa tokens as Mermaid matches them', () => {

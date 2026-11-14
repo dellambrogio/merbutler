@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { MERMAID_EXAMPLES } from '../src/mermaidExamples';
-import { connect, type FlowModel } from '../src/model';
-import { parse } from '../src/parse';
-import { serialize } from '../src/serialize';
-import { addUseCaseNode, addUseCaseNote, canRelate, setRelation, setUseCaseNode } from '../src/usecaseDiagram';
+import { MERMAID_EXAMPLES } from '../src/gallery/mermaidExamples';
+import { connect, type FlowModel } from '../src/core/model';
+import { parse } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
+import { addUseCaseNode, addUseCaseNote, canRelate, setRelation, setUseCaseNode } from '../src/usecase/usecaseDiagram';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

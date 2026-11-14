@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { readConfig, readYamlMaps } from '../src/config';
-import { textSettings } from '../src/layout';
-import type { FlowModel } from '../src/model';
-import { diagramTheme, THEMES, themeVars } from '../src/themes';
+import { readConfig, readYamlMaps } from '../src/core/config';
+import { textSettings } from '../src/canvas/layout';
+import type { FlowModel } from '../src/core/model';
+import { diagramTheme, THEMES, themeVars } from '../src/flowchart/themes';
 
 const model = (preamble?: string): FlowModel => ({ direction: 'TB', nodes: [], subgraphs: [], edges: [], preamble });
 
@@ -71,7 +71,7 @@ describe('text settings', () => {
 
 describe('text size', () => {
   test('long lines wrap at the wrap width; Markdown only if markdownWrap', async () => {
-    const { textSize, DEFAULT_TEXT } = await import('../src/layout');
+    const { textSize, DEFAULT_TEXT } = await import('../src/canvas/layout');
     const long = 'word '.repeat(30).trim();
     expect(textSize(long, false).lines).toBeGreaterThan(1);
     expect(textSize(long, false).width).toBe(200);

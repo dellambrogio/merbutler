@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { commentsFromText, commentsToText, removeElements, updateEdge, updateNode, type FlowModel } from '../src/model';
-import { parse, scan } from '../src/parse';
-import { serialize } from '../src/serialize';
+import { commentsFromText, commentsToText, removeElements, updateEdge, updateNode, type FlowModel } from '../src/core/model';
+import { parse, scan } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

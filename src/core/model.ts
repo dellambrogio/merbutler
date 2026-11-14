@@ -1,6 +1,6 @@
 import { fromEditText, toEditText } from './labels';
 import { frontMatterOf, getString, readConfig, readYamlMaps } from './config';
-import { SHAPE_INFO, SHAPES, type Shape } from './shapes';
+import { SHAPE_INFO, SHAPES, type Shape } from '../flowchart/shapes';
 
 export { SHAPES, type Shape };
 

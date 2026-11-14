@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryExample, type GalleryType } from './gallery';
-import { parse } from './parse';
-import { renderMermaid, type RenderResult } from './render';
-import { structuredKind } from './StructuredEditor';
-import { loadSettings } from './settings';
+import { parse } from '../core/parse';
+import { renderMermaid, type RenderResult } from '../preview/render';
+import { structuredKind } from '../structured/StructuredEditor';
+import { loadSettings } from '../core/settings';
 
 /**
  * What the app does with an example: edit it on the canvas, show Mermaid's preview of a type the

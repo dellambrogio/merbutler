@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { layoutModel, type CanvasNode } from '../src/layout';
-import { layoutCanvas } from '../src/layoutEngine';
-import { diagramLayout, type FlowModel } from '../src/model';
-import { parse } from '../src/parse';
+import { layoutModel, type CanvasNode } from '../src/canvas/layout';
+import { layoutCanvas } from '../src/canvas/layoutEngine';
+import { diagramLayout, type FlowModel } from '../src/core/model';
+import { parse } from '../src/core/parse';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

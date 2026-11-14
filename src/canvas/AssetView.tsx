@@ -1,8 +1,8 @@
 import { createContext, useContext, type CSSProperties, type JSX } from 'react';
 import { ASSET_GAP, assetPicture } from './layout';
-import { useIcon } from './icons';
+import { useIcon } from '../flowchart/icons';
 import { LabelText } from './LabelText';
-import type { Asset } from './model';
+import type { Asset } from '../core/model';
 
 /**
  * Hosts the user allowed to load images from, for this session. The canvas never contacts a

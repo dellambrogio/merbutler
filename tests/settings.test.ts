@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../src/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../src/core/settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());

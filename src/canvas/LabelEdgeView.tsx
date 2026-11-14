@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, type EdgeProps } from '@xyflow/react';
 import { LabelText } from './LabelText';
 import type { LabelEdge } from './layout';
-import { textStyle } from './styling';
+import { textStyle } from '../flowchart/styling';
 
 type PathParams = Parameters<typeof getBezierPath>[0];
 

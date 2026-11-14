@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { readHash, writeHash } from '../src/urlState';
+import { readHash, writeHash } from '../src/core/urlState';
 
 describe('state in the URL hash', () => {
   const code = 'flowchart LR\n  A[Start ✨ «quotes» & more] --> B{"Done?"}\n  %% comment\n';

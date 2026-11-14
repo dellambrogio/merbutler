@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { imageSource } from '../src/AssetView';
-import { layoutModel } from '../src/layout';
-import { diagramCurve, updateNode, type FlowModel } from '../src/model';
-import { parse } from '../src/parse';
-import { serialize } from '../src/serialize';
+import { imageSource } from '../src/canvas/AssetView';
+import { layoutModel } from '../src/canvas/layout';
+import { diagramCurve, updateNode, type FlowModel } from '../src/core/model';
+import { parse } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);

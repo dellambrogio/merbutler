@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { parse } from '../src/parse';
-import { serialize } from '../src/serialize';
-import { removeElements, updateEdge, updateNode, updateSubgraph, type FlowModel } from '../src/model';
-import { layoutModel } from '../src/layout';
-import { classesFromText, edgeLook, nodeLook, stylesFromText, stylesToText, subgraphLook } from '../src/styling';
+import { parse } from '../src/core/parse';
+import { serialize } from '../src/core/serialize';
+import { removeElements, updateEdge, updateNode, updateSubgraph, type FlowModel } from '../src/core/model';
+import { layoutModel } from '../src/canvas/layout';
+import { classesFromText, edgeLook, nodeLook, stylesFromText, stylesToText, subgraphLook } from '../src/flowchart/styling';
 
 async function parseOk(text: string): Promise<FlowModel> {
   const result = await parse(text);
@@ -108,7 +108,7 @@ describe('class order', () => {
 
 describe('readable labels', () => {
   test('a fill without a color gets dark or light text', async () => {
-    const { textStyle, luminance } = await import('../src/styling');
+    const { textStyle, luminance } = await import('../src/flowchart/styling');
     expect(textStyle({ fill: '#dcfce7' }).color).toBe('#1d2330');
     expect(textStyle({ fill: '#333' }).color).toBe('#f2f4f8');
     expect(textStyle({ fill: 'navy' }).color).toBe('#f2f4f8');

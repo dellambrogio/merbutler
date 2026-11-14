@@ -1,22 +1,11 @@
 /**
- * Mermaid text -> FlowModel.
- *
- * This is the only file that uses Mermaid internals (mermaidAPI.getDiagramFromText
- * and the flowchart DB). The mermaid version is pinned in package.json because
- * this API is not public and can change.
+ * Flowcharts: Mermaid's flowchart DB -> FlowModel (also for swimlane diagrams, which share it).
+ * Comments and `click` statements are read from the code, since the DB does not keep them.
  */
-import mermaid from 'mermaid';
-import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type Asset, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
+import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type Asset, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from '../core/model';
+import { decodeEntities, preambleOf, scan, statements, UnsupportedError } from '../core/mermaid';
+import { parse } from '../core/parse';
 import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
-import { diagramType, HEADER_LINE, type DiagramType } from './diagramTypes';
-import { stateModel } from './stateDiagram';
-import { usecaseModel } from './usecaseDiagram';
-
-/**
- * `ok`: a diagram the canvas edits. Otherwise an error; `preview` is set when Mermaid accepts the
- * code but it is a type the canvas does not edit, so the app shows Mermaid's rendering instead.
- */
-export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string; preview?: DiagramType };
 
 interface MermaidVertex {
   id: string;
@@ -103,53 +92,6 @@ const STROKE_FROM_MERMAID: Record<string, Stroke> = {
   invisible: 'invisible',
 };
 
-/** Something Mermaid accepts that the canvas cannot keep. */
-export class UnsupportedError extends Error {}
-
-let initialized: Promise<void> | undefined;
-
-let mermaidQueue: Promise<unknown> = Promise.resolve();
-
-/**
- * Runs Mermaid work one call at a time. Parsing and rendering fill Mermaid's diagram DBs, which
- * are shared: two parses that overlap (for example of two architecture diagrams) mix their data.
- */
-export function withMermaid<T>(work: () => Promise<T>): Promise<T> {
-  const run = mermaidQueue.then(work, work);
-  mermaidQueue = run.catch(() => undefined);
-  return run;
-}
-
-/** Sets up Mermaid once (securityLevel strict) and registers its diagram detectors. */
-export function ensureInitialized(): Promise<void> {
-  initialized ??= withMermaid(async () => {
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
-    // The first parse registers the lazy diagram detectors.
-    await mermaid.parse('flowchart TB\n  a');
-  });
-  return initialized;
-}
-
-const NAMED_ENTITIES: Record<string, string> = {
-  quot: '"',
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  apos: "'",
-  nbsp: ' ',
-};
-
-/**
- * Mermaid replaces each `#name;` / `#123;` entity with placeholder characters
- * before it parses. This converts the placeholders to the real characters.
- * Unknown named entities stay as `#name;`.
- */
-export function decodeEntities(text: string): string {
-  return text
-    .replace(/ﬂ\xB0\xB0\+?(\d+)\xB6\xDF/g, (_m, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/ﬂ\xB0(\w+)\xB6\xDF/g, (_m, name: string) => NAMED_ENTITIES[name] ?? `#${name};`);
-}
-
 function unsupported(what: string): never {
   throw new UnsupportedError(`Not supported by the visual editor: ${what}`);
 }
@@ -195,48 +137,6 @@ function toSubgraph(s: MermaidSubgraph, vertex: MermaidVertex | undefined): Flow
 function usesAtSyntax(text: string, id: string): boolean {
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(?:^|[^\\w-])${escaped}@\\{`, 'm').test(text);
-}
-
-/** A statement or a `%%` comment line of the code, in order. */
-export type CodeItem = { kind: 'statement' | 'comment'; text: string };
-
-/**
- * Statements (split at newlines and `;`) and `%%` comments of the code, outside quotes.
- * Used for what Mermaid's DB does not keep as written: `click` statements (with securityLevel
- * 'strict' a callback leaves no trace, and links are rewritten) and comments.
- */
-export function scan(text: string): CodeItem[] {
-  const out: CodeItem[] = [];
-  let current = '';
-  let quoted = false;
-  const flush = (): void => {
-    if (current.trim() !== '') out.push({ kind: 'statement', text: current.trim() });
-    current = '';
-  };
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === '"') quoted = !quoted;
-    if (!quoted && c === '%' && text[i + 1] === '%') {
-      const end = text.indexOf('\n', i);
-      const comment = text.slice(i, end < 0 ? text.length : end).trimEnd();
-      flush();
-      out.push({ kind: 'comment', text: comment });
-      i = end < 0 ? text.length : end;
-      continue;
-    }
-    if (!quoted && (c === '\n' || c === ';')) {
-      flush();
-      continue;
-    }
-    current += c;
-  }
-  flush();
-  return out;
-}
-
-/** The statements of the code, without comments. */
-export function statements(text: string): string[] {
-  return scan(text).flatMap((item) => (item.kind === 'statement' ? [item.text] : []));
 }
 
 /** Leading node or edge id of a statement: `A` in `A[x] --> B`, `e1` in `e1@{ … }`. */
@@ -400,87 +300,51 @@ function toEdgeOptions(e: MermaidEdge, where: string): EdgeOptions {
   return options;
 }
 
-/** Front matter: `---` on the first line, up to the next line that is only `---`. */
-const FRONT_MATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
-/** The header line of any diagram type. */
-const HEADER = new RegExp(HEADER_LINE.source, 'm');
-
-/**
- * The text before the `flowchart` line (front matter, directives, comments), without trailing
- * whitespace. Mermaid reads it; the model keeps it so a canvas edit does not drop it.
- */
-export function preambleOf(text: string): string {
-  const front = FRONT_MATTER.exec(text)?.[0].length ?? 0;
-  const header = HEADER.exec(text.slice(front));
-  const end = header ? front + header.index : front;
-  return text.slice(0, end).trimEnd();
-}
-
-export async function parse(text: string): Promise<ParseResult> {
-  try {
-    await ensureInitialized();
-    const diagram = await withMermaid(() => mermaid.mermaidAPI.getDiagramFromText(text));
-    const type = diagramType(diagram.type);
-    if (type.support !== 'canvas') {
-      return { ok: false, error: `The canvas does not edit this type yet (${type.name}).`, preview: type };
-    }
-    const adapter = type.name === 'State diagram' ? stateModel : type.name === 'Use case diagram' ? usecaseModel : null;
-    if (adapter) {
-      try {
-        return { ok: true, model: adapter(diagram.db, text) };
-      } catch (err) {
-        // Mermaid accepts it: show its drawing, and say why the canvas cannot edit it.
-        if (err instanceof UnsupportedError) return { ok: false, error: err.message, preview: type };
-        throw err;
-      }
-    }
-    const db = diagram.db as unknown as MermaidFlowDb;
-    const direction = toDirection(db.getDirection() ?? 'TB');
-    const vertices = db.getVertices();
-    const clicks = clickStatements(text);
-    for (const id of clicks.keys()) {
-      if (!vertices.has(id) || db.getSubGraphs().some((s) => s.id === id)) unsupported(`click on ${id}, which is not a node`);
-    }
-
-    const rawSubgraphs = db.getSubGraphs();
-    const subgraphs = rawSubgraphs.map((s) => toSubgraph(s, vertices.get(s.id)));
-    const subgraphById = new Map(subgraphs.map((s) => [s.id, s]));
-
-    // An edge end can be a node id or a subgraph id.
-    const rawEdges = db.getEdges() as MermaidEdges;
-    const edges = rawEdges.map(toEdge);
-
-    // An edge to a subgraph also creates a vertex with the subgraph id. It is not a node.
-    const nodes = [...vertices.values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text, clicks));
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
-
-    // Mermaid lists inner subgraphs first, and keeps each id in one subgraph only.
-    for (const raw of rawSubgraphs) {
-      for (const child of raw.nodes) {
-        const item = subgraphById.get(child) ?? nodeById.get(child);
-        if (item && item.parent === null && child !== raw.id) item.parent = raw.id;
-      }
-    }
-
-    const model: FlowModel = { ...(diagram.type === 'swimlane' ? { kind: 'swimlane' as const } : {}), direction, nodes, subgraphs, edges };
-    const classDefs = [...db.getClasses().values()].map((c) => ({ name: c.id, styles: cleanStyles(c.styles) }));
-    if (classDefs.length > 0) model.classDefs = classDefs;
-    for (const item of [...nodes, ...subgraphs, ...edges]) {
-      if (item.classes) item.classes = sortClasses(item.classes, classDefs);
-    }
-    const linkDefaults: NonNullable<FlowModel['linkDefaults']> = {};
-    const defaultStyles = cleanStyles(rawEdges.defaultStyle);
-    if (defaultStyles.length > 0) linkDefaults.styles = defaultStyles;
-    if (rawEdges.defaultInterpolate) linkDefaults.curve = rawEdges.defaultInterpolate;
-    if (Object.keys(linkDefaults).length > 0) model.linkDefaults = linkDefaults;
-    const preamble = preambleOf(text);
-    if (preamble) model.preamble = preamble;
-    attachComments(model, text);
-    return { ok: true, model: canonicalOrder(model) };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: message };
+/** Reads a flowchart (or a swimlane diagram, which uses the same DB) from Mermaid's flowchart DB. */
+export function flowchartModel(rawDb: unknown, text: string, swimlane: boolean): FlowModel {
+  const db = rawDb as MermaidFlowDb;
+  const direction = toDirection(db.getDirection() ?? 'TB');
+  const vertices = db.getVertices();
+  const clicks = clickStatements(text);
+  for (const id of clicks.keys()) {
+    if (!vertices.has(id) || db.getSubGraphs().some((s) => s.id === id)) unsupported(`click on ${id}, which is not a node`);
   }
+
+  const rawSubgraphs = db.getSubGraphs();
+  const subgraphs = rawSubgraphs.map((s) => toSubgraph(s, vertices.get(s.id)));
+  const subgraphById = new Map(subgraphs.map((s) => [s.id, s]));
+
+  // An edge end can be a node id or a subgraph id.
+  const rawEdges = db.getEdges() as MermaidEdges;
+  const edges = rawEdges.map(toEdge);
+
+  // An edge to a subgraph also creates a vertex with the subgraph id. It is not a node.
+  const nodes = [...vertices.values()].filter((v) => !subgraphById.has(v.id)).map((v) => toNode(v, text, clicks));
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+
+  // Mermaid lists inner subgraphs first, and keeps each id in one subgraph only.
+  for (const raw of rawSubgraphs) {
+    for (const child of raw.nodes) {
+      const item = subgraphById.get(child) ?? nodeById.get(child);
+      if (item && item.parent === null && child !== raw.id) item.parent = raw.id;
+    }
+  }
+
+  const model: FlowModel = { ...(swimlane ? { kind: 'swimlane' as const } : {}), direction, nodes, subgraphs, edges };
+  const classDefs = [...db.getClasses().values()].map((c) => ({ name: c.id, styles: cleanStyles(c.styles) }));
+  if (classDefs.length > 0) model.classDefs = classDefs;
+  for (const item of [...nodes, ...subgraphs, ...edges]) {
+    if (item.classes) item.classes = sortClasses(item.classes, classDefs);
+  }
+  const linkDefaults: NonNullable<FlowModel['linkDefaults']> = {};
+  const defaultStyles = cleanStyles(rawEdges.defaultStyle);
+  if (defaultStyles.length > 0) linkDefaults.styles = defaultStyles;
+  if (rawEdges.defaultInterpolate) linkDefaults.curve = rawEdges.defaultInterpolate;
+  if (Object.keys(linkDefaults).length > 0) model.linkDefaults = linkDefaults;
+  const preamble = preambleOf(text);
+  if (preamble) model.preamble = preamble;
+  attachComments(model, text);
+  return canonicalOrder(model);
 }
 
 /**

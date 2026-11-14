@@ -41,6 +41,10 @@ export interface MenuActions {
   /** Selects the edge and puts the cursor in its label field. */
   editEdgeLabel: (id: string) => void;
   fit: () => void;
+  /** Opens the Classes panel. */
+  openClasses: () => void;
+  /** Opens the Palettes panel. */
+  openPalette: () => void;
 }
 
 /** The shapes the menu offers; the inspector has all of them. */
@@ -121,6 +125,30 @@ function moveItem(model: FlowModel, id: string, current: string | null, actions:
   );
 }
 
+/**
+ * "Class": the defined classes with their look; picking one makes it the element's only class,
+ * as a drop from the dock does. Classes are made in the Classes and Palettes panels.
+ */
+function classItem(model: FlowModel, kind: 'node' | 'subgraph' | 'edge', item: { id: string; classes?: string[] }, actions: MenuActions): MenuItem {
+  const defs = (model.classDefs ?? []).filter((d) => d.name !== 'default');
+  const current = item.classes ?? [];
+  const set = (classes: string[]): void => {
+    if (classes.length === current.length && classes.every((c, i) => c === current[i])) return;
+    const update = kind === 'edge' ? updateEdge : kind === 'subgraph' ? updateSubgraph : updateNode;
+    actions.change(update(model, item.id, { classes }));
+  };
+  return submenu('Class', [
+    action('No class', () => set([]), { checked: current.length === 0 }),
+    separator,
+    ...defs.map((d) => action(d.name, () => set([d.name]), { checked: current.includes(d.name), swatch: d.styles })),
+    // Classes the element uses that no classDef defines.
+    ...current.filter((c) => !defs.some((d) => d.name === c)).map((c) => action(c, () => set([c]), { checked: true, hint: 'no classDef' })),
+    separator,
+    action('Manage classes…', actions.openClasses),
+    action('Palettes…', actions.openPalette),
+  ]);
+}
+
 function deleteItem(label: string, run: () => void): MenuItem {
   return action(label, run, { danger: true, hint: 'Del' });
 }
@@ -151,7 +179,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
       );
     }
     if (plain) items.push(action('Add note', () => actions.change(addNote(model, node.id))));
-    if (!pseudo) items.push(moveItem(model, node.id, node.parent, actions));
+    if (!pseudo) items.push(moveItem(model, node.id, node.parent, actions), classItem(model, 'node', node, actions));
     return [...items, separator, remove];
   }
 
@@ -165,6 +193,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
       }),
       action('Add note', () => actions.change(addUseCaseNote(model, node.id))),
       moveItem(model, node.id, node.parent, actions),
+      classItem(model, 'node', node, actions),
       separator,
       remove,
     ];
@@ -192,6 +221,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
           ],
     ),
     moveItem(model, node.id, node.parent, actions),
+    classItem(model, 'node', node, actions),
     separator,
     remove,
   ];
@@ -215,6 +245,7 @@ function subgraphItems(model: FlowModel, sub: FlowSubgraph, actions: MenuActions
         : [
             action('Add composite inside', () => actions.change(addSubgraph(model, 'Composite', sub.id), nextSubgraphId(model)), { disabled: hasRegions }),
             moveItem(model, sub.id, sub.parent, actions),
+            classItem(model, 'subgraph', sub, actions),
           ]),
       separator,
       remove,
@@ -228,6 +259,7 @@ function subgraphItems(model: FlowModel, sub: FlowSubgraph, actions: MenuActions
         actions.change(addUseCaseNode(model, 'usecase', sub.id, id), id);
       }),
       action('Package', () => actions.change({ ...model, subgraphs: model.subgraphs.map((s) => (s.id === sub.id ? withPackage(s, !s.package) : s)) }), { checked: sub.package === true }),
+      classItem(model, 'subgraph', sub, actions),
       separator,
       remove,
     ];
@@ -246,6 +278,7 @@ function subgraphItems(model: FlowModel, sub: FlowSubgraph, actions: MenuActions
       ...DIRECTIONS.map((d) => action(d, () => actions.change(updateSubgraph(model, sub.id, { direction: d })), { checked: sub.direction === d })),
     ]),
     ...(lane ? [] : [moveItem(model, sub.id, sub.parent, actions)]),
+    classItem(model, 'subgraph', sub, actions),
     separator,
     remove,
   ];
@@ -297,6 +330,7 @@ function edgeItems(model: FlowModel, edge: FlowEdge, actions: MenuActions): Menu
       edge.stroke === 'invisible',
     ),
     action('Marker at both ends', () => actions.change(updateEdge(model, edge.id, { bothEnds: !edge.bothEnds })), { checked: edge.bothEnds, disabled: edge.end === 'none' || edge.stroke === 'invisible' }),
+    classItem(model, 'edge', edge, actions),
     separator,
     remove,
   ];

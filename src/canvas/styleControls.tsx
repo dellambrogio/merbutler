@@ -248,7 +248,7 @@ export function ClassSelect({ model, classes, onChange }: { model: FlowModel; cl
 
   return (
     <div className="class-select-field" ref={root}>
-      <span className="color-field-label" title="Written as class id name. Create and edit classes in the Classes panel of the toolbar.">
+      <span className="color-field-label" title="Written as class id name. Create and edit classes in the Classes panel of the dock.">
         Class
       </span>
       <button

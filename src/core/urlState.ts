@@ -9,7 +9,7 @@
  *   Missing: the gallery is closed.
  * - `open`: the canvas panels that can be closed and are open, `.`-separated (`open=classes`).
  * - `move`: canvas panels the user dragged, as `name_x_y` in pixels, `.`-separated
- *   (`move=toolbar_40_0.inspector_-120_30`). A panel left out is in its own place.
+ *   (`move=dock_40_0.inspector_-120_30`). A panel left out is in its own place.
  * - `split`: the width of the code editor, in percent of the window (`split=35.5`).
  * - `editorsplit`: the width of an outline or table editor, in percent of the area next to the code.
  *

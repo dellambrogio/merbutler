@@ -33,14 +33,15 @@ import {
   removeElements,
   setParent,
   toggleClassOn,
+  updateEdge,
   updateNode,
   updateSubgraph,
-  type Direction,
   type FlowModel,
 } from '../core/model';
 import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
-import { CLASS_DRAG_TYPE, ClassPanel, type Selection } from './ClassPanel';
+import { CLASS_DRAG_TYPE, ClassPanel, ClassStrip, PalettePanel, classDragAdds, type Selection } from './ClassPanel';
+import { DEFAULT_DOCK_POSITION, DIRECTION_NAMES, Dock, DockIcons, DockItem, DockMenu, DockSeparator } from './Dock';
 import { MultiInspector } from './MultiInspector';
 import { LayoutPanel } from './LayoutPanel';
 import { OpenClassesContext } from './styleControls';
@@ -358,7 +359,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const swimlane = isSwimlane(model);
   const isLane = (id: string): boolean => swimlane && model.subgraphs.some((s) => s.id === id && s.parent === null);
 
-  /** The style classes panel (toolbar → Classes). */
+  /** The style classes panel (dock → Classes). */
   const classesOpen = panels.open.includes('classes');
   /** Opens or closes a panel that can be closed (classes, layout). */
   const setPanelOpen = useCallback(
@@ -372,8 +373,10 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     [onPanelsChange],
   );
   const setClassesOpen = useCallback((open: boolean | ((was: boolean) => boolean)): void => setPanelOpen('classes', open), [setPanelOpen]);
-  /** The layout panel (toolbar → Layout). */
+  /** The layout panel (dock → Layout). */
   const layoutOpen = panels.open.includes('layout');
+  /** The palettes panel (dock → Palette). */
+  const paletteOpen = panels.open.includes('palette');
   const openClasses = useCallback(() => setClassesOpen(true), [setClassesOpen]);
   const selection: Selection = {
     nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
@@ -431,6 +434,8 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
       selectOnly({ kind: 'edge', id });
     },
     fit: (): void => void fitView({ padding: 0.2, duration: 250 }),
+    openClasses: (): void => setClassesOpen(true),
+    openPalette: (): void => setPanelOpen('palette', true),
   };
   const openedMenu = menu ? menuFor(model, menu.target, readOnly, menuActions) : null;
 
@@ -481,15 +486,23 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const classDropHover = useRef<HTMLElement | null>(null);
   const setClassDropHover = (el: HTMLElement | null): void => {
     if (classDropHover.current === el) return;
-    classDropHover.current?.classList.remove('class-drop-target');
+    classDropHover.current?.classList.remove('class-drop-target', 'class-drop-add');
     el?.classList.add('class-drop-target');
     classDropHover.current = el;
   };
-  /** A palette color dropped on an element adds its class (creating the classDef if needed). */
+  /**
+   * A class dropped on an element replaces the element's classes with it (creating the classDef if
+   * needed); with Shift held it is added to them instead.
+   */
+  /** Whether Shift was down at the last dragover: some platforms leave it out of the drop event. */
+  const classDropShift = useRef(false);
   const onClassDragOver = (e: DragEvent): void => {
     if (readOnly || !e.dataTransfer.types.includes(CLASS_DRAG_TYPE)) return;
+    classDropShift.current = e.shiftKey;
     const el = classDropTarget(e.target);
     setClassDropHover(el);
+    // Shows whether the drop adds the class (Shift) or replaces the element's classes.
+    el?.classList.toggle('class-drop-add', classDragAdds(e));
     if (!el) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -504,85 +517,80 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     const { name, styles } = JSON.parse(raw) as { name: string; styles: string[] };
     const kind = el.classList.contains('react-flow__edge') ? 'edges' : model.subgraphs.some((s) => s.id === id) ? 'subgraphs' : 'nodes';
     const item = kind === 'edges' ? model.edges.find((x) => x.id === id) : kind === 'subgraphs' ? model.subgraphs.find((x) => x.id === id) : model.nodes.find((x) => x.id === id);
-    if (!item || item.classes?.includes(name)) return;
-    onChange(toggleClassOn(addClassDef(model, name, styles), name, { [kind]: [id] }));
+    if (!item) return;
+    const withDef = addClassDef(model, name, styles);
+    const add = classDragAdds(e) || classDropShift.current;
+    classDropShift.current = false;
+    if (add) {
+      if (!item.classes?.includes(name)) onChange(toggleClassOn(withDef, name, { [kind]: [id] }));
+      return;
+    }
+    if (item.classes?.length === 1 && item.classes[0] === name) return;
+    const update = kind === 'edges' ? updateEdge : kind === 'subgraphs' ? updateSubgraph : updateNode;
+    onChange(update(withDef, id, { classes: [name] }));
   };
 
   return (
-    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick} onDragOver={onClassDragOver} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setClassDropHover(null); }} onDrop={onClassDrop}>
+    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} data-dock={DEFAULT_DOCK_POSITION} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick} onDragOver={onClassDragOver} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setClassDropHover(null); }} onDrop={onClassDrop}>
       <OpenClassesContext.Provider value={openClasses}>
       {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
+      {paletteOpen && !readOnly && <PalettePanel model={model} onChange={onChange} onClose={() => setPanelOpen('palette', false)} />}
       {layoutOpen && <LayoutPanel model={model} readOnly={readOnly} onChange={onChange} onClose={() => setPanelOpen('layout', false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
-      <div className="toolbar">
+      <Dock position={DEFAULT_DOCK_POSITION}>
         {usecaseDiagram && (
           <>
-            <button onClick={() => onAddUseCase('actor')} disabled={readOnly}>
-              + Actor
-            </button>
-            <button onClick={() => onAddUseCase('usecase')} disabled={readOnly} title="Goes into the selected system boundary">
-              + Use case
-            </button>
-            <button onClick={onAddBoundary} disabled={readOnly}>
-              + Boundary
-            </button>
-            <button onClick={() => node?.usecase && onChange(addUseCaseNote(model, node.id))} disabled={readOnly || !node?.usecase} title="A note for the selected actor or use case">
-              + Note
-            </button>
+            <DockItem icon={DockIcons.actor} label="Actor" add onClick={() => onAddUseCase('actor')} disabled={readOnly} />
+            <DockItem icon={DockIcons.usecase} label="Use case" hint="Goes into the selected system boundary" add onClick={() => onAddUseCase('usecase')} disabled={readOnly} />
+            <DockItem icon={DockIcons.boundary} label="Boundary" add onClick={onAddBoundary} disabled={readOnly} />
+            <DockItem icon={DockIcons.note} label="Note" hint="For the selected actor or use case" add onClick={() => node?.usecase && onChange(addUseCaseNote(model, node.id))} disabled={readOnly || !node?.usecase} />
           </>
         )}
-        {!usecaseDiagram && (
-        <button onClick={onAddNode} disabled={readOnly}>
-          {stateDiagram ? '+ State' : '+ Node'}
-        </button>
-        )}
+        {!usecaseDiagram && <DockItem icon={stateDiagram ? DockIcons.state : DockIcons.node} label={stateDiagram ? 'State' : 'Node'} add onClick={onAddNode} disabled={readOnly} />}
         {stateDiagram && (
           <>
-            <button onClick={() => onAddPseudo('start')} disabled={readOnly} title="[*] start of the selected composite state, or of the diagram">
-              + Start
-            </button>
-            <button onClick={() => onAddPseudo('end')} disabled={readOnly} title="[*] end of the selected composite state, or of the diagram">
-              + End
-            </button>
-            <button onClick={() => noteTarget && onChange(addNote(model, noteTarget))} disabled={readOnly || !noteTarget} title="A note next to the selected state">
-              + Note
-            </button>
+            <DockItem icon={DockIcons.start} label="Start" hint="[*] start of the selected composite state, or of the diagram" add onClick={() => onAddPseudo('start')} disabled={readOnly} />
+            <DockItem icon={DockIcons.end} label="End" hint="[*] end of the selected composite state, or of the diagram" add onClick={() => onAddPseudo('end')} disabled={readOnly} />
+            <DockItem icon={DockIcons.note} label="Note" hint="Next to the selected state" add onClick={() => noteTarget && onChange(addNote(model, noteTarget))} disabled={readOnly || !noteTarget} />
           </>
         )}
-        {swimlane && (
-          <button onClick={onAddLane} disabled={readOnly} title="A swimlane: a top-level subgraph of a swimlane-beta diagram">
-            + Lane
-          </button>
-        )}
-        {!usecaseDiagram && (
-          <button
-            onClick={onAddSubgraph}
-            disabled={readOnly}
-            title={groupable.length > 0 ? 'Put the selection into a new subgraph (Ctrl+G)' : 'Add an empty subgraph. Select nodes first to put them into it (Ctrl+G).'}
-          >
-            {groupable.length > 0 ? (stateDiagram ? 'Group in composite' : 'Group in subgraph') : stateDiagram ? '+ Composite' : '+ Subgraph'}
-          </button>
-        )}
-        <label title={swimlane ? 'LR: lanes are rows, the flow goes down through them. TB: lanes are columns.' : undefined}>
-          {swimlane ? 'Lanes' : 'Direction'}{' '}
-          <select
-            value={model.direction}
-            disabled={readOnly}
-            onChange={(e) => onChange({ ...model, direction: e.target.value as Direction })}
-          >
-            {DIRECTIONS.map((d) => (
-              <option key={d}>{d}</option>
-            ))}
-          </select>
-        </label>
-        <button onClick={() => setClassesOpen((o) => !o)} aria-pressed={classesOpen} title="Style classes (classDef): create, edit, apply">
-          Classes{(model.classDefs?.length ?? 0) > 0 ? ` ${model.classDefs!.length}` : ''}
-        </button>
-        <button onClick={() => setPanelOpen('layout', (o) => !o)} aria-pressed={layoutOpen} title="How Mermaid places and aligns the nodes (elk options in the config)">
-          Layout
-        </button>
-        <button onClick={() => void fitView({ padding: 0.2 })}>Fit</button>
-      </div>
+        {swimlane && <DockItem icon={DockIcons.lane} label="Lane" hint="A top-level subgraph of a swimlane-beta diagram" add onClick={onAddLane} disabled={readOnly} />}
+        {!usecaseDiagram &&
+          (groupable.length > 0 ? (
+            <DockItem icon={DockIcons.group} label={stateDiagram ? 'Group in composite' : 'Group in subgraph'} hint="Puts the selection into a new one (Ctrl+G)" onClick={onAddSubgraph} disabled={readOnly} />
+          ) : (
+            <DockItem icon={DockIcons.subgraph} label={stateDiagram ? 'Composite' : 'Subgraph'} hint="Select nodes first to put them into it (Ctrl+G)" add onClick={onAddSubgraph} disabled={readOnly} />
+          ))}
+        <DockSeparator />
+        <DockMenu
+          icon={DockIcons.direction(model.direction)}
+          label={swimlane ? 'Lanes' : 'Direction'}
+          hint={swimlane ? 'LR: lanes are rows. TB: lanes are columns.' : `${model.direction}: ${DIRECTION_NAMES[model.direction].toLowerCase()}`}
+          badge={model.direction}
+          disabled={readOnly}
+          value={model.direction}
+          options={DIRECTIONS.map((d) => ({ value: d, label: `${DIRECTION_NAMES[d]} (${d})`, icon: DockIcons.direction(d) }))}
+          onChoose={(direction) => onChange({ ...model, direction })}
+        />
+        <DockItem icon={DockIcons.layout} label="Layout" hint="How Mermaid places and aligns the nodes" active={layoutOpen} onClick={() => setPanelOpen('layout', (o) => !o)} />
+        <DockItem
+          icon={DockIcons.classes}
+          label="Classes"
+          hint="Style classes (classDef): create, edit, apply"
+          badge={(model.classDefs?.length ?? 0) > 0 ? `${model.classDefs!.length}` : undefined}
+          active={classesOpen}
+          onClick={() => setClassesOpen((o) => !o)}
+        />
+        <DockItem
+          icon={DockIcons.palette}
+          label="Palette"
+          hint="Ready-made sets of classes to add or drag onto elements"
+          active={paletteOpen}
+          disabled={readOnly}
+          onClick={() => setPanelOpen('palette', (o) => !o)}
+        />
+        <ClassStrip model={model} selection={selection} readOnly={readOnly} onChange={onChange} />
+      </Dock>
 
       {!readOnly && stateDiagram && node && <StateNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
       {!readOnly && stateDiagram && subgraph && <StateSubgraphInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
@@ -621,6 +629,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           <RenameContext.Provider value={rename}>
           <EditRequestContext.Provider value={editRequest}>
             <ReactFlow
+              proOptions={{ hideAttribution: true }}
               nodes={shownNodes}
               edges={edges}
               nodeTypes={nodeTypes}
@@ -662,7 +671,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
               <EdgeMarkerDefs />
               {theme && <ThemeDefs theme={theme} />}
               <Background />
-              <Controls showInteractive={false} />
+              <Controls showInteractive={false} fitViewOptions={{ padding: 0.2, duration: 250 }} />
               {title && titleAnchor && (
                 <ViewportPortal>
                   <div

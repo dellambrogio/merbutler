@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react';
+import { StyleSwatch } from './styleControls';
 
 /** One entry of a context menu: an action, a submenu, or a separator. */
 export type MenuItem =
-  | { kind: 'action'; label: string; onSelect: () => void; disabled?: boolean; danger?: boolean; checked?: boolean; hint?: string }
+  | { kind: 'action'; label: string; onSelect: () => void; disabled?: boolean; danger?: boolean; checked?: boolean; hint?: string; swatch?: readonly string[] }
   | { kind: 'submenu'; label: string; items: MenuItem[]; disabled?: boolean }
   | { kind: 'separator' };
 
-export const action = (label: string, onSelect: () => void, extra: { disabled?: boolean; danger?: boolean; checked?: boolean; hint?: string } = {}): MenuItem => ({ kind: 'action', label, onSelect, ...extra });
+export const action = (label: string, onSelect: () => void, extra: { disabled?: boolean; danger?: boolean; checked?: boolean; hint?: string; swatch?: readonly string[] } = {}): MenuItem => ({ kind: 'action', label, onSelect, ...extra });
 export const submenu = (label: string, items: MenuItem[], disabled = false): MenuItem => ({ kind: 'submenu', label, items, disabled: disabled || items.length === 0 });
 export const separator: MenuItem = { kind: 'separator' };
 
@@ -123,6 +124,7 @@ function MenuList({ items, onClose, onBack }: { items: MenuItem[]; onClose: () =
                 }}
               >
                 <span className="context-menu-check">{item.checked ? '✓' : ''}</span>
+                {item.swatch && <StyleSwatch styles={item.swatch} />}
                 <span className="context-menu-label">{item.label}</span>
                 {item.hint && <span className="context-menu-hint">{item.hint}</span>}
               </button>

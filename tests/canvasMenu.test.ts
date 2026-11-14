@@ -13,12 +13,14 @@ async function parseOk(text: string): Promise<FlowModel> {
 
 /** Runs the menu with recording actions. */
 function open(model: FlowModel, target: MenuTarget, readOnly = false) {
-  const log: { changed?: FlowModel; select?: string; renamed?: string; edgeLabel?: string } = {};
+  const log: { changed?: FlowModel; select?: string; renamed?: string; edgeLabel?: string; opened?: string } = {};
   const actions: MenuActions = {
     change: (next, select) => Object.assign(log, { changed: next, select }),
     rename: (id) => (log.renamed = id),
     editEdgeLabel: (id) => (log.edgeLabel = id),
     fit: () => {},
+    openClasses: () => (log.opened = 'classes'),
+    openPalette: () => (log.opened = 'palette'),
   };
   const menu = menuFor(model, target, readOnly, actions);
   /** Finds an entry by its path of labels and runs it. */
@@ -43,11 +45,32 @@ function open(model: FlowModel, target: MenuTarget, readOnly = false) {
 }
 
 describe('canvas context menu', () => {
+  test('class: lists the classes with their look, picks one as the only class, opens the panels', async () => {
+    const model = await parseOk('flowchart LR\n  a --> b\n  classDef hot fill:#f96\n  classDef cold fill:#69f\n  class a hot\n  class a cold\n');
+    const m = open(model, { kind: 'node', id: 'a' });
+    expect(m.labels(m.sub('Class'))).toEqual(['No class', 'hot', 'cold', 'Manage classes…', 'Palettes…']);
+    const hot = m.sub('Class').find((x) => x.kind === 'action' && x.label === 'hot');
+    expect(hot?.kind === 'action' && [hot.checked, hot.swatch]).toEqual([true, ['fill:#f96']]);
+
+    m.run('Class', 'cold');
+    expect(m.log.changed!.nodes.find((n) => n.id === 'a')?.classes).toEqual(['cold']);
+    m.run('Class', 'No class');
+    expect(m.log.changed!.nodes.find((n) => n.id === 'a')?.classes).toBeUndefined();
+
+    const edge = open(model, { kind: 'edge', id: model.edges[0].id });
+    edge.run('Class', 'hot');
+    expect(edge.log.changed!.edges[0].classes).toEqual(['hot']);
+    expect(serialize(edge.log.changed!)).toContain('a e1@--> b');
+
+    m.run('Class', 'Palettes…');
+    expect(m.log.opened).toBe('palette');
+  });
+
   test('flowchart node: entries, connected node, duplicate, shape, move, delete', async () => {
     const model = await parseOk('flowchart LR\n  a[A] --> b[B]\n  subgraph s [Group]\n    c\n  end\n');
     const m = open(model, { kind: 'node', id: 'a' });
     expect(m.menu?.title).toBe('Node A (a)');
-    expect(m.labels()).toEqual(['Rename', 'Add connected node', 'Duplicate', 'Shape', 'Move to subgraph', 'Delete']);
+    expect(m.labels()).toEqual(['Rename', 'Add connected node', 'Duplicate', 'Shape', 'Move to subgraph', 'Class', 'Delete']);
 
     m.run('Rename');
     expect(m.log.renamed).toBe('a');
@@ -104,7 +127,7 @@ describe('canvas context menu', () => {
   test('state diagrams: next state, type, note, [*]', async () => {
     const model = await parseOk('stateDiagram-v2\n  [*] --> A\n  A --> B\n  state C {\n    x\n  }\n');
     const m = open(model, { kind: 'node', id: 'A' });
-    expect(m.labels()).toEqual(['Rename', 'Add next state', 'Type', 'Add note', 'Move into', 'Delete']);
+    expect(m.labels()).toEqual(['Rename', 'Add next state', 'Type', 'Add note', 'Move into', 'Class', 'Delete']);
     m.run('Type', 'Choice <<choice>>');
     expect(serialize(m.log.changed!)).toContain('state A <<choice>>');
     m.run('Add note');

@@ -9,6 +9,7 @@ import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
+import { About } from './about/About';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
 import type { DiagramType } from './core/diagramTypes';
 import type { FlowModel } from './core/model';
@@ -95,6 +96,8 @@ export function App(): JSX.Element {
   const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   // ---- Diagrams saved in this browser (core/library.ts) ----
   const [diagrams, setDiagrams] = useState<SavedDiagram[]>(loadDiagrams);
@@ -526,7 +529,11 @@ export function App(): JSX.Element {
         <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
           Gallery
         </button>
+        <button onClick={() => setAboutOpen(true)} aria-haspopup="dialog" title="About Merbutler">
+          About
+        </button>
       </header>
+      <About open={aboutOpen} onClose={closeAbout} />
       <main className="panes">
         <div className="pane side-pane">
           <PanelSection id="code" title="Code" grow>

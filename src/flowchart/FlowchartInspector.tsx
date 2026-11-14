@@ -1,7 +1,6 @@
 /** The inspector of flowcharts and swimlane diagrams: a node, a subgraph (or lane), an edge. */
 import { useState, type JSX } from 'react';
 import {
-  DIRECTIONS,
   diagramCurve,
   commentsToText,
   setParent,
@@ -10,13 +9,13 @@ import {
   updateNode,
   updateSubgraph,
   type Asset,
-  type Direction,
   type FlowEdge,
   type FlowNode,
   type FlowSubgraph,
 } from '../core/model';
 import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
 import { ShapePicker } from '../canvas/ShapePicker';
+import { DirectionSelect } from '../canvas/DirectionSelect';
 import { CurvePicker, EndPicker, LengthPicker, StrokePicker } from '../canvas/styleControls';
 import { checkClick } from './parseFlowchart';
 
@@ -186,21 +185,11 @@ export function FlowSubgraphInspector({ model, subgraph, onChange, onDelete, lan
         checked={subgraph.markdown}
         onToggle={(markdown) => onChange(updateSubgraph(model, subgraph.id, { markdown }))}
       />
-      <label>
-        Direction
-        <select
-          value={subgraph.direction ?? ''}
-          title="As in Mermaid: used only if no edge connects a node inside the subgraph to a node outside it."
-          onChange={(e) =>
-            onChange(updateSubgraph(model, subgraph.id, { direction: (e.target.value || null) as Direction | null }))
-          }
-        >
-          <option value="">(inherit)</option>
-          {DIRECTIONS.map((d) => (
-            <option key={d}>{d}</option>
-          ))}
-        </select>
-      </label>
+      <DirectionSelect
+        value={subgraph.direction}
+        title="As in Mermaid: used only if no edge connects a node inside the subgraph to a node outside it."
+        onChange={(direction) => onChange(updateSubgraph(model, subgraph.id, { direction }))}
+      />
       <ParentSelect
         model={model}
         value={subgraph.parent}

@@ -1,5 +1,5 @@
 /**
- * Lets the user drag the floating panels of the canvas (toolbar, inspector, classes and layout panels) by any
+ * Lets the user drag the floating panels of the canvas (dock, inspector, classes, palette and layout panels) by any
  * spot that is not a control. A panel's offset lives in two CSS variables on the canvas element
  * (`--<name>-x`, `--<name>-y`), so a drag re-renders nothing and an inspector that is replaced by
  * another one (a new selection) stays where the user put it. A double click on a panel's
@@ -12,14 +12,15 @@ import type { PanelOffset as Offset } from '../core/urlState';
 
 /** The panels, by CSS selector, and the name of their variables. */
 const PANELS: ReadonlyArray<readonly [selector: string, name: string]> = [
-  ['.toolbar', 'toolbar'],
+  ['.dock', 'dock'],
   ['.inspector', 'inspector'],
   ['.class-panel', 'classes'],
   ['.layout-panel', 'layout'],
+  ['.palette-panel', 'palette'],
 ];
 
 /** Elements that keep their own pointer behavior: a press on them never moves the panel. */
-const CONTROLS = 'input, textarea, select, button, a, label, summary, [contenteditable], [role="listbox"], [role="option"], .nodrag';
+const CONTROLS = 'input, textarea, select, button, a, label, summary, [contenteditable], [draggable="true"], [role="listbox"], [role="option"], .nodrag';
 
 /** A press on a panel's background, or null when the press belongs to a control or the canvas. */
 function panelAt(target: EventTarget | null): { el: HTMLElement; name: string } | null {

@@ -157,13 +157,96 @@ button.danger { color: var(--danger); }
   background: #fdecec; color: #c43c3c; font-size: 12px; white-space: pre-wrap;
 }
 
-.toolbar, .inspector {
+.inspector {
   position: absolute; z-index: 5; background: var(--panel);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
 }
-.toolbar { top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; translate: var(--toolbar-x, 0) var(--toolbar-y, 0); }
 .inspector { top: 10px; right: 10px; width: 264px; max-height: calc(100% - 20px - var(--inspector-y, 0px)); translate: var(--inspector-x, 0) var(--inspector-y, 0); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+
+/* The dock (Dock.tsx): the canvas's tools as macOS-like tiles, at the bottom and centered. */
+.dock {
+  --dock-size: 40px;
+  position: absolute; z-index: 5; left: 50%; bottom: 10px; box-sizing: border-box;
+  display: flex; align-items: flex-end; gap: 6px; height: calc(var(--dock-size) + 14px); padding: 7px 9px; max-width: calc(100% - 20px);
+  translate: calc(-50% + var(--dock-x, 0px)) var(--dock-y, 0px);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent); border-radius: 18px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.dock[data-position="top"] { top: 10px; bottom: auto; align-items: flex-start; }
+.dock-item {
+  position: relative; flex: none; display: flex; flex-direction: column; align-items: center;
+  width: var(--dock-size); padding: 0; border: none; border-radius: 0; background: none; color: var(--text);
+  cursor: default;
+}
+.dock-item:hover:not(:disabled) { border-color: transparent; }
+.dock-item:disabled, .dock-item.disabled { opacity: 0.4; }
+.dock-item:focus-visible { outline: none; }
+.dock-item:focus-visible .dock-tile { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dock-tile {
+  position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1;
+  border-radius: 24%; border: 1px solid var(--border); color: var(--accent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 80%, white), var(--panel));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16);
+}
+.dock-item:active:not(:disabled) .dock-tile { filter: brightness(0.88); }
+.dock-icon { display: flex; width: 58%; height: 58%; }
+.dock-icon svg { width: 100%; height: 100%; }
+.dock-plus {
+  position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; line-height: 15px; text-align: center;
+}
+.dock-badge {
+  position: absolute; right: 2px; bottom: 2px; padding: 0 3px; border-radius: 5px;
+  background: var(--panel); color: var(--text); font-size: 9px; font-weight: 700; line-height: 12px;
+}
+.dock-dot { position: absolute; bottom: -6px; width: 4px; height: 4px; border-radius: 50%; background: var(--text); opacity: 0; }
+.dock-item.active .dock-dot { opacity: 0.75; }
+.dock[data-position="top"] .dock-dot { bottom: auto; top: -6px; }
+.dock-label {
+  position: absolute; left: 50%; bottom: calc(100% + 12px); translate: -50% 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; width: max-content; max-width: 260px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--panel); box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+  color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity 100ms;
+}
+.dock-label small { color: var(--muted); font-size: 11px; font-weight: 400; white-space: normal; }
+.dock[data-position="top"] .dock-label { bottom: auto; top: calc(100% + 12px); }
+.dock-item:hover .dock-label, .dock-item:focus-visible .dock-label { opacity: 1; }
+.dock-menu-anchor { position: relative; display: flex; }
+.dock-menu-anchor.open .dock-label { opacity: 0; }
+.dock-menu {
+  position: absolute; left: 50%; bottom: calc(100% + 12px); translate: -50% 0; z-index: 2;
+  display: flex; flex-direction: column; gap: 1px; min-width: 190px; padding: 5px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
+}
+.dock[data-position="top"] .dock-menu { bottom: auto; top: calc(100% + 12px); }
+.dock-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: none; border-radius: 6px;
+  background: none; color: var(--text); font-size: 13px; text-align: left; white-space: nowrap;
+}
+.dock-menu-item:hover:not(:disabled), .dock-menu-item:focus-visible { outline: none; background: var(--accent); color: #fff; }
+.dock-menu-item[aria-checked="true"] { font-weight: 600; }
+.dock-menu-icon { display: flex; flex: none; width: 20px; height: 20px; color: var(--accent); }
+.dock-menu-item:is(:hover, :focus-visible) .dock-menu-icon { color: inherit; }
+.dock-menu-icon svg { width: 100%; height: 100%; }
+.dock-menu-label { flex: 1; }
+.dock-menu-check { flex: none; width: 1em; text-align: center; }
+.dock-separator { flex: none; align-self: stretch; width: 1px; margin: 2px 3px; background: var(--border); }
+.dock-classes { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
+.dock[data-position="top"] .dock-classes { align-items: flex-start; }
+.dock-class { flex: 0 1 auto; min-width: 14px; cursor: grab; }
+.dock-class.disabled { cursor: default; }
+.dock-class .dock-tile { border: none; background: none; box-shadow: 0 1px 3px rgb(0 0 0 / 0.16); }
+.dock-class .style-swatch {
+  box-sizing: border-box; width: 100%; height: 100%; min-width: 0; padding: 0; border-radius: inherit;
+  font-size: calc(var(--dock-size) * 0.32);
+}
+.canvas[data-dock="bottom"] .inspector { max-height: calc(100% - 96px - var(--inspector-y, 0px)); }
 .inspector-title { font-weight: 600; }
 .inspector label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
 .inspector label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
@@ -590,13 +673,13 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .inspector-row label { flex: 1; min-width: 0; }
 
 /* Floating panels move by a drag on their background (draggablePanels.ts). */
-:is(.toolbar, .inspector, .class-panel, .layout-panel) { cursor: grab; }
-:is(.toolbar, .inspector, .class-panel, .layout-panel).dragging { cursor: grabbing; user-select: none; }
-:is(.toolbar, .inspector, .class-panel, .layout-panel) :is(input, textarea, select, label, a, summary, [contenteditable]) { cursor: auto; }
+:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel) { cursor: grab; }
+:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel).dragging { cursor: grabbing; user-select: none; }
+:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel) :is(input, textarea, select, label, a, summary, [contenteditable]) { cursor: auto; }
 
-/* Style classes panel (ClassPanel.tsx), under the toolbar. */
+/* Style classes panel (ClassPanel.tsx), above the dock, between the layout and palette panels. */
 .class-panel {
-  position: absolute; z-index: 6; top: 58px; left: 10px; width: 290px; max-height: calc(100% - 70px - var(--classes-y, 0px));
+  position: absolute; z-index: 6; bottom: 78px; left: max(270px, calc(50% - 150px)); width: 290px; max-height: calc(100% - 90px + var(--classes-y, 0px));
   translate: var(--classes-x, 0) var(--classes-y, 0);
   display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
@@ -607,6 +690,9 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .class-row { border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 .class-row.expanded { border-color: var(--accent); }
 .class-row-head { display: flex; align-items: center; }
+.class-row-head[draggable="true"] { cursor: grab; }
+.class-row-head[draggable="true"]:hover .class-row-grip .style-swatch { outline: 2px solid var(--accent); outline-offset: 1px; }
+.class-row-grip { flex: none; display: flex; padding: 6px 0 6px 8px; }
 .class-row-toggle { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; border: none; background: none; padding: 6px 8px; text-align: left; }
 .class-row-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .class-row-used { font-size: 12px; }
@@ -627,6 +713,13 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .class-set-preview span:hover { outline: 2px solid var(--text); outline-offset: -2px; }
 .class-sets-hint { font-size: 11px; }
 .react-flow__node.class-drop-target { outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 4px; }
+/* Dropping with Shift adds the class: a solid outline and a + badge instead of the dashed one. */
+.react-flow__node.class-drop-target.class-drop-add { outline-style: solid; }
+.react-flow__node.class-drop-target::after {
+  content: 'replace'; position: absolute; top: -12px; right: -12px; z-index: 10; padding: 1px 6px; border-radius: 8px;
+  background: var(--accent); color: #fff; font: 600 10px system-ui, sans-serif; pointer-events: none;
+}
+.react-flow__node.class-drop-target.class-drop-add::after { content: '+ add'; }
 .react-flow__edge.class-drop-target path { stroke: var(--accent) !important; }
 
 /* Edge curve and length pickers. */
@@ -672,9 +765,16 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .react-flow__node.dragging { opacity: 0.75; }
 .react-flow__node.drop-target > .subgraph-node { border-color: var(--accent); border-style: solid; border-width: 2px; background: var(--selection); }
 
-/* Layout panel (LayoutPanel.tsx), under the toolbar, right of the classes panel. */
+/* Palettes panel (PalettePanel in ClassPanel.tsx), above the dock, right of the classes panel. */
+.palette-panel {
+  position: absolute; z-index: 6; bottom: 78px; left: max(570px, calc(50% + 150px)); width: 270px; max-height: calc(100% - 90px + var(--palette-y, 0px));
+  translate: var(--palette-x, 0) var(--palette-y, 0);
+  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+/* Layout panel (LayoutPanel.tsx), above the dock, left of the classes panel. */
 .layout-panel {
-  position: absolute; z-index: 6; top: 58px; left: 310px; width: 250px; max-height: calc(100% - 70px - var(--layout-y, 0px));
+  position: absolute; z-index: 6; bottom: 78px; left: max(10px, calc(50% - 410px)); width: 250px; max-height: calc(100% - 90px + var(--layout-y, 0px));
   translate: var(--layout-x, 0) var(--layout-y, 0); overflow-y: auto; scrollbar-width: thin;
   display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
@@ -717,3 +817,41 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
   display: inline-block; padding: 0 5px; border: 1px solid var(--border); border-radius: 999px;
   font-size: 10px; line-height: 15px; color: var(--muted); white-space: nowrap; cursor: help;
 }
+
+.canvas[data-dock="top"] :is(.class-panel, .layout-panel, .palette-panel) { top: 78px; bottom: auto; }
+.canvas[data-dock="top"] .palette-panel { max-height: calc(100% - 90px - var(--palette-y, 0px)); }
+.canvas[data-dock="top"] .class-panel { max-height: calc(100% - 90px - var(--classes-y, 0px)); }
+.canvas[data-dock="top"] .layout-panel { max-height: calc(100% - 90px - var(--layout-y, 0px)); }
+.canvas[data-dock="top"] .inspector { top: 78px; max-height: calc(100% - 88px - var(--inspector-y, 0px)); }
+
+/* Direction pull-down of a subgraph (DirectionSelect.tsx), with the dock's direction icons. */
+.direction-option { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; color: var(--text); font-size: 13px; }
+.direction-icon { display: flex; flex: none; width: 18px; height: 18px; color: var(--accent); }
+.direction-icon svg { width: 100%; height: 100%; }
+.direction-select .class-select-button { flex-wrap: nowrap; }
+
+/* The picture under the pointer while a class is dragged (startClassDrag in ClassPanel.tsx): drawn off screen. */
+.class-drag-chip {
+  position: fixed; top: -1000px; left: -1000px; padding: 6px 14px; border: 2px solid var(--node-stroke, var(--border)); border-radius: 6px;
+  background: var(--node-fill, var(--panel)); color: var(--text); font: 600 13px system-ui, sans-serif; white-space: nowrap;
+}
+/* No hover labels while a class is dragged. */
+.class-dragging .dock-label { display: none; }
+
+/* About dialog (about/About.tsx). */
+.about {
+  width: min(460px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text); box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+.about::backdrop { background: rgb(0 0 0 / 0.35); }
+.about-body { padding: 16px 20px 18px; }
+.about-head { display: flex; align-items: baseline; gap: 8px; }
+.about-head h2 { margin: 0; font-size: 18px; }
+.about-head button { padding: 0 8px; line-height: 22px; }
+.about p { margin: 10px 0; line-height: 1.45; }
+.about a { color: var(--accent); }
+.about-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 14px 0; font-size: 13px; }
+.about-facts dt { color: var(--muted); }
+.about-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.about-credits { font-size: 12px; }
+.about-thanks { font-size: 12px; padding-top: 10px; border-top: 1px solid var(--border); }

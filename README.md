@@ -19,7 +19,7 @@ Everything runs in the browser: no server, no account.
 ![Typing code updates the canvas; renaming, reshaping, adding and connecting nodes on the canvas updates the code](docs/demo.gif)
 
 Type code and the canvas follows. Rename a node, change its shape, add and connect nodes, or flip the direction,
-and the code follows. The toolbar and the inspector can be dragged out of the way; the link keeps where they are.
+and the code follows. The dock (the tools at the bottom of the canvas) and the inspector can be dragged out of the way; the link keeps where they are.
 ([MP4 version](docs/demo.mp4))
 
 ### How the sync works
@@ -101,7 +101,7 @@ just dev        # open the URL that Vite prints
   Renames and style edits do not move the view.
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
   ELK gets the options Mermaid gives it, including the `elk:` config (`preset`, `nodePlacementAlignment`,
-  `nodePlacementStrategy`, `considerModelOrder`, …). The **Layout** panel in the toolbar sets them in the front matter,
+  `nodePlacementStrategy`, `considerModelOrder`, …). The **Layout** panel in the dock sets them in the front matter,
   for example to line nodes up to one side, or to keep them in the order of the code.
   With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
   shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
@@ -287,12 +287,13 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/flowchart/` | Flowcharts and swimlanes: Mermaid's flowchart DB → model (`parseFlowchart.ts`), model → code (`serializeFlowchart.ts`), shapes, styling, themes, icons, and the flowchart inspector |
 | `src/state/` | State diagrams: adapter, writer and edits (`stateDiagram.ts`), inspector |
 | `src/usecase/` | Use case diagrams: adapter, writer and edits (`usecaseDiagram.ts`), inspector |
-| `src/canvas/` | The canvas for every graph type: layout (dagre, ELK, lanes), node and edge views, toolbar, context menu, shared inspector fields |
+| `src/canvas/` | The canvas for every graph type: layout (dagre, ELK, lanes), node and edge views, dock, context menu, shared inspector fields |
 | `src/structured/` | Outline and table editors next to the preview (trees, data, relations) |
 | `src/preview/` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
 | `src/editor/` | The CodeMirror code panel: highlighting, completion, error marks |
 | `src/gallery/` | Example diagrams of every type, and the gallery catalog |
 | `src/library/` | The drawer of diagrams saved in this browser (storage and list edits in `src/core/library.ts`) |
+| `src/about/` | The About dialog (versions come from `package.json` through `vite.config.ts`) |
 | `src/App.tsx` | Split view and sync logic |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 

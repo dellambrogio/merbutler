@@ -1,7 +1,8 @@
 /** The inspector of state diagrams: a state (or [*], choice, fork, join, note), a composite state or region, a transition. */
 import type { JSX } from 'react';
-import { DIRECTIONS, setParent, subgraphWithDescendants, updateEdge, updateNode, updateSubgraph, type Direction, type FlowEdge, type FlowNode, type FlowSubgraph } from '../core/model';
+import { setParent, subgraphWithDescendants, updateEdge, updateNode, updateSubgraph, type FlowEdge, type FlowNode, type FlowSubgraph } from '../core/model';
 import { LabelInput, ParentSelect, StyleFields, type InspectorProps } from '../canvas/fields';
+import { DirectionSelect } from '../canvas/DirectionSelect';
 import { noteLink, setStateKind, STATE_KINDS } from './stateDiagram';
 
 export function StateNodeInspector({ model, node, onChange, onDelete }: InspectorProps & { node: FlowNode }): JSX.Element {
@@ -101,18 +102,7 @@ export function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: 
         Label
         <LabelInput key={`${subgraph.id}:${subgraph.label}`} value={subgraph.label} onCommit={(label) => onChange(updateSubgraph(model, subgraph.id, { label }))} />
       </label>
-      <label>
-        Direction
-        <select
-          value={subgraph.direction ?? ''}
-          onChange={(e) => onChange(updateSubgraph(model, subgraph.id, { direction: (e.target.value || null) as Direction | null }))}
-        >
-          <option value="">(inherit)</option>
-          {DIRECTIONS.map((d) => (
-            <option key={d}>{d}</option>
-          ))}
-        </select>
-      </label>
+      <DirectionSelect value={subgraph.direction} onChange={(direction) => onChange(updateSubgraph(model, subgraph.id, { direction }))} />
       <ParentSelect
         model={model}
         value={subgraph.parent}

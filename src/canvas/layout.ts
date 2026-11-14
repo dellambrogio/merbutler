@@ -2,6 +2,7 @@
 import dagre from '@dagrejs/dagre';
 import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from '@xyflow/react';
 import { MARKER_IDS } from './EdgeMarkers';
+import { clipRoute, outlineOf } from './clip';
 import { labelLines, markdownRuns } from '../core/labels';
 import { get, readConfig } from '../core/config';
 import { BUNDLED_PREFIXES, LABEL_ICON } from '../flowchart/icons';
@@ -17,6 +18,7 @@ import {
   type Asset,
   type Direction,
   type EdgeEnd,
+  type FlowEdge,
   type FlowModel,
   type FlowSubgraph,
   type Shape,
@@ -515,6 +517,18 @@ export function canvasFrom(
   emit(buildTree(model), null);
 
   const defaultCurve = model.linkDefaults?.curve ?? diagramCurve(model) ?? undefined;
+  const shapeOf = new Map(model.nodes.filter((n) => !n.asset).map((n) => [n.id, n.shape]));
+  /** The outline and center of an edge end, so a layout route ends on the shape, not on its box. */
+  const endOf = (id: string): { outline: ReturnType<typeof outlineOf>; center: { x: number; y: number } } => {
+    const box = boxes.get(id);
+    const shape = shapeOf.get(id);
+    if (!box) return { outline: null, center: { x: 0, y: 0 } };
+    return { outline: shape ? outlineOf(shape, box) : null, center: { x: box.x + box.width / 2, y: box.y + box.height / 2 } };
+  };
+  const routeOf = (edge: FlowEdge): EdgeRoute | undefined => {
+    const route = routes.get(edge.id);
+    return route ? { ...route, points: clipRoute(route.points, endOf(edge.source), endOf(edge.target)) } : undefined;
+  };
   const edges: LabelEdge[] = model.edges.map((edge) => {
     const look = edgeLook(model, edge);
     const curve = edge.curve ?? defaultCurve;
@@ -533,7 +547,7 @@ export function canvasFrom(
         ...lookField(look),
         ...(curve ? { curve } : {}),
         ...(step !== undefined ? { step } : {}),
-        ...(routes.has(edge.id) ? { route: routes.get(edge.id) } : {}),
+        ...(routes.has(edge.id) ? { route: routeOf(edge) } : {}),
       },
       ...(animated ? { animated: true, className: `edge-anim-${animation ?? 'fast'}` } : {}),
       // Edges between nodes in different subgraphs must draw above the subgraph boxes.

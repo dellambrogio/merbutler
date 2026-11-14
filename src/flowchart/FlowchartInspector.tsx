@@ -2,8 +2,7 @@
 import { useState, type JSX } from 'react';
 import {
   DIRECTIONS,
-  EDGE_CURVES,
-  EDGE_LENGTHS,
+  diagramCurve,
   commentsToText,
   setParent,
   subgraphWithDescendants,
@@ -19,7 +18,7 @@ import {
   SHAPES,
 } from '../core/model';
 import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
-import { EndPicker, StrokePicker } from '../canvas/styleControls';
+import { CurvePicker, EndPicker, LengthPicker, StrokePicker } from '../canvas/styleControls';
 import { checkClick } from './parseFlowchart';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 
@@ -281,31 +280,12 @@ export function FlowEdgeInspector({ model, edge, onChange, onDelete }: Inspector
         onChange={(end) => onChange(updateEdge(model, edge.id, { end }))}
         onBothEnds={(bothEnds) => onChange(updateEdge(model, edge.id, { bothEnds }))}
       />
-      <div className="inspector-row">
-        <label title="Minimum length in ranks: --> is 1, ---> is 2, ----> is 3">
-          Length
-          <select
-            value={edge.length ?? 1}
-            onChange={(e) => {
-              const length = Number(e.target.value);
-              onChange(updateEdge(model, edge.id, { length: length === 1 ? undefined : length }));
-            }}
-          >
-            {EDGE_LENGTHS.map((n) => (
-              <option key={n}>{n}</option>
-            ))}
-          </select>
-        </label>
-        <label title="Written as id@{ curve: … } for an edge with an id, else linkStyle n interpolate …. The canvas draws linear and step curves; smooth ones look alike on the canvas.">
-          Curve
-          <select value={edge.curve ?? ''} onChange={(e) => onChange(updateEdge(model, edge.id, { curve: e.target.value || undefined }))}>
-            <option value="">Diagram default</option>
-            {EDGE_CURVES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <LengthPicker value={edge.length ?? 1} onChange={(length) => onChange(updateEdge(model, edge.id, { length: length === 1 ? undefined : length }))} />
+      <CurvePicker
+        value={edge.curve}
+        fallback={model.linkDefaults?.curve ?? diagramCurve(model) ?? 'basis'}
+        onChange={(curve) => onChange(updateEdge(model, edge.id, { curve }))}
+      />
       <CommentField
         key={`${edge.id}:${commentsToText(edge.comments)}`}
         id={edge.id}

@@ -4,7 +4,23 @@
  * declarations of `style`, `linkStyle` and `classDef` (see `withDeclaration` in styling.ts).
  */
 import { useState, type JSX } from 'react';
-import type { EdgeEnd, FlowModel, Stroke } from '../core/model';
+import {
+  curveBasis,
+  curveBumpX,
+  curveBumpY,
+  curveCardinal,
+  curveCatmullRom,
+  curveLinear,
+  curveMonotoneX,
+  curveMonotoneY,
+  curveNatural,
+  curveStep,
+  curveStepAfter,
+  curveStepBefore,
+  line,
+  type CurveFactory,
+} from 'd3-shape';
+import { EDGE_CURVES, EDGE_LENGTHS, type EdgeEnd, type FlowModel, type Stroke } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
 
 /** Fills: light tints that keep dark text readable. */
@@ -304,5 +320,127 @@ export function EndPicker({ value, bothEnds, disabled, onChange, onBothEnds }: {
         Marker at both ends
       </label>
     </>
+  );
+}
+
+/** The d3 curves Mermaid draws edges with, by the name in the code. */
+const CURVE_FACTORIES: Record<string, CurveFactory> = {
+  basis: curveBasis,
+  bumpX: curveBumpX,
+  bumpY: curveBumpY,
+  cardinal: curveCardinal,
+  catmullRom: curveCatmullRom,
+  linear: curveLinear,
+  monotoneX: curveMonotoneX,
+  monotoneY: curveMonotoneY,
+  natural: curveNatural,
+  step: curveStep,
+  stepAfter: curveStepAfter,
+  stepBefore: curveStepBefore,
+};
+
+const CURVE_TEXT: Record<string, string> = {
+  basis: 'Smooth, does not pass through the bends (Mermaid\'s default)',
+  bumpX: 'Smooth S-bends, flat at the ends (left to right)',
+  bumpY: 'Smooth S-bends, flat at the ends (top to bottom)',
+  cardinal: 'Smooth, through every bend',
+  catmullRom: 'Smooth, through every bend, no loops',
+  linear: 'Straight lines between the bends',
+  monotoneX: 'Smooth, never overshoots (left to right)',
+  monotoneY: 'Smooth, never overshoots (top to bottom)',
+  natural: 'Smoothest, through every bend',
+  step: 'Right angles, turning halfway',
+  stepAfter: 'Right angles, turning at the end',
+  stepBefore: 'Right angles, turning at the start',
+};
+
+/** The bends of the sample edge every curve is drawn through. */
+const CURVE_POINTS: Array<[number, number]> = [
+  [4, 22],
+  [18, 6],
+  [32, 20],
+  [48, 5],
+];
+
+/** A small drawing of a curve through the sample bends (faint dots). */
+export function CurveSample({ curve }: { curve: string }): JSX.Element {
+  const factory = CURVE_FACTORIES[curve] ?? curveBasis;
+  const d = line().curve(factory)(CURVE_POINTS) ?? '';
+  return (
+    <svg width="52" height="27" viewBox="0 0 52 27" aria-hidden="true">
+      {CURVE_POINTS.map(([x, y]) => (
+        <circle key={`${x},${y}`} cx={x} cy={y} r="1.6" fill="currentColor" opacity="0.3" />
+      ))}
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/**
+ * The curve of an edge as a grid of drawings with names. "Default" uses the diagram's curve
+ * (`linkStyle default interpolate`, the config's `curve`, else basis), shown in its tile.
+ */
+export function CurvePicker({ value, fallback, onChange }: { value: string | undefined; fallback: string; onChange: (curve: string | undefined) => void }): JSX.Element {
+  const options: Array<{ value: string | undefined; name: string; draw: string; title: string }> = [
+    { value: undefined, name: 'Default', draw: fallback, title: `The diagram's curve: ${fallback}. Nothing is written for this edge.` },
+    ...EDGE_CURVES.map((c) => ({ value: c, name: c, draw: c, title: CURVE_TEXT[c] ?? c })),
+  ];
+  return (
+    <div className="segmented-field">
+      <span className="color-field-label" title="Written as id@{ curve: … } for an edge with an id, else linkStyle n interpolate …">
+        Curve
+      </span>
+      <div className="curve-grid" role="radiogroup" aria-label="Curve">
+        {options.map((o) => (
+          <button
+            key={o.name}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            className={`curve-option${value === o.value ? ' selected' : ''}`}
+            title={o.title}
+            onClick={() => onChange(o.value)}
+          >
+            <CurveSample curve={o.draw} />
+            <span className="curve-name">{o.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** An arrow as long as an edge's minimum length (1, 2 or 3 ranks). */
+function LengthSample({ ranks }: { ranks: number }): JSX.Element {
+  const end = 8 + ranks * 10;
+  return (
+    <svg width="42" height="12" viewBox="0 0 42 12" aria-hidden="true">
+      <line x1="2" y1="6" x2={end - 5} y2="6" stroke="currentColor" strokeWidth="1.5" />
+      <path d={`M${end - 6} 2 L${end} 6 L${end - 6} 10 Z`} fill="currentColor" />
+    </svg>
+  );
+}
+
+const LENGTH_CODE: Record<number, string> = { 1: '-->', 2: '--->', 3: '---->' };
+
+/** The minimum length of an edge in ranks, as mutually exclusive buttons. */
+export function LengthPicker({ value, onChange }: { value: number; onChange: (length: number) => void }): JSX.Element {
+  return (
+    <Segmented
+      label="Length"
+      value={String(value)}
+      title="Minimum length in ranks. Mermaid uses it with dagre; ELK has no per-edge length."
+      options={EDGE_LENGTHS.map((n) => ({
+        value: String(n),
+        label: (
+          <span className="length-option">
+            <LengthSample ranks={n} />
+            {n}
+          </span>
+        ),
+        title: `${n} rank${n === 1 ? '' : 's'} (${LENGTH_CODE[n] ?? ''})`,
+      }))}
+      onChange={(v) => onChange(Number(v))}
+    />
   );
 }

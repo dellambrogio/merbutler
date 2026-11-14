@@ -138,7 +138,7 @@ just dev        # open the URL that Vite prints
 | Markdown label | Select the node, edge or subgraph → inspector → **Markdown** |
 | Change shape | Select the node → inspector |
 | Connect | Hover over a node or subgraph to show its handles, then drag from a handle and drop it on a handle of another node or subgraph |
-| Edge label, line, end marker, both ends, curve | Select the edge → inspector: the line (normal, dotted, thick, invisible) and the marker (none, arrow, circle, cross) are picked from small drawings |
+| Edge label, line, end marker, both ends, length, curve | Select the edge → inspector: the line (normal, dotted, thick, invisible), the marker (none, arrow, circle, cross), the length (1–3 ranks) and the curve (each drawn with Mermaid's own curve) are picked from small drawings |
 | Colors and text style | Select a node, subgraph or edge → inspector → **Own style**: swatches or any color for fill, border (or line) and text, border width and style, bold, italic. Written as `style id …` / `linkStyle n …`; **Reset** removes it, **Advanced** shows it as text |
 | Style classes | Toolbar → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |

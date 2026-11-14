@@ -21,6 +21,7 @@ import {
   type LabelEdge,
   type LayoutContext,
 } from './layout';
+import { cyclicEntryNodes, diagramElkConfig, elkLayoutOptions, resolvedElk } from './elkConfig';
 import { diagramLayout, laneFlow, lanesOf, type Direction, type FlowModel, type FlowSubgraph } from '../core/model';
 
 /** ELK is large (about 1.5 MB), so it loads on the first ELK layout, as its own chunk. */
@@ -78,21 +79,34 @@ export async function elkLayout(ctx: LayoutContext): Promise<{ boxes: Map<string
   const subgraphOf = new Map(model.subgraphs.map((s) => [s.id, s]));
   const nodeOf = new Map(model.nodes.map((n) => [n.id, n]));
   const hasChildren = (id: string): boolean => (ctx.childrenOf.get(id) ?? []).length > 0;
+  // The `elk:` config, as Mermaid applies it.
+  const elk = diagramElkConfig(model);
+  const elkOptions = elkLayoutOptions(elk);
+  const entries = resolvedElk(elk).keepEntryNodeOnTop
+    ? cyclicEntryNodes(
+        [...model.subgraphs, ...model.nodes].filter((i) => ctx.parentOf.has(i.id)).map((i) => ({ id: i.id, parent: ctx.parentOf.get(i.id) ?? null })),
+        model.edges,
+      )
+    : new Set<string>();
+  const entryOptions = (id: string): Partial<ElkNode> =>
+    entries.has(id) ? { layoutOptions: { 'elk.layered.layering.layerConstraint': 'FIRST' } } : {};
 
   const elkNode = (id: string): ElkNode => {
     const direction = ctx.directionOf.get(id) ?? flow;
     const node = nodeOf.get(id);
     if (node) {
       const size = node.asset ? assetNodeSize(node.label, node.markdown, node.asset, ctx.text) : nodeSize(node.label, node.shape, node.markdown, direction, ctx.text);
-      return { id, ...size };
+      return { id, ...size, ...entryOptions(id) };
     }
     const sub = subgraphOf.get(id) as FlowSubgraph;
-    if (sub.view === 'collapsed') return { id, ...collapsedSize(sub, ctx.text) };
-    if (!hasChildren(id)) return { id, width: Math.max(EMPTY_SUBGRAPH.width, titleWidth(sub, ctx.text)), height: EMPTY_SUBGRAPH.height };
+    if (sub.view === 'collapsed') return { id, ...collapsedSize(sub, ctx.text), ...entryOptions(id) };
+    if (!hasChildren(id)) return { id, width: Math.max(EMPTY_SUBGRAPH.width, titleWidth(sub, ctx.text)), height: EMPTY_SUBGRAPH.height, ...entryOptions(id) };
     const side = SUBGRAPH_PADDING.side;
     return {
       id,
       layoutOptions: {
+        ...elkOptions.subgraph,
+        ...(entries.has(id) ? { 'elk.layered.layering.layerConstraint': 'FIRST' } : {}),
         'elk.padding': `[top=${titleSpace(sub, ctx.text)},left=${side},bottom=${SUBGRAPH_PADDING.bottom},right=${side}]`,
         'elk.nodeSize.constraints': 'MINIMUM_SIZE',
         'elk.nodeSize.minimum': `(${titleWidth(sub, ctx.text)}, 40)`,
@@ -133,7 +147,7 @@ export async function elkLayout(ctx: LayoutContext): Promise<{ boxes: Map<string
       'elk.spacing.nodeNode': '40',
       'elk.layered.spacing.nodeNodeBetweenLayers': '60',
       'elk.spacing.edgeLabel': '6',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      ...elkOptions.root,
       'elk.padding': '[top=20,left=20,bottom=20,right=20]',
       ...(model.kind === 'swimlane'
         ? {

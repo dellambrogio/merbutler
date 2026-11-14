@@ -98,6 +98,9 @@ just dev        # open the URL that Vite prints
 - **View:** it fits the diagram again when nodes are added or removed, or the direction changes.
   Renames and style edits do not move the view.
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
+  ELK gets the options Mermaid gives it, including the `elk:` config (`preset`, `nodePlacementAlignment`,
+  `nodePlacementStrategy`, `considerModelOrder`, …). The **Layout** panel in the toolbar sets them in the front matter,
+  for example to line nodes up to one side, or to keep them in the order of the code.
   With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
   shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
   drag), or to the top level when you drop it outside its subgraph. A drop that changes nothing puts it back.
@@ -135,6 +138,7 @@ just dev        # open the URL that Vite prints
 | Add node | **+ Node** (goes into the selected subgraph, or next to the selected node) |
 | Add subgraph | **+ Subgraph** with nothing selected (an empty subgraph; inside a selected lane or region) |
 | Group into a subgraph | Select nodes and subgraphs, then **Group in subgraph** (the same button) or **Ctrl+G**. The new subgraph goes where they all are |
+| Align nodes | Toolbar → **Layout**: alignment, node placement, code order, layers, loops, Mermaid's presets. Each choice is written to the front matter (`config: elk:`); **Default** removes it |
 | Rename node | Double-click the node, or use the inspector. **Enter** saves, **Shift+Enter** adds a line break |
 | Rename subgraph | Double-click its title, or use the inspector |
 | Move into / out of a subgraph | Drag it onto the subgraph (or out of it), or select it → inspector → **Subgraph** |

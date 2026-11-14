@@ -1,5 +1,5 @@
 /**
- * Lets the user drag the floating panels of the canvas (toolbar, inspector, classes panel) by any
+ * Lets the user drag the floating panels of the canvas (toolbar, inspector, classes and layout panels) by any
  * spot that is not a control. A panel's offset lives in two CSS variables on the canvas element
  * (`--<name>-x`, `--<name>-y`), so a drag re-renders nothing and an inspector that is replaced by
  * another one (a new selection) stays where the user put it. A double click on a panel's
@@ -15,6 +15,7 @@ const PANELS: ReadonlyArray<readonly [selector: string, name: string]> = [
   ['.toolbar', 'toolbar'],
   ['.inspector', 'inspector'],
   ['.class-panel', 'classes'],
+  ['.layout-panel', 'layout'],
 ];
 
 /** Elements that keep their own pointer behavior: a press on them never moves the panel. */

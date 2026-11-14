@@ -40,6 +40,7 @@ import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeVie
 import { ContextMenu } from './ContextMenu';
 import { ClassPanel, type Selection } from './ClassPanel';
 import { MultiInspector } from './MultiInspector';
+import { LayoutPanel } from './LayoutPanel';
 import { OpenClassesContext } from './styleControls';
 import { canMove, menuFor, moveTargets, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
@@ -357,16 +358,20 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
 
   /** The style classes panel (toolbar → Classes). */
   const classesOpen = panels.open.includes('classes');
-  const setClassesOpen = useCallback(
-    (open: boolean | ((was: boolean) => boolean)): void =>
+  /** Opens or closes a panel that can be closed (classes, layout). */
+  const setPanelOpen = useCallback(
+    (name: string, open: boolean | ((was: boolean) => boolean)): void =>
       onPanelsChange((p) => {
-        const was = p.open.includes('classes');
+        const was = p.open.includes(name);
         const next = typeof open === 'function' ? open(was) : open;
         if (next === was) return p;
-        return { ...p, open: next ? [...p.open, 'classes'] : p.open.filter((n) => n !== 'classes') };
+        return { ...p, open: next ? [...p.open, name] : p.open.filter((n) => n !== name) };
       }),
     [onPanelsChange],
   );
+  const setClassesOpen = useCallback((open: boolean | ((was: boolean) => boolean)): void => setPanelOpen('classes', open), [setPanelOpen]);
+  /** The layout panel (toolbar → Layout). */
+  const layoutOpen = panels.open.includes('layout');
   const openClasses = useCallback(() => setClassesOpen(true), [setClassesOpen]);
   const selection: Selection = {
     nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
@@ -439,7 +444,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     const onKey = (e: KeyboardEvent): void => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a') return;
       const target = e.target as HTMLElement;
-      const onCanvas = canvasRef.current?.contains(target) && !target.closest('input, textarea, select, [contenteditable="true"], .inspector, .class-panel');
+      const onCanvas = canvasRef.current?.contains(target) && !target.closest('input, textarea, select, [contenteditable="true"], .inspector, .class-panel, .layout-panel');
       if (!onCanvas && target !== document.body) return;
       e.preventDefault();
       setNodes((prev) => prev.map((n) => (n.selected ? n : { ...n, selected: true })));
@@ -472,6 +477,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick}>
       <OpenClassesContext.Provider value={openClasses}>
       {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
+      {layoutOpen && <LayoutPanel model={model} readOnly={readOnly} onChange={onChange} onClose={() => setPanelOpen('layout', false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
       <div className="toolbar">
         {usecaseDiagram && (
@@ -536,6 +542,9 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         </label>
         <button onClick={() => setClassesOpen((o) => !o)} aria-pressed={classesOpen} title="Style classes (classDef): create, edit, apply">
           Classes{(model.classDefs?.length ?? 0) > 0 ? ` ${model.classDefs!.length}` : ''}
+        </button>
+        <button onClick={() => setPanelOpen('layout', (o) => !o)} aria-pressed={layoutOpen} title="How Mermaid places and aligns the nodes (elk options in the config)">
+          Layout
         </button>
         <button onClick={() => void fitView({ padding: 0.2 })}>Fit</button>
       </div>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent } from 'react';
 import { Handle, type NodeProps } from '@xyflow/react';
 import type { ShapeNode } from './layout';
 import { toEditText } from './labels';
@@ -10,6 +10,9 @@ import { AssetView } from './AssetView';
 
 /** Lets a node rename itself without passing callbacks through node data. */
 export const RenameContext = createContext<(id: string, label: string) => void>(() => {});
+
+/** A request to open the label editor of one node or subgraph (from the context menu). `n` makes each request new. */
+export const EditRequestContext = createContext<{ id: string; n: number } | null>(null);
 
 /** Height of the top ellipse of a cylinder, in px. */
 const CYLINDER_CAP = 10;
@@ -314,6 +317,13 @@ export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<S
     if (save && draft !== null && draft !== toEditText(data.label)) rename(id, draft);
     setDraft(null);
   };
+
+  const request = useContext(EditRequestContext);
+  useEffect(() => {
+    if (request?.id === id && labelPlace !== 'none') start();
+    // Only a new request opens the editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     // Enter saves. Shift+Enter adds a line break.

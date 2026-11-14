@@ -455,6 +455,28 @@ export function connect(model: FlowModel, source: string, target: string): FlowM
   return { ...model, edges: [...model.edges, edge] };
 }
 
+/** Swaps an edge's source and target. Its label, stroke and markers stay. */
+export function reverseEdge(model: FlowModel, id: string): FlowModel {
+  return { ...model, edges: model.edges.map((e) => (e.id === id ? { ...e, source: e.target, target: e.source } : e)) };
+}
+
+/**
+ * Adds a copy of a node next to it (same parent, label, shape and styling) with a new id. Its
+ * edges, comments and click are not copied. Returns the model and the new id.
+ */
+export function duplicateNode(model: FlowModel, id: string): { model: FlowModel; id: string } {
+  const node = model.nodes.find((n) => n.id === id);
+  if (!node) return { model, id };
+  const copyId = nextNodeId(model);
+  const { comments: _comments, click: _click, ...rest } = node;
+  // A label that is the id would show the old id: give the copy its own.
+  const label = node.label === node.id ? copyId : node.label;
+  const index = model.nodes.indexOf(node);
+  const nodes = [...model.nodes];
+  nodes.splice(index + 1, 0, { ...rest, id: copyId, label });
+  return { model: { ...model, nodes }, id: copyId };
+}
+
 export type TreeItem = { kind: 'node'; node: FlowNode } | { kind: 'subgraph'; subgraph: FlowSubgraph; children: TreeItem[] };
 
 /** The nesting tree: at each level, nodes first, then subgraphs, both in model order. */

@@ -375,3 +375,32 @@ button.danger { color: var(--danger); }
 .data-table .section-row td { background: var(--active-line); }
 .data-table .section-row input { font-weight: 600; }
 .structured-title { font-size: 12px; align-self: center; margin-right: 4px; }
+
+/* Canvas context menu (right-click, the ContextMenu key, or Shift+F10). */
+.context-menu {
+  position: absolute; z-index: 30; min-width: 190px; padding: 4px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18); font-size: 13px;
+}
+.context-menu-title {
+  padding: 4px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted);
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.context-menu-list { display: flex; flex-direction: column; }
+.context-menu-entry { position: relative; }
+.context-menu-item {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 8px;
+  border: none; border-radius: 5px; background: none; text-align: left; white-space: nowrap;
+}
+.context-menu-item:hover:not([aria-disabled="true"]), .context-menu-item:focus-visible, .context-menu-item[aria-expanded="true"] {
+  background: var(--selection); outline: none;
+}
+.context-menu-item:focus { outline: none; }
+.context-menu-item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.context-menu-item[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+.context-menu-item.danger { color: var(--danger); }
+.context-menu-check { width: 14px; flex: none; text-align: center; color: var(--accent); }
+.context-menu-label { flex: 1; }
+.context-menu-hint { color: var(--muted); font-size: 11px; margin-left: 12px; }
+.context-menu-separator { height: 1px; margin: 4px 6px; background: var(--border); }
+.context-menu-sub { left: calc(100% + 2px); top: -5px; max-height: 70vh; overflow: auto; }

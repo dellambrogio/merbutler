@@ -51,7 +51,9 @@ import {
   type Stroke,
   type Styled,
 } from './model';
-import { RenameContext, ShapeNodeView } from './ShapeNodeView';
+import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
+import { ContextMenu } from './ContextMenu';
+import { menuFor, type MenuTarget } from './canvasMenu';
 import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 import { classesFromText, stylesFromText, stylesToText } from './styling';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
@@ -531,8 +533,69 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
+  // ---- Context menu (right-click, the ContextMenu key, or Shift+F10 on the selection) ----
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; target: MenuTarget } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
+  /** Set when the menu asks to edit an edge label: the inspector's label field gets the focus. */
+  const focusEdgeLabel = useRef(false);
+
+  /** Selects exactly this element, so the inspector shows it while the menu is open. */
+  const selectOnly = useCallback((target: MenuTarget): void => {
+    const nodeId = target.kind === 'node' || target.kind === 'subgraph' ? target.id : null;
+    const edgeId = target.kind === 'edge' ? target.id : null;
+    setNodes((prev) => prev.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })));
+    setEdges((prev) => prev.map((e) => (e.selected === (e.id === edgeId) ? e : { ...e, selected: e.id === edgeId })));
+  }, []);
+
+  const openMenu = useCallback(
+    (clientX: number, clientY: number, target: MenuTarget): void => {
+      const box = canvasRef.current?.getBoundingClientRect();
+      if (!box) return;
+      // Like a click: the element becomes the selection; the empty canvas clears it.
+      selectOnly(target);
+      setMenu({ x: clientX - box.left, y: clientY - box.top, target });
+    },
+    [selectOnly],
+  );
+
+  const menuActions = {
+    change: (next: FlowModel, select?: string): void => {
+      if (select) pendingSelect.current = select;
+      onChange(next);
+    },
+    rename: (id: string): void => setEditRequest((r) => ({ id, n: (r?.n ?? 0) + 1 })),
+    editEdgeLabel: (id: string): void => {
+      focusEdgeLabel.current = true;
+      selectOnly({ kind: 'edge', id });
+    },
+    fit: (): void => void fitView({ padding: 0.2, duration: 250 }),
+    relayout: (): void => void relayout(),
+  };
+  const openedMenu = menu ? menuFor(model, menu.target, readOnly, menuActions) : null;
+
+  useEffect(() => {
+    if (!focusEdgeLabel.current || !edge) return;
+    focusEdgeLabel.current = false;
+    requestAnimationFrame(() => canvasRef.current?.querySelector<HTMLTextAreaElement>('.inspector textarea')?.focus());
+  }, [edge]);
+
+  /** The ContextMenu key or Shift+F10 opens the menu of the selected element, at the element. */
+  const onCanvasKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (!(e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) return;
+    if ((e.target as HTMLElement).closest('input, textarea, select, .context-menu')) return;
+    e.preventDefault();
+    const target: MenuTarget = node ? { kind: 'node', id: node.id } : subgraph ? { kind: 'subgraph', id: subgraph.id } : edge ? { kind: 'edge', id: edge.id } : { kind: 'pane' };
+    const id = target.kind === 'pane' ? null : target.id;
+    const el = id ? canvasRef.current?.querySelector(`[data-id="${CSS.escape(id)}"]`) : null;
+    const rect = (el ?? canvasRef.current)?.getBoundingClientRect();
+    if (rect) openMenu(rect.left + Math.min(rect.width / 2, 120), rect.top + Math.min(rect.height / 2, 60), target);
+  };
+
   return (
-    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`}>
+    <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown}>
+      {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
       <div className="toolbar">
         {usecaseDiagram && (
           <>
@@ -823,6 +886,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
       <ImageConsentContext.Provider value={imageConsent}>
         <CollapseContext.Provider value={readOnly ? null : toggleCollapsed}>
           <RenameContext.Provider value={rename}>
+          <EditRequestContext.Provider value={editRequest}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -834,6 +898,19 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
               onConnect={onConnect}
               onConnectStart={() => setConnecting(true)}
               onConnectEnd={() => setConnecting(false)}
+              onNodeContextMenu={(e, n) => {
+                e.preventDefault();
+                openMenu(e.clientX, e.clientY, n.type === 'subgraph' ? { kind: 'subgraph', id: n.id } : { kind: 'node', id: n.id });
+              }}
+              onEdgeContextMenu={(e, ed) => {
+                e.preventDefault();
+                openMenu(e.clientX, e.clientY, { kind: 'edge', id: ed.id });
+              }}
+              onPaneContextMenu={(e) => {
+                e.preventDefault();
+                openMenu(e.clientX, e.clientY, { kind: 'pane' });
+              }}
+              onMoveStart={closeMenu}
               nodesConnectable={!readOnly}
               elementsSelectable={!readOnly}
               deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
@@ -859,6 +936,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
                 </ViewportPortal>
               )}
             </ReactFlow>
+          </EditRequestContext.Provider>
           </RenameContext.Provider>
         </CollapseContext.Provider>
       </ImageConsentContext.Provider>

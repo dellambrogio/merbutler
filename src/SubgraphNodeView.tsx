@@ -1,9 +1,9 @@
-import { createContext, useContext, useRef, useState, type JSX, type KeyboardEvent } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 import { Handle, type NodeProps } from '@xyflow/react';
 import type { SubgraphNode } from './layout';
 import { toEditText } from './labels';
 import { LabelText } from './LabelText';
-import { RenameContext } from './ShapeNodeView';
+import { EditRequestContext, RenameContext } from './ShapeNodeView';
 import { boxVars, textStyle } from './styling';
 
 /** Lets a subgraph collapse or expand itself. Null when the canvas is read-only. */
@@ -32,6 +32,16 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
     if (save && draft !== null && draft !== toEditText(data.label)) rename(id, draft);
     setDraft(null);
   };
+
+  const request = useContext(EditRequestContext);
+  useEffect(() => {
+    if (request?.id === id && !data.region) {
+      editing.current = true;
+      setDraft(toEditText(data.label));
+    }
+    // Only a new request opens the editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     // Enter saves. Shift+Enter adds a line break.

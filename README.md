@@ -134,6 +134,7 @@ just dev        # open the URL that Vite prints
 | Edge label, stroke, end marker, both ends | Select the edge → inspector |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select |
+| Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit, re-layout. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
 
 ## Every diagram type
 
@@ -255,6 +256,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
 | `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |
 | `src/Canvas.tsx` | Canvas, toolbar and inspector |
+| `src/ContextMenu.tsx`, `src/canvasMenu.ts` | The context menu, and its entries per element and diagram kind |
 | `src/ShapeNodeView.tsx`, `src/SubgraphNodeView.tsx` | Shape outlines and subgraph boxes |
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |

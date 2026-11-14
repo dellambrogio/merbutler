@@ -658,3 +658,39 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .layout-fields label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
 .layout-fields label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
 .layout-fields .class-panel-hint { padding: 0; }
+
+/* The open diagram's name in the header: opens the saved diagrams. */
+.diagram-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.saved-state { font-size: 12px; }
+
+/* Saved diagrams (DiagramLibrary.tsx): a drawer from the left, over the code. */
+.library {
+  position: absolute; z-index: 21; top: 0; bottom: 0; left: 0; width: min(380px, 100%);
+  display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--border);
+  box-shadow: 4px 0 16px rgb(0 0 0 / 0.14);
+  transform: translateX(-16px); opacity: 0; visibility: hidden;
+  transition: transform 160ms ease, opacity 160ms ease, visibility 0s linear 160ms;
+}
+.library.open { transform: none; opacity: 1; visibility: visible; transition: transform 160ms ease, opacity 160ms ease, visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+  .library, .library.open { transition: none; transform: none; }
+}
+.library-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px; }
+.library-hint { margin: 0; padding: 0 12px 8px; font-size: 12px; }
+.library-unsaved {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 12px 8px; padding: 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 13px;
+}
+.library-unsaved span { flex-basis: 100%; }
+.library-search { margin: 0 12px 8px; padding: 4px 10px; border-radius: 999px; }
+.library-list { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
+.library-item { display: flex; flex-direction: column; border: 1px solid transparent; border-radius: 6px; padding: 4px; }
+.library-item:hover, .library-item:focus-within { border-color: var(--border); background: var(--bg); }
+.library-item.current { border-color: var(--accent); }
+.library-open { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: none; background: none; padding: 4px 6px; text-align: left; min-width: 0; }
+.library-name { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-meta { font-size: 12px; }
+.library-rename { margin: 2px 4px; }
+.library-actions { display: flex; gap: 10px; padding: 0 6px 2px; }
+.link-button.danger { color: var(--danger); }
+.library-empty { padding: 12px 6px; font-size: 13px; }

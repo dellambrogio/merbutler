@@ -38,6 +38,7 @@ flowchart LR
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
 - [Code editor](#code-editor)
+- [Saved diagrams](#saved-diagrams)
 - [Paste](#paste)
 - [Canvas actions](#canvas-actions)
 - [Every diagram type](#every-diagram-type)
@@ -54,6 +55,7 @@ flowchart LR
   style classes (`classDef`).
 - 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
+- 💾 **Saved diagrams**: keep many named diagrams in your browser; the open one saves itself as you edit.
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
   and HTML in labels never runs.
@@ -120,6 +122,20 @@ just dev        # open the URL that Vite prints
 - **Editing:** Ctrl+/ toggles `%%` comments, Tab indents (Esc then Tab leaves the editor), lines inside a subgraph
   indent automatically and `end` steps back, brackets and quotes close, Ctrl+F searches.
 - **Text size:** **A−** / **A+** above the code (Ctrl+Alt+− / Ctrl+Alt+=, Ctrl+Alt+0 resets). It is remembered.
+
+## Saved diagrams
+
+Diagrams are kept in this browser's local storage: nothing goes to a server, and another browser or a private
+window does not see them.
+
+- Click the diagram's name in the header (**Unsaved diagram** at first) to list the saved diagrams: open, rename,
+  copy or delete them, find one by name or content, or start a **+ New** one.
+- **Save** (or **Ctrl+S**) keeps the open code under its front matter `title`, its file name, or "Untitled".
+- The open saved diagram saves itself as you edit (also when you leave the page). The header says **saved**.
+- Pasting, opening a `.mmd` file, an example from the gallery, or a link with other code starts a new, unsaved
+  diagram, so it never overwrites a saved one. Opening a saved diagram over unsaved work asks first.
+- A deleted diagram cannot be restored. Deleting the open one keeps its code in the editor, unsaved.
+- Two tabs see each other's list. If both edit the same diagram, the last change wins.
 
 ## Paste
 
@@ -266,6 +282,7 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/preview/` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
 | `src/editor/` | The CodeMirror code panel: highlighting, completion, error marks |
 | `src/gallery/` | Example diagrams of every type, and the gallery catalog |
+| `src/library/` | The drawer of diagrams saved in this browser (storage and list edits in `src/core/library.ts`) |
 | `src/App.tsx` | Split view and sync logic |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 

@@ -13,11 +13,30 @@ import type { DiagramType } from './core/diagramTypes';
 import type { FlowModel } from './core/model';
 import { parse } from './core/parse';
 import { serialize } from './core/serialize';
+import {
+  createDiagram,
+  deleteDiagram,
+  duplicateDiagram,
+  loadDiagrams,
+  loadOpenId,
+  storeDiagrams,
+  storeOpenId,
+  suggestName,
+  updateDiagram,
+  type SavedDiagram,
+} from './core/library';
+import { DiagramLibrary } from './library/DiagramLibrary';
 
 const STORAGE_KEY = 'merbutler:code';
 /** The key used before the app was renamed. Read once so saved code is not lost. */
 const OLD_STORAGE_KEY = 'dutler:code';
 const PARSE_DELAY_MS = 300;
+/** The open diagram is saved this long after the last change. */
+const AUTOSAVE_MS = 400;
+/** Code for a new diagram. */
+const NEW_DIAGRAM = `flowchart TB
+  A[Start] --> B[End]
+`;
 
 const SAMPLE = `flowchart LR
   A[Start] --> B{Is it working?}
@@ -27,6 +46,10 @@ const SAMPLE = `flowchart LR
 `;
 
 function loadCode(): string {
+  // The open saved diagram, else the last code of this browser.
+  const openId = loadOpenId();
+  const saved = openId ? loadDiagrams().find((d) => d.id === openId) : undefined;
+  if (saved) return saved.code;
   try {
     return localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(OLD_STORAGE_KEY) ?? SAMPLE;
   } catch {
@@ -70,6 +93,59 @@ export function App(): JSX.Element {
   const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+
+  // ---- Diagrams saved in this browser (core/library.ts) ----
+  const [diagrams, setDiagrams] = useState<SavedDiagram[]>(loadDiagrams);
+  /** The ref follows every change at once, so two changes in one event see each other. */
+  const diagramsRef = useRef(diagrams);
+  /** The saved diagram in the editor; null: the code is not saved. */
+  const [openId, setOpenIdState] = useState<string | null>(() => {
+    const id = loadOpenId();
+    return id && diagramsRef.current.some((d) => d.id === id) ? id : null;
+  });
+  const openIdRef = useRef(openId);
+  /** Stores a new list. Says so when the browser refuses (storage full or blocked). */
+  const commitDiagrams = useCallback((list: SavedDiagram[]): boolean => {
+    diagramsRef.current = list;
+    setDiagrams(list);
+    const ok = storeDiagrams(list);
+    if (!ok) setNotice('This browser did not save the diagram: its storage is full or blocked.');
+    return ok;
+  }, []);
+  /** Saves the open diagram now, without waiting for the autosave delay. */
+  const flushOpen = useCallback((): void => {
+    const id = openIdRef.current;
+    const saved = id ? diagramsRef.current.find((d) => d.id === id) : undefined;
+    if (id && saved && saved.code !== codeRef.current) commitDiagrams(updateDiagram(diagramsRef.current, id, { code: codeRef.current }));
+  }, [commitDiagrams]);
+  /** Changes the open diagram. The one that was open keeps its last edit. */
+  const setOpenId = useCallback(
+    (id: string | null): void => {
+      flushOpen();
+      openIdRef.current = id;
+      setOpenIdState(id);
+      storeOpenId(id);
+    },
+    [flushOpen],
+  );
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const closeLibrary = useCallback(() => setLibraryOpen(false), []);
+  // Leaving the page saves the last edit too.
+  useEffect(() => {
+    window.addEventListener('pagehide', flushOpen);
+    return () => window.removeEventListener('pagehide', flushOpen);
+  }, [flushOpen]);
+  // Another tab changed the list.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent): void => {
+      if (e.key !== null && e.key !== 'merbutler:diagrams') return;
+      const list = loadDiagrams();
+      diagramsRef.current = list;
+      setDiagrams(list);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const closeGallery = useCallback(() => setGalleryOpen(false), []);
   /** The gallery's type page (null: the overview). */
   const [galleryView, setGalleryView] = useState<string | null>(loadView);
@@ -168,11 +244,13 @@ export function App(): JSX.Element {
       const { code: next } = extractMermaid(text);
       if (next.trim() === '') return;
       clearTimeout(timer.current);
+      // New code from outside: a new, unsaved diagram, so a saved one is not overwritten.
+      setOpenId(null);
       setCode(next);
       setNotice(null);
       void runParse(next);
     },
-    [runParse],
+    [runParse, setOpenId],
   );
 
   const onPasteButton = async (): Promise<void> => {
@@ -217,11 +295,13 @@ export function App(): JSX.Element {
       if (state.gallery !== null) setGalleryView(GALLERY_TYPES.some((t) => t.id === state.gallery) ? state.gallery : null);
       if (state.code === undefined || state.code === codeRef.current) return false;
       clearTimeout(timer.current);
+      // A link with other code: a new, unsaved diagram.
+      setOpenId(null);
       setCode(state.code);
       void runParse(state.code);
       return true;
     },
-    [runParse],
+    [runParse, setOpenId],
   );
 
   // On start: the URL's state wins over the code saved in this browser.
@@ -265,6 +345,77 @@ export function App(): JSX.Element {
 
   useEffect(() => saveCode(code), [code]);
 
+  // The open saved diagram follows the code, shortly after each change.
+  useEffect(() => {
+    if (openId === null) return;
+    const t = setTimeout(() => {
+      const saved = diagramsRef.current.find((d) => d.id === openId);
+      if (!saved) return setOpenId(null); // Deleted in another tab: the code stays, unsaved.
+      if (saved.code !== code) commitDiagrams(updateDiagram(diagramsRef.current, openId, { code }));
+    }, AUTOSAVE_MS);
+    return () => clearTimeout(t);
+  }, [code, openId, commitDiagrams, setOpenId]);
+
+  /** Puts code in the editor, as a diagram's own code (no parse delay). */
+  const showCode = useCallback(
+    (text: string): void => {
+      clearTimeout(timer.current);
+      setCode(text);
+      setNotice(null);
+      void runParse(text);
+    },
+    [runParse],
+  );
+
+  /** Saves the code in the editor as a new diagram, and makes it the open one. */
+  const saveCurrent = useCallback((): void => {
+    if (openIdRef.current !== null) return;
+    const base = fileName === 'diagram.mmd' ? 'Untitled' : fileName.replace(/\.[^.]+$/, '');
+    const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, codeRef.current, base), codeRef.current);
+    if (commitDiagrams(list)) setOpenId(diagram.id);
+  }, [commitDiagrams, setOpenId, fileName]);
+
+  const library = {
+    onNew: (): void => {
+      const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, NEW_DIAGRAM), NEW_DIAGRAM);
+      if (!commitDiagrams(list)) return;
+      setOpenId(diagram.id);
+      showCode(diagram.code);
+      setLibraryOpen(false);
+    },
+    onOpen: (id: string): void => {
+      const diagram = diagramsRef.current.find((d) => d.id === id);
+      if (!diagram) return;
+      setOpenId(id);
+      showCode(diagram.code);
+      setLibraryOpen(false);
+    },
+    onRename: (id: string, name: string): void => void commitDiagrams(updateDiagram(diagramsRef.current, id, { name })),
+    onDuplicate: (id: string): void => {
+      const copy = duplicateDiagram(diagramsRef.current, id);
+      if (copy) commitDiagrams(copy.list);
+    },
+    onDelete: (id: string): void => {
+      // The open diagram stays in the editor, unsaved.
+      if (id === openIdRef.current) setOpenId(null);
+      commitDiagrams(deleteDiagram(diagramsRef.current, id));
+    },
+  };
+  const openDiagram = openId ? diagrams.find((d) => d.id === openId) : undefined;
+  /** Unsaved code that opening a diagram would lose: not the starting sample, and not saved under any name. */
+  const unsavedWork = openId === null && code.trim() !== SAMPLE.trim() && code.trim() !== '' && !diagrams.some((d) => d.code === code);
+
+  // Ctrl/Cmd+S saves the open code here (an open saved diagram is saved already).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      saveCurrent();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saveCurrent]);
+
   const onOpenFile = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -272,6 +423,8 @@ export function App(): JSX.Element {
     setFileName(file.name);
     const text = await file.text();
     clearTimeout(timer.current);
+    // A file is a new, unsaved diagram until it is saved here.
+    setOpenId(null);
     setCode(text);
     void runParse(text);
   };
@@ -290,9 +443,21 @@ export function App(): JSX.Element {
       <header className="app-header">
         <strong>Merbutler</strong>
         <span className="muted">Mermaid diagram editor</span>
+        <button className="diagram-name" onClick={() => { setGalleryOpen(false); setLibraryOpen((o) => !o); }} aria-expanded={libraryOpen} title="Diagrams saved in this browser">
+          {openDiagram ? openDiagram.name : 'Unsaved diagram'} ▾
+        </button>
+        {openDiagram ? (
+          <span className="muted saved-state" title="Saved in this browser as you edit">
+            saved
+          </span>
+        ) : (
+          <button onClick={saveCurrent} title="Save in this browser (Ctrl+S)">
+            Save
+          </button>
+        )}
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
-        <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
+        <button onClick={() => { setLibraryOpen(false); setGalleryOpen((open) => !open); }} aria-expanded={galleryOpen} title="Examples of every diagram type">
           Gallery
         </button>
         <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
@@ -346,6 +511,7 @@ export function App(): JSX.Element {
           )}
         </section>
         <Splitter value={split} onChange={setSplit} minFirst={220} minSecond={320} label="Code editor width" />
+        <DiagramLibrary open={libraryOpen} diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} onClose={closeLibrary} {...library} />
         {/* Always mounted, so it slides in and out and keeps its previews. */}
         <Gallery
           open={galleryOpen}

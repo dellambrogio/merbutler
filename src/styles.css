@@ -972,3 +972,15 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .quick-add:hover { background: var(--accent); color: #fff; }
 .react-flow__node .react-flow__handle { z-index: 2; }
 .canvas.connecting .quick-add-zone, .canvas.read-only .quick-add-zone { display: none; }
+
+/* The version in the header (App.tsx) and the release notes in the About dialog (about/releaseNotes.ts). */
+.app-header .app-version { padding: 0 6px; border: 1px solid var(--border); border-radius: 9px; background: none; font-size: 11px; line-height: 16px; color: var(--muted); cursor: pointer; }
+.app-header .app-version:hover { color: var(--text); border-color: var(--accent); }
+.about-notes { margin: 12px 0; border-top: 1px solid var(--border); padding-top: 8px; font-size: 13px; }
+.about-notes details + details { margin-top: 4px; }
+.about-notes summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
+.about-notes summary .muted { font-weight: 400; }
+.about-notes ul { margin: 6px 0 4px; padding-left: 18px; max-height: 260px; overflow: auto; }
+.about-notes li { margin: 3px 0; line-height: 1.4; }
+.about-notes p { margin: 6px 0; }
+.about-notes code { font-family: ui-monospace, monospace; font-size: 11.5px; padding: 0 3px; border-radius: 3px; background: var(--selection-match); }

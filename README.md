@@ -47,6 +47,7 @@ flowchart LR
 - [Supported Mermaid subset](#supported-mermaid-subset)
 - [Known limitations](#known-limitations)
 - [Project layout](#project-layout)
+- [Versions and release notes](#versions-and-release-notes)
 - [License](#license)
 
 ## Features
@@ -83,6 +84,7 @@ flowchart LR
 
 To use it, open [dellambrogio.github.io/merbutler](https://dellambrogio.github.io/merbutler/): nothing to install.
 It is deployed by `.github/workflows/pages.yml` on every push to `main`.
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md), which the About dialog also shows.
 
 To run it locally, you need [Node.js](https://nodejs.org/) and [just](https://github.com/casey/just).
 
@@ -308,6 +310,13 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/about/` | The About dialog (versions come from `package.json` through `vite.config.ts`) |
 | `src/App.tsx` | Split view and sync logic |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
+
+## Versions and release notes
+
+The version is the `version` in `package.json`; the app shows it in the header and the About dialog
+(`src/version.ts`). Every change goes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md). To release, move those
+notes under a new `## x.y.z — YYYY-MM-DD` heading and set the same version in `package.json`; the tests fail if the
+version has no notes.
 
 ## License
 

@@ -1,8 +1,11 @@
 import { useEffect, useRef, type JSX } from 'react';
+import { RichText } from '../syntax/SyntaxReference';
+import { APP_VERSION, MERMAID_VERSION } from '../version';
+import { RELEASED, type Release } from './releaseNotes';
 
 const REPO = 'https://github.com/dellambrogio/merbutler';
 
-/** What Merbutler is, its versions, the libraries it builds on, and its license. A modal dialog. */
+/** What Merbutler is, its versions and release notes, the libraries it builds on, and its license. A modal dialog. */
 export function About({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -26,7 +29,7 @@ export function About({ open, onClose }: { open: boolean; onClose: () => void })
       <div className="about-body">
         <div className="about-head">
           <h2 id="about-title">Merbutler</h2>
-          <span className="muted">v{__APP_VERSION__}</span>
+          <span className="muted">v{APP_VERSION}</span>
           <span className="spacer" />
           <button onClick={onClose} aria-label="Close" title="Close (Esc)">
             ✕
@@ -41,7 +44,7 @@ export function About({ open, onClose }: { open: boolean; onClose: () => void })
         </p>
         <dl className="about-facts">
           <dt>Mermaid</dt>
-          <dd>{__MERMAID_VERSION__}</dd>
+          <dd>{MERMAID_VERSION}</dd>
           <dt>Source</dt>
           <dd>
             <a href={REPO} target="_blank" rel="noreferrer">
@@ -57,6 +60,7 @@ export function About({ open, onClose }: { open: boolean; onClose: () => void })
           <dt>License</dt>
           <dd>MIT © 2026 Michele Dell'Ambrogio</dd>
         </dl>
+        <ReleaseNotes />
         <p className="about-credits muted">
           Built on <a href="https://mermaid.js.org/" target="_blank" rel="noreferrer">Mermaid</a>,{' '}
           <a href="https://reactflow.dev/" target="_blank" rel="noreferrer">React Flow</a>,{' '}
@@ -69,5 +73,55 @@ export function About({ open, onClose }: { open: boolean; onClose: () => void })
         </p>
       </div>
     </dialog>
+  );
+}
+
+function ReleaseBody({ release }: { release: Release }): JSX.Element {
+  return (
+    <>
+      {release.intro.map((p) => (
+        <p key={p}>
+          <RichText text={p} />
+        </p>
+      ))}
+      {release.items.length > 0 && (
+        <ul>
+          {release.items.map((item) => (
+            <li key={item}>
+              <RichText text={item} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** What is new in this version, and the notes of the earlier ones (CHANGELOG.md). */
+function ReleaseNotes(): JSX.Element | null {
+  const current = RELEASED.find((r) => r.version === APP_VERSION);
+  const earlier = RELEASED.filter((r) => r !== current);
+  if (!current && earlier.length === 0) return null;
+  return (
+    <section className="about-notes" aria-label="Release notes">
+      {current && (
+        <details>
+          <summary>
+            What's new in v{current.version}
+            {current.date && <span className="muted"> · {current.date}</span>}
+          </summary>
+          <ReleaseBody release={current} />
+        </details>
+      )}
+      {earlier.map((r) => (
+        <details key={r.version}>
+          <summary>
+            v{r.version}
+            {r.date && <span className="muted"> · {r.date}</span>}
+          </summary>
+          <ReleaseBody release={r} />
+        </details>
+      ))}
+    </section>
   );
 }

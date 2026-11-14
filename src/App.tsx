@@ -10,6 +10,7 @@ import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
 import { About } from './about/About';
+import { APP_VERSION } from './version';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { applyTheme } from './settings/theme';
 import { DEFAULT_SETTINGS, getSettings, saveSettings, useSettings } from './core/settings';
@@ -506,6 +507,9 @@ export function App(): JSX.Element {
       <header className="app-header">
         <strong>Merbutler</strong>
         <span className="muted">Mermaid diagram editor</span>
+        <button className="app-version" onClick={() => setAboutOpen(true)} title="About this version and its release notes">
+          v{APP_VERSION}
+        </button>
         <span className="diagram-name" title={openDiagram ? 'Saved in local storage' : 'Not saved: see Save & open'}>
           {openDiagram ? openDiagram.name : 'Unsaved diagram'}
         </span>

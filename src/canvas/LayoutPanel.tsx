@@ -55,6 +55,32 @@ const FLAG_TEXT: Record<ElkFlag, { label: string; title: string }> = {
   mergeEdges: { label: 'Merge edges', title: 'Edges share a path where they can (elk.mergeEdges)' },
 };
 
+/**
+ * The Mermaid version that brought each option (checked in the config schema of the published
+ * packages). Older versions ignore an option they do not know and use their own default, so the
+ * diagram still renders, only laid out differently. Options of Mermaid 11.0 are not marked.
+ */
+const SINCE: Partial<Record<ElkChoice | ElkFlag, string>> = {
+  cycleBreakingStrategy: '11.1',
+  considerModelOrder: '11.10',
+  forceNodeModelOrder: '11.10',
+  nodePlacementAlignment: '11.17',
+  keepEntryNodeOnTop: '11.17',
+  layeringStrategy: '12',
+  preset: '12',
+};
+
+/** "12+": the option needs this Mermaid version; GitHub, GitLab and other sites may run an older one. */
+function SinceTag({ option }: { option: ElkChoice | ElkFlag }): JSX.Element | null {
+  const version = SINCE[option];
+  if (!version) return null;
+  return (
+    <span className="since-tag" title={`Needs Mermaid ${version} or later. Older versions, as some sites still run, ignore it and use their default layout.`}>
+      {version}+
+    </span>
+  );
+}
+
 const CHOICE_ORDER: ElkChoice[] = ['nodePlacementAlignment', 'nodePlacementStrategy', 'considerModelOrder', 'layeringStrategy', 'cycleBreakingStrategy', 'preset'];
 const FLAG_ORDER: ElkFlag[] = ['forceNodeModelOrder', 'keepEntryNodeOnTop', 'mergeEdges'];
 
@@ -77,7 +103,10 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
           ✕
         </button>
       </div>
-      <p className="muted class-panel-hint">Mermaid places the nodes; these options steer it. They go into the front matter of the code.</p>
+      <p className="muted class-panel-hint">
+        Mermaid places the nodes; these options steer it. They go into the front matter of the code. A tag such as{' '}
+        <span className="since-tag">12+</span> marks an option that older Mermaid versions ignore.
+      </p>
       <div className="layout-fields">
         {!swimlane && (
           <label title={lockedBy(['layout']) ?? 'The layout engine (layout). Mermaid 12 uses ELK unless the code asks for dagre.'}>
@@ -99,7 +128,10 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
               const shown = key === 'nodePlacementStrategy' ? applied.nodePlacementStrategy : applied[key];
               return (
                 <label key={key} title={locked ?? (unused ? 'Only the Brandes-Köpf node placement uses it' : text.title)}>
-                  {text.label}
+                  <span className="layout-label">
+                    {text.label}
+                    <SinceTag option={key} />
+                  </span>
                   <select
                     value={elk.choices[key] ?? ''}
                     disabled={readOnly || locked !== undefined || unused}
@@ -127,6 +159,7 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
                     onChange={(e) => set(['elk', key], e.target.checked ? true : undefined)}
                   />
                   {FLAG_TEXT[key].label}
+                  <SinceTag option={key} />
                 </label>
               );
             })}

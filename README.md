@@ -154,7 +154,7 @@ window does not see them.
 | Add node | **+ Node** (goes into the selected subgraph, or next to the selected node) |
 | Add subgraph | **+ Subgraph** with nothing selected (an empty subgraph; inside a selected lane or region) |
 | Group into a subgraph | Select nodes and subgraphs, then **Group in subgraph** (the same button) or **Ctrl+G**. The new subgraph goes where they all are |
-| Align nodes | Toolbar → **Layout**: alignment, node placement, code order, layers, loops, Mermaid's presets. Each choice is written to the front matter (`config: elk:`); **Default** removes it |
+| Align nodes | Toolbar → **Layout**: alignment, node placement, code order, layers, loops, Mermaid's presets. Each choice is written to the front matter (`config: elk:`); **Default** removes it. A tag (`11.17+`, `12+`) marks options that older Mermaid versions ignore: some sites still run one, and lay the diagram out with their defaults |
 | Rename node | Double-click the node, or use the inspector. **Enter** saves, **Shift+Enter** adds a line break |
 | Rename subgraph | Double-click its title, or use the inspector |
 | Move into / out of a subgraph | Drag it onto the subgraph (or out of it), or select it → inspector → **Subgraph** |

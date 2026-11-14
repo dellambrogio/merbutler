@@ -85,7 +85,18 @@ export interface FlowNode {
    * `callback "Tooltip"`, `call cb()`. Kept and shown; the canvas never follows or runs it.
    */
   click?: string;
+  /**
+   * State diagrams: what the node is. Missing for a plain state. `start` and `end` are `[*]` (one of
+   * each per composite state), `note` is a note next to the state `note.of`.
+   */
+  state?: StateKind;
+  /** State diagrams: a note's place. */
+  note?: { position: 'left of' | 'right of'; of: string };
+  /** State diagrams: description lines after the label (`id : text`). */
+  descriptions?: string[];
 }
+
+export type StateKind = 'start' | 'end' | 'choice' | 'fork' | 'join' | 'note';
 
 export interface FlowSubgraph {
   id: string;
@@ -105,6 +116,8 @@ export interface FlowSubgraph {
   comments?: string[];
   /** `%%` comment lines just before the subgraph's `end`. */
   endComments?: string[];
+  /** State diagrams: a concurrency region of a composite state (separated by `--`). It has no label of its own. */
+  region?: boolean;
 }
 
 export interface FlowEdge {
@@ -133,9 +146,16 @@ export interface FlowEdge {
   styles?: string[];
   /** `%%` comment lines written above the edge. */
   comments?: string[];
+  /** State diagrams: the dotted line from a note to its state. Drawn, never written. */
+  noteLink?: boolean;
 }
 
 export interface FlowModel {
+  /**
+   * `swimlane`: a `swimlane-beta` diagram. The same syntax as a flowchart; its top-level subgraphs
+   * are lanes. `state`: a `stateDiagram-v2` (see stateDiagram.ts). Missing for a flowchart.
+   */
+  kind?: 'swimlane' | 'state';
   /**
    * Text before the `flowchart` line: front matter, `%%{init}%%` directives, comments.
    * Kept as it is. Missing when there is none.
@@ -289,6 +309,8 @@ export function updateNode(
     nodes: model.nodes.map((n) => {
       if (n.id !== id) return n;
       const node = withoutEmpty({ ...n, ...patch }, model.classDefs);
+      // State diagrams: plain text labels; an empty label is the id. Start and end have none.
+      if (model.kind === 'state') return { ...node, label: node.state === 'start' || node.state === 'end' ? '' : node.label.trim() || id };
       if (node.asset) {
         // An icon or image needs no label, and its label is always Markdown (`label:` in `@{}`).
         node.label = fromEditText(relabel(n, node), node.markdown);
@@ -374,6 +396,8 @@ export function setParent(model: FlowModel, id: string, parent: string | null): 
  */
 export function removeElements(model: FlowModel, ids: Iterable<string>, edgeIds: Iterable<string>): FlowModel {
   const removed = new Set(ids);
+  // A note goes with its state.
+  for (const n of model.nodes) if (n.note && removed.has(n.note.of)) removed.add(n.id);
   const edges = new Set(edgeIds);
   const parentOf = new Map(model.subgraphs.map((s) => [s.id, s.parent]));
   const keptParent = (parent: string | null): string | null => {
@@ -447,6 +471,8 @@ export function diagramCurve(model: FlowModel): string | null {
 
 /** The layout engine: `layout:` in the config. Mermaid 12 uses ELK unless the code asks for dagre. */
 export function diagramLayout(model: FlowModel): 'elk' | 'dagre' {
+  // Lanes need ELK's partitions.
+  if (model.kind === 'swimlane') return 'elk';
   return getString(readConfig(model.preamble), 'layout') === 'dagre' ? 'dagre' : 'elk';
 }
 
@@ -489,4 +515,22 @@ export function visibleModel(model: FlowModel): FlowModel {
     subgraphs: model.subgraphs.filter((s) => collapsedAround(s.id) === null),
     edges,
   };
+}
+
+/** True for a swimlane diagram: its top-level subgraphs are lanes. */
+export function isSwimlane(model: FlowModel): boolean {
+  return model.kind === 'swimlane';
+}
+
+/** The lanes of a swimlane diagram, in order (its top-level subgraphs). Empty for a flowchart. */
+export function lanesOf(model: FlowModel): FlowSubgraph[] {
+  return isSwimlane(model) ? model.subgraphs.filter((s) => s.parent === null) : [];
+}
+
+/**
+ * Swimlanes: the flow runs across the lanes. `swimlane-beta LR` has lanes as rows (bands that
+ * span left to right) and the flow goes down through them; `TB` has lanes as columns.
+ */
+export function laneFlow(direction: Direction): Direction {
+  return direction === 'LR' || direction === 'RL' ? 'TB' : 'LR';
 }

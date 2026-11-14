@@ -11,6 +11,8 @@ import { edgeLook, isPlain, nodeLook, subgraphLook, type Look } from './styling'
 import {
   buildTree,
   diagramCurve,
+  laneFlow,
+  lanesOf,
   visibleModel,
   type Asset,
   type Direction,
@@ -41,6 +43,10 @@ export interface SubgraphNodeData extends Record<string, unknown> {
   markdown: boolean;
   /** Drawn as one box; the contents are hidden. */
   collapsed: boolean;
+  /** State diagrams: a concurrency region (no title, dashed). */
+  region?: boolean;
+  /** A swimlane: a band with its title along its start. `rows`: the lanes are rows (title on the left). */
+  lane?: { rows: boolean; index: number };
   look?: Look;
   sourcePosition: Position;
   targetPosition: Position;
@@ -400,10 +406,21 @@ export function textSettings(model: FlowModel): TextSettings {
   };
 }
 
+/** Yellow, as Mermaid draws state notes. */
+const NOTE_LOOK: Look = { fill: '#fff5ad', stroke: '#aaaa33', color: '#333333' };
+/** A state diagram's start is a filled dot. */
+const START_LOOK: Look = { fill: 'var(--node-stroke)' };
+
+/** State diagrams: choice, fork and join have no visible label (Mermaid draws only the shape). */
+function stateView(model: FlowModel): FlowModel {
+  if (model.kind !== 'state') return model;
+  return { ...model, nodes: model.nodes.map((n) => (n.state === 'choice' || n.state === 'fork' || n.state === 'join' ? { ...n, label: '' } : n)) };
+}
+
 /** The model as the canvas shows it, with the maps both layout engines need. */
 export function layoutContext(full: FlowModel): LayoutContext {
   // Collapsed subgraphs: their contents are not drawn, crossing edges end at the box.
-  const model = visibleModel(full);
+  const model = stateView(visibleModel(full));
   const parentOf = new Map<string, string | null>();
   const childrenOf = new Map<string | null, string[]>();
   const addChild = (parent: string | null, id: string): void => {
@@ -443,6 +460,7 @@ export function canvasFrom(
 ): { nodes: CanvasNode[]; edges: LabelEdge[] } {
   const { model } = ctx;
   const nodes: CanvasNode[] = [];
+  const laneIndex = new Map(lanesOf(model).map((lane, i) => [lane.id, i]));
   /** React Flow needs each parent before its children, and child positions relative to the parent. */
   const emit = (items: TreeItem[], parent: string | null): void => {
     const origin = parent ? (boxes.get(parent) as Box) : { x: 0, y: 0 };
@@ -465,7 +483,10 @@ export function canvasFrom(
             label: item.node.label,
             markdown: item.node.markdown,
             shape: item.node.shape,
-            ...lookField(nodeLook(model, item.node)),
+            ...lookField({
+              ...(item.node.state === 'note' ? NOTE_LOOK : item.node.state === 'start' ? START_LOOK : {}),
+              ...nodeLook(model, item.node),
+            }),
             ...(item.node.click ? { click: item.node.click } : {}),
             ...(item.node.asset ? { asset: item.node.asset } : {}),
             sourcePosition: handles.source,
@@ -480,6 +501,8 @@ export function canvasFrom(
             label: item.subgraph.label,
             markdown: item.subgraph.markdown,
             collapsed: item.subgraph.view === 'collapsed',
+            ...(item.subgraph.region ? { region: true } : {}),
+            ...(laneIndex.has(id) ? { lane: { rows: laneFlow(model.direction) === 'TB', index: laneIndex.get(id)! } } : {}),
             ...lookField(subgraphLook(model, item.subgraph)),
             sourcePosition: handles.source,
             targetPosition: handles.target,

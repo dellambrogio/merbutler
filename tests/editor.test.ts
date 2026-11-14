@@ -118,3 +118,62 @@ describe('error marks', () => {
     expect(line('flowchart LR\n  x --> ab\n  ab --> c\n  click c "x"', 'Not supported: click on c, which is not a node (node c)')).toBe('ab --> c');
   });
 });
+
+describe('other diagram types', () => {
+  test('each type gets its keywords highlighted, in a generic mode', () => {
+    const all = tokens('sequenceDiagram\n  %% note\n  participant Alice\n  Alice->>Bob: "Hi" 42\n  loop Every minute\n  end\n');
+    expect(find(all, 'sequenceDiagram')).toBe('keyword');
+    expect(find(all, '%% note')).toBe('comment');
+    expect(find(all, 'participant')).toBe('keyword');
+    expect(find(all, 'Alice')).toBe('variableName');
+    expect(find(all, '->>')).toBe('operator');
+    expect(find(all, '"Hi"')).toBe('string');
+    expect(find(all, '42')).toBe('number');
+    expect(find(all, 'loop')).toBe('keyword');
+    // A flowchart keyword is not one in a sequence diagram.
+    expect(find(tokens('sequenceDiagram\n  A->>B: style\n'), 'style')).toBe('variableName');
+  });
+
+  test('beta keywords, front matter, and types with dashes in keywords', () => {
+    const all = tokens('---\ntitle: Sales\n---\nxychart-beta\n  x-axis [jan, feb]\n  bar [1, 2]\n');
+    expect(find(all, 'xychart-beta')).toBe('keyword');
+    expect(find(all, 'x-axis')).toBe('keyword');
+    expect(find(all, 'bar')).toBe('keyword');
+    expect(find(tokens('stateDiagram-v2\n  [*] --> A\n  A --> B : go\n'), '[*]')).toBe('atom');
+  });
+
+  test('swimlanes use the flowchart mode', () => {
+    const all = tokens('swimlane-beta LR\n  subgraph A\n    a --> b\n  end\n');
+    expect(find(all, 'swimlane-beta')).toBe('keyword');
+    expect(find(all, 'LR')).toBe('atom');
+    expect(find(all, 'subgraph')).toBe('keyword');
+    expect(find(all, '-->')).toBe('operator');
+  });
+
+  async function complete(doc: string): Promise<string[]> {
+    const pos = doc.indexOf('|');
+    const state = EditorState.create({ doc: doc.replace('|', ''), extensions: [mermaidLanguage] });
+    const result = await completionSource(() => ({ ids: [], classes: [] }))(new CompletionContext(state, pos, true));
+    return result?.options.map((o) => o.label) ?? [];
+  }
+
+  test('the header completes every type keyword', async () => {
+    const labels = await complete('|');
+    expect(labels).toEqual(expect.arrayContaining(['flowchart', 'sequenceDiagram', 'stateDiagram-v2', 'swimlane-beta', 'xychart-beta', 'railroad-peg-beta', 'C4Context']));
+    expect(await complete('---\ntitle: x\n---\nseq|')).toContain('sequenceDiagram');
+  });
+
+  test("the body completes the type's keywords", async () => {
+    expect(await complete('gitGraph\n  com|')).toEqual(expect.arrayContaining(['commit', 'branch', 'checkout', 'merge']));
+    expect(await complete('swimlane-beta |')).toEqual(['TB', 'TD', 'BT', 'LR', 'RL']);
+  });
+
+  test('error marks count from the header line of any type', () => {
+    const doc = Text.of('---\ntitle: x\n---\nsequenceDiagram\n  %% c\n  Alice->>Bob: hi\n  Bob-->>>Alice'.split('\n'));
+    const mark = errorDiagnostic(doc, 'Parse error on line 3:\n...');
+    expect(mark && doc.sliceString(mark.from, mark.to)).toBe('Bob-->>>Alice');
+    const pie = Text.of('pie title X\n  "a" : 1\n  "b" : x'.split('\n'));
+    const pieMark = errorDiagnostic(pie, 'Parsing failed: Lexer error on line 3, column 9: unexpected character');
+    expect(pieMark && pie.sliceString(pieMark.from, pieMark.to)).toBe('"b" : x');
+  });
+});

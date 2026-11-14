@@ -1,6 +1,7 @@
 /**
- * Code panel support for Mermaid flowcharts: syntax highlighting, indentation, `%%` comments,
- * autocompletion and error marks. CodeMirror extensions, used by CodeEditor.tsx.
+ * Code panel support for Mermaid: syntax highlighting, indentation, `%%` comments, autocompletion
+ * and error marks. Flowcharts get a full mode; the other diagram types get a generic mode with
+ * their keywords. CodeMirror extensions, used by CodeEditor.tsx.
  */
 import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting, type StringStream } from '@codemirror/language';
@@ -10,6 +11,7 @@ import { tags as t } from '@lezer/highlight';
 import { loadIconPacks } from './icons';
 import { SHAPE_INFO, SHAPES } from './shapes';
 import { THEMES } from './themes';
+import { DIAGRAM_TYPES, HEADER_LINE, typeOfKeyword, type DiagramType } from './diagramTypes';
 
 // ---------------------------------------------------------------------------------------------
 // Syntax highlighting
@@ -31,8 +33,37 @@ interface MermaidState {
   declarations: boolean;
   /** Open `subgraph` blocks, for the indentation. */
   depth: number;
-  /** The `flowchart` line was seen. */
+  /** The `flowchart` line (or another type's header line) was seen. */
   body: boolean;
+  /** Body keywords of a type other than flowchart (generic mode), or null for the flowchart mode. */
+  words: ReadonlySet<string> | null;
+}
+
+/** Types that use the flowchart mode. */
+const FLOWCHART_MODE = new Set(['Flowchart', 'Swimlane']);
+const WORDS_BY_TYPE = new Map(DIAGRAM_TYPES.map((t) => [t, new Set(t.words)]));
+
+/** Generic mode: keywords of the type, strings, numbers, arrows, brackets. */
+const OTHER_WORD = /^[\p{L}_][\p{L}\p{N}_]*(?:-[\p{L}\p{N}_]+)*/u;
+const OTHER_ARROW = /^(?:[<|*}{]*(?:--+|\.\.+|==+|-)[-.=>|o*x}{)+]*|<<?|>>?)/;
+
+function otherToken(stream: StringStream, words: ReadonlySet<string>): string {
+  if (stream.match(/^<<[^>\n]*>>/)) return 'meta';
+  if (stream.match(/^::icon\([^)]*\)/)) return 'meta';
+  if (stream.match(/^:::[\w-]+/)) return 'className';
+  if (stream.match(/^#[\da-fA-F]{3,8}\b/)) return 'color';
+  if (stream.match(/^-?\d+(?:\.\d+)?(?:%|px|d|h|m|s|w)?(?![\p{L}_])/u)) return 'number';
+  const word = stream.match(OTHER_WORD) as RegExpMatchArray | null;
+  if (word) {
+    if (words.has(word[0])) return 'keyword';
+    if (/^(TB|TD|BT|LR|RL)$/.test(word[0])) return 'atom';
+    return 'variableName';
+  }
+  if (stream.match(/^\[\*\]/)) return 'atom';
+  if (stream.match(OTHER_ARROW)) return 'operator';
+  if (stream.match(/^[[\](){}]/)) return 'bracket';
+  stream.next();
+  return 'punctuation';
 }
 
 const KEYWORDS = /^(flowchart|graph|subgraph|end|direction|classDef|class|style|linkStyle|click|call|href|default|interpolate)\b/;
@@ -138,6 +169,20 @@ function token(stream: StringStream, state: MermaidState): string | null {
     return 'punctuation';
   }
 
+  // The header line: the type decides the mode.
+  if (!state.body) {
+    const header = stream.match(/^[A-Za-z][\w-]*/, false) as RegExpMatchArray | null;
+    const type = header ? typeOfKeyword(header[0]) : undefined;
+    if (type) {
+      stream.match(header![0]);
+      state.body = true;
+      if (FLOWCHART_MODE.has(type.name)) state.direction = true;
+      else state.words = WORDS_BY_TYPE.get(type) ?? new Set();
+      return 'keyword';
+    }
+  }
+  if (state.words) return otherToken(stream, state.words);
+
   if (state.direction && stream.match(DIRECTION)) {
     state.direction = false;
     return 'atom';
@@ -174,12 +219,14 @@ function token(stream: StringStream, state: MermaidState): string | null {
 
 const mermaidLanguage = StreamLanguage.define<MermaidState>({
   name: 'mermaid',
-  startState: () => ({ front: 'before', string: false, data: 0, shape: false, pipe: false, direction: false, declarations: false, depth: 0, body: false }),
+  startState: () => ({ front: 'before', string: false, data: 0, shape: false, pipe: false, direction: false, declarations: false, depth: 0, body: false, words: null }),
   copyState: (s) => ({ ...s }),
   token,
   // The body is indented one level under `flowchart`, one more inside each subgraph.
+  // Other types: keep the indentation of the line above.
   indent: (state, textAfter, cx) => {
     if (!state.body) return 0;
+    if (state.words) return null;
     const depth = /^\s*end\b/.test(textAfter) ? state.depth - 1 : state.depth;
     return (depth + 1) * cx.unit;
   },
@@ -227,7 +274,10 @@ const STATEMENTS: Completion[] = [
   kw('linkStyle', 'style edges by index', 'linkStyle '),
   kw('click', 'link or callback', 'click '),
 ];
-const HEADER: Completion[] = [kw('flowchart', 'diagram type', 'flowchart '), kw('graph', 'diagram type', 'graph ')];
+/** Header keywords of every type, the preferred one of each type ranked first. */
+const HEADER: Completion[] = DIAGRAM_TYPES.filter((t) => t.name !== 'Info').flatMap((t) =>
+  t.keywords.map((k, i) => ({ label: k, detail: t.name, type: 'keyword', apply: `${k}${t.name === 'Flowchart' || t.name === 'Swimlane' ? ' ' : '\n  '}`, boost: i === 0 ? 1 : 0 })),
+);
 const DIRECTIONS: Completion[] = ['TB', 'TD', 'BT', 'LR', 'RL'].map((d) => ({ label: d, type: 'constant', detail: { TB: 'top to bottom', TD: 'top down', BT: 'bottom to top', LR: 'left to right', RL: 'right to left' }[d] }));
 const CURVES = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
 const enumValues = (values: string[], detail?: string): Completion[] => values.map((v) => ({ label: v, type: 'enum', ...(detail ? { detail } : {}) }));
@@ -285,10 +335,22 @@ const STYLE_PROPERTIES: Completion[] = ['fill', 'stroke', 'stroke-width', 'strok
   apply: `${label}:`,
 }));
 
-/** Line number (1-based) of the `flowchart` line, or 0. */
+/** Line number (1-based) of the header line (`flowchart`, `sequenceDiagram`, …) after the front matter, or 0. */
 function headerLine(doc: Text): number {
-  for (let i = 1; i <= doc.lines; i++) if (/^\s*(flowchart|graph)\b/.test(doc.line(i).text)) return i;
+  let i = 1;
+  if (doc.lines > 1 && /^---\s*$/.test(doc.line(1).text)) {
+    for (i = 2; i <= doc.lines && !/^---\s*$/.test(doc.line(i).text); i++);
+    i++;
+  }
+  for (; i <= doc.lines; i++) if (HEADER_LINE.test(doc.line(i).text)) return i;
   return 0;
+}
+
+/** The type of the header line, if any. */
+function headerType(doc: Text, header: number): DiagramType | undefined {
+  if (header === 0) return undefined;
+  const keyword = HEADER_LINE.exec(doc.line(header).text)?.[1];
+  return keyword ? typeOfKeyword(keyword) : undefined;
 }
 
 /** Icon names of the bundled packs, as `prefix:name`, loaded on first use. */
@@ -327,7 +389,17 @@ export function completionSource(data: () => CompletionData): (cx: CompletionCon
       if (/^\s*[\w-]*$/.test(before)) return { from, options: header === 0 ? [...HEADER, ...FRONT_KEYS] : FRONT_KEYS };
       return null;
     }
-    if (line.number === header) return /\b(flowchart|graph)\s+\w*$/.test(before) ? { from, options: DIRECTIONS } : null;
+    const type = headerType(cx.state.doc, header);
+    if (line.number === header) {
+      if (/^\s*[\w-]*$/.test(before)) return { from, options: HEADER };
+      if (type && /^(Flowchart|Swimlane|Git graph)$/.test(type.name) && /^\s*[\w-]+\s+\w*$/.test(before)) return { from, options: DIRECTIONS };
+      return null;
+    }
+    // Other types: their keywords at the start of a line.
+    if (type && !FLOWCHART_MODE.has(type.name)) {
+      if (!/^\s*[\w-]*$/.test(before) || type.words.length === 0) return null;
+      return { from, options: [...new Set(type.words)].map((w) => ({ label: w, type: 'keyword' })) };
+    }
 
     // `@{ key: value }` data.
     const open = before.lastIndexOf('@{');
@@ -400,7 +472,7 @@ export function errorDiagnostic(doc: Text, error: string): Diagnostic | null {
     const start = line.from + (line.text.length - line.text.trimStart().length);
     return { from: start, to: Math.max(start, line.to), severity: 'error', message: error };
   };
-  const parseError = /Parse error on line (\d+)/.exec(message);
+  const parseError = /(?:Parse|Lexical|Lexer) error on line (\d+)/.exec(message);
   const header = headerLine(doc);
   if (parseError && header > 0) return lineMark(mermaidLineToDocLine(doc, header, Number(parseError[1])));
 

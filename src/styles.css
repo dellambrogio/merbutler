@@ -118,6 +118,30 @@ button.danger { color: var(--danger); }
 .canvas.read-only .react-flow { opacity: 0.55; }
 .placeholder { padding: 24px; color: var(--muted); }
 
+/* Preview: Mermaid's drawing of a type the canvas does not edit. */
+.preview { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.preview-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 8px;
+  border-bottom: 1px solid var(--border); background: var(--panel); font-size: 12px;
+}
+.preview-toolbar button { padding: 0 7px; font-size: 12px; line-height: 20px; }
+.preview-toolbar .preview-zoom { min-width: 48px; color: var(--muted); }
+.preview-badge { color: var(--accent); }
+.preview-type { font-weight: 600; }
+/* Mermaid draws for a light background, in both color schemes (as in the gallery). */
+.preview-surface {
+  position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab;
+  background: #fff; touch-action: none;
+}
+.preview-surface:active { cursor: grabbing; }
+.preview-surface.stale .preview-content { opacity: 0.45; }
+.preview-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.preview-content svg { display: block; }
+.preview-error {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 8px 12px; border-radius: 6px;
+  background: #fdecec; color: #c43c3c; font-size: 12px; white-space: pre-wrap;
+}
+
 .toolbar, .inspector {
   position: absolute; z-index: 5; background: var(--panel);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px;
@@ -294,3 +318,60 @@ button.danger { color: var(--danger); }
 .label-icon { display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; }
 .asset-icon.drawn { color: var(--text); padding: 18%; }
 .asset-icon-svg { width: 100%; height: 100%; display: block; }
+.gallery-part { font-size: 16px; margin: 24px 0 0; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.gallery-part:first-child { margin-top: 12px; }
+.gallery-body section { scroll-margin-top: 8px; }
+
+/* Swimlanes: bands with the title in a strip at the lane's start (36px, LANE_TITLE in layoutEngine.ts). */
+.subgraph-node.lane { border-radius: 0; border-style: solid; border-width: 1px; background: var(--lane-fill); border-color: var(--lane-stroke); }
+.subgraph-node.lane.selected { border-color: var(--accent); }
+.lane .subgraph-title { position: absolute; justify-content: center; align-items: center; color: var(--text); font-size: 13px; padding: 0 6px; }
+.lane-row .subgraph-title { left: 0; top: 0; bottom: 0; width: 36px; writing-mode: vertical-rl; transform: rotate(180deg); border-left: 1px solid var(--lane-stroke); }
+.lane-column .subgraph-title { left: 0; right: 0; top: 0; height: 36px; border-bottom: 1px solid var(--lane-stroke); }
+.lane .subgraph-input { position: absolute; left: 4px; top: 4px; width: 160px; z-index: 1; }
+.lane-tint-0 { --lane-fill: rgb(214 102 255 / 0.08); --lane-stroke: rgb(190 80 230 / 0.6); }
+.lane-tint-1 { --lane-fill: rgb(45 200 170 / 0.08); --lane-stroke: rgb(30 170 140 / 0.6); }
+.lane-tint-2 { --lane-fill: rgb(255 160 60 / 0.09); --lane-stroke: rgb(230 130 40 / 0.6); }
+.lane-tint-3 { --lane-fill: rgb(70 130 255 / 0.08); --lane-stroke: rgb(60 110 230 / 0.6); }
+.lane-tint-4 { --lane-fill: rgb(240 200 40 / 0.1); --lane-stroke: rgb(200 160 20 / 0.6); }
+.lane-tint-5 { --lane-fill: rgb(240 80 110 / 0.08); --lane-stroke: rgb(220 60 90 / 0.6); }
+
+/* State diagrams: a concurrency region inside a composite state. */
+.subgraph-node.region { border-style: dashed; border-radius: 4px; background: transparent; }
+.subgraph-node.region .subgraph-title { min-height: 10px; padding: 2px; }
+.inspector-note { font-size: 12px; }
+
+/* Structured editors (outline, tables) next to the preview. */
+.structured-layout { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(260px, 380px) 1fr; }
+.structured-preview { position: relative; min-width: 0; }
+.structured-panel {
+  display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); background: var(--panel);
+}
+.structured-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.structured-toolbar button { padding: 0 7px; font-size: 12px; line-height: 22px; }
+.outline-tree { flex: 1; min-height: 80px; overflow: auto; padding: 4px 0; outline: none; }
+.outline-tree:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.outline-row { display: flex; gap: 6px; padding: 2px 8px; cursor: pointer; font-size: 13px; line-height: 20px; white-space: nowrap; }
+.outline-row:hover { background: var(--active-line); }
+.outline-row.selected { background: var(--selection); }
+.outline-bullet { color: var(--muted); width: 10px; flex: none; text-align: center; }
+.outline-text { overflow: hidden; text-overflow: ellipsis; }
+.structured-fields { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-top: 1px solid var(--border); }
+.structured-fields label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
+.structured-fields .mono, .data-table .mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.structured-hint { font-size: 11px; padding: 6px 8px; border-top: 1px solid var(--border); }
+@media (max-width: 900px) {
+  .structured-layout { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 45%) 1fr; }
+  .structured-panel { border-right: none; border-bottom: 1px solid var(--border); }
+}
+.table-scroll { flex: 1; min-height: 80px; overflow: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--border); }
+.data-table td { padding: 1px 2px; border-bottom: 1px solid var(--border); }
+.data-table .numeric { width: 64px; }
+.data-table input { width: 100%; min-width: 0; border-color: transparent; background: transparent; padding: 2px 4px; font-size: 12px; }
+.data-table input:hover:not(:disabled), .data-table input:focus { border-color: var(--border); background: var(--bg); }
+.data-table tr.selected td { background: var(--selection-match); }
+.data-table .section-row td { background: var(--active-line); }
+.data-table .section-row input { font-weight: 600; }
+.structured-title { font-size: 12px; align-self: center; margin-right: 4px; }

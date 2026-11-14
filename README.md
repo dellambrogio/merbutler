@@ -1,6 +1,10 @@
 # Merbutler
 
-**A visual editor for Mermaid flowcharts.** Edit the code or the canvas, and the other side follows.
+**A visual editor for Mermaid diagrams.** Edit the code or the canvas, and the other side follows.
+
+Flowcharts, swimlanes and state diagrams are edited on a canvas. Trees (mindmaps, treemaps, kanban boards, …) get an
+outline editor, and data diagrams (pie, gantt, sequence messages, …) a table, next to Mermaid's own drawing. Every
+other Mermaid diagram type opens as a preview.
 
 Paste a flowchart from a doc or an agent's answer, rearrange it with the mouse, and copy clean Mermaid back out.
 Everything runs in the browser: no server, no account.
@@ -35,6 +39,7 @@ flowchart LR
 - [Code editor](#code-editor)
 - [Paste](#paste)
 - [Canvas actions](#canvas-actions)
+- [Every diagram type](#every-diagram-type)
 - [Supported Mermaid subset](#supported-mermaid-subset)
 - [Known limitations](#known-limitations)
 - [Project layout](#project-layout)
@@ -49,8 +54,10 @@ flowchart LR
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
   and HTML in labels never runs.
-- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, drawn by Mermaid, with a badge
-  that says whether the canvas can edit it. Click one to open it.
+- 🗂️ **Every Mermaid diagram type**: the canvas edits flowcharts, swimlanes (`swimlane-beta`) and state diagrams;
+  outline and table editors cover the others; the rest open as Mermaid's own drawing, with pan and zoom.
+- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, and all 81 examples of Mermaid's
+  "All Diagram Examples" page, drawn by Mermaid, with a badge that says how the app edits each. Click one to open it.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.
 
 ## Quick start
@@ -88,7 +95,10 @@ just dev        # open the URL that Vite prints
 ## Code editor
 
 - **Syntax highlighting** for the flowchart syntax (keywords, edges, labels, `@{}` data, styling, front matter,
-  comments), in light and dark mode.
+  comments), in light and dark mode. Other diagram types get a simpler mode: their keywords, strings, numbers,
+  arrows and comments.
+- **Header completion** for all diagram types (`sequenceDiagram`, `stateDiagram-v2`, `xychart-beta`, …), and each
+  type's keywords at the start of a line.
 - **Autocompletion** (as you type, or Ctrl+Space): statements, directions, node and subgraph ids of the diagram,
   all shape names and aliases in `@{ shape: … }`, `@{}` keys and values, class names, curves, themes and looks in the
   front matter, and FontAwesome icon names after `fa:fa-` or in `icon: "…"`.
@@ -124,7 +134,23 @@ just dev        # open the URL that Vite prints
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select |
 
+## Every diagram type
+
+| Diagram types | How the app edits them |
+|---|---|
+| Flowchart, swimlane (`swimlane-beta`) | **Canvas.** Swimlanes are drawn as lanes (rows for `LR`, columns for `TB`), laid out with one ELK partition per lane. **+ Lane** adds one |
+| State diagram (`stateDiagram-v2`) | **Canvas.** States, `[*]` start and end (**+ Start**, **+ End**, per composite state), choice, fork and join, composite states (**+ Composite**) with their own direction, concurrency regions (inspector → **+ Concurrent region**), notes (**+ Note**), transition labels, `classDef`/`class`/`style`. Comments are kept, at the end. What the canvas cannot keep (a floating note) opens as a preview that says why |
+| Mindmap, ishikawa, treeView, treemap, kanban, venn | **Outline editor** next to the preview: add, indent (Tab), outdent (Shift+Tab), move (Alt+↑/↓), delete; typed fields per type (mindmap shape and icon, treemap value, tree view annotation, kanban card data) |
+| Pie, sankey, packet, radar, XY chart, quadrant, timeline, user journey, gantt, git graph | **Table editor** next to the preview: one row per data line (sections as headings). Other lines (title, axes, settings) stay in the code |
+| Sequence, class, ER, requirement, C4, architecture, use case, block | **Table of relations** next to the preview (messages, relations, relationships, edges). Participants, classes, entities and blocks are edited in the code |
+| Event modeling, Wardley map, Cynefin, railroad (IR, EBNF, ABNF, PEG) | **Preview** only: edit them in the code |
+
+The outline and table editors write only the lines they change (the outline rewrites the tree's indentation).
+Mermaid draws every preview with `securityLevel: strict`, the same as the gallery.
+
 ## Supported Mermaid subset
+
+The canvas reads this flowchart syntax:
 
 | Feature | Syntax |
 |---|---|
@@ -163,7 +189,8 @@ flowchart LR
   c ==>|yes| e[(Store)]
 ```
 
-Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax and its status.
+Open the **Gallery** in the app to see every feature of the Mermaid flowchart syntax, every Mermaid diagram type,
+and how the app edits each.
 
 Code the canvas cannot represent shows an error, and the canvas stays read-only. This prevents a canvas edit from
 deleting those parts. Today every example in the Gallery is editable, and none loses code on a canvas edit.
@@ -194,8 +221,11 @@ deleting those parts. Today every example in the Gallery is editable, and none l
   also the order Mermaid applies them in.
 - A style value with quotes, comments or `url(…)` is kept in the code but not drawn. A fill without a text color
   gets dark or light text on the canvas so the label stays readable.
-- `src/parse.ts` uses Mermaid internals (`mermaidAPI.getDiagramFromText` and the flowchart DB).
-  The `mermaid` version is pinned. Run `just test` after you update it.
+- State diagrams: a canvas edit writes each state in its composite state and each transition in the innermost
+  composite that holds both ends, and moves comments to the end. A state with quotes or line breaks in its label is
+  written as `id : text` lines.
+- `src/parse.ts` and `src/stateDiagram.ts` use Mermaid internals (`mermaidAPI.getDiagramFromText`, the flowchart
+  and state DBs). The `mermaid` version is pinned. Run `just test` after you update it.
 
 ## Project layout
 
@@ -208,8 +238,14 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/styling.ts` | How classDef/class/style/linkStyle look on the canvas |
 | `src/AssetView.tsx` | Icon and image nodes, and consent for remote images |
 | `src/shapes.ts` | All node shapes: names, aliases, bracket syntax, sizes, label placement |
-| `src/parse.ts` | Mermaid text → model |
+| `src/parse.ts` | Mermaid text → model, or the type to preview |
 | `src/serialize.ts` | Model → Mermaid text |
+| `src/stateDiagram.ts` | State diagrams: Mermaid's state DB → model, and model → `stateDiagram-v2` |
+| `src/diagramTypes.ts` | Every Mermaid diagram type: ids, header keywords, body keywords, support |
+| `src/Preview.tsx`, `src/render.ts` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
+| `src/outline.ts`, `src/OutlineEditor.tsx` | Indentation trees and the outline editor |
+| `src/tables.tsx`, `src/StructuredEditor.tsx` | Table editors per type, and the panel next to the preview |
+| `src/mermaidExamples.ts` | The 81 examples of Mermaid's "All Diagram Examples" page |
 | `src/layout.ts`, `src/layoutEngine.ts` | Model → positioned React Flow nodes and edges, with dagre or ELK |
 | `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
 | `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |
@@ -218,8 +254,8 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
 | `src/App.tsx` | Split view and sync logic |
-| `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples and the gallery panel |
-| `tests/` | Round-trip, layout, label and clipboard tests, with `.mmd` fixtures |
+| `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples, the page's examples, and the gallery panel |
+| `tests/` | Round-trip, layout, label, clipboard, swimlane, state, outline and table tests, with `.mmd` fixtures |
 
 ## License
 

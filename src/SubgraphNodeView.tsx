@@ -9,10 +9,19 @@ import { boxVars, textStyle } from './styling';
 /** Lets a subgraph collapse or expand itself. Null when the canvas is read-only. */
 export const CollapseContext = createContext<((id: string) => void) | null>(null);
 
-/** A subgraph box. Double-click the title to rename it. The arrow collapses or expands it. */
+/** Lane colors cycle through this many tints (styles.css). */
+const LANE_TINTS = 6;
+
+/**
+ * A subgraph box, or a swimlane band. Double-click the title to rename it. The arrow collapses or
+ * expands a subgraph.
+ */
 export function SubgraphNodeView({ id, data, width, height, selected }: NodeProps<SubgraphNode>): JSX.Element {
   const rename = useContext(RenameContext);
-  const toggle = useContext(CollapseContext);
+  const collapse = useContext(CollapseContext);
+  // A lane stays a band: it does not collapse on the canvas.
+  const toggle = data.lane || data.region ? null : collapse;
+  const lane = data.lane ? ` lane ${data.lane.rows ? 'lane-row' : 'lane-column'} lane-tint-${data.lane.index % LANE_TINTS}` : '';
   const [draft, setDraft] = useState<string | null>(null);
   /** True while the input is open. The blur that follows Enter/Escape must not commit again. */
   const editing = useRef(false);
@@ -35,7 +44,7 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
 
   return (
     <div
-      className={`subgraph-node${data.collapsed ? ' collapsed' : ''}${selected ? ' selected' : ''}`}
+      className={`subgraph-node${data.collapsed ? ' collapsed' : ''}${selected ? ' selected' : ''}${lane}${data.region ? ' region' : ''}`}
       style={{ width, height, ...boxVars(data.look) }}
     >
       <Handle type="target" position={data.targetPosition} />

@@ -2,6 +2,7 @@
  * FlowModel -> Mermaid text. The output is deterministic: header, then the nesting tree
  * (at each level nodes first, then subgraph blocks), then all edges.
  */
+import { serializeState } from './stateDiagram';
 import {
   buildTree,
   keepsAtSyntax,
@@ -144,8 +145,9 @@ function treeLines(items: TreeItem[], depth: number, out: string[]): void {
 }
 
 export function serialize(model: FlowModel): string {
+  if (model.kind === 'state') return serializeState(model);
   const lines = model.preamble ? [model.preamble] : [];
-  lines.push(`flowchart ${model.direction}`);
+  lines.push(`${model.kind === 'swimlane' ? 'swimlane-beta' : 'flowchart'} ${model.direction}`);
   treeLines(buildTree(model), 1, lines);
   for (const edge of model.edges) {
     for (const comment of edge.comments ?? []) lines.push(`${INDENT}${comment}`);

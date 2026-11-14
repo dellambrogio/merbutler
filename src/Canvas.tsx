@@ -30,6 +30,7 @@ import {
   commentsToText,
   connect,
   diagramTitle,
+  isSwimlane,
   nextEdgeId,
   nextNodeId,
   nextSubgraphId,
@@ -42,7 +43,10 @@ import {
   type Direction,
   type EdgeEnd,
   type Asset,
+  type FlowEdge,
   type FlowModel,
+  type FlowNode,
+  type FlowSubgraph,
   type Shape,
   type Stroke,
   type Styled,
@@ -53,6 +57,7 @@ import { classesFromText, stylesFromText, stylesToText } from './styling';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
 import { checkClick } from './parse';
+import { addNote, addPseudoState, canTransition, noteLink, setStateKind, STATE_KINDS } from './stateDiagram';
 import { diagramTheme, GRADIENT_ID, HAND_DRAWN_ID, themeVars, type DiagramTheme } from './themes';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -72,7 +77,7 @@ function ParentSelect({
 }): JSX.Element {
   return (
     <label>
-      Subgraph
+      {isSwimlane(model) ? 'Lane or subgraph' : 'Subgraph'}
       <select value={value ?? ''} onChange={(e) => onSelect(e.target.value || null)}>
         <option value="">(none)</option>
         {model.subgraphs
@@ -451,6 +456,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   };
 
   const onConnect = (c: Connection): void => {
+    if (stateDiagram && !canTransition(model, c.source, c.target)) return;
     pendingSelect.current = nextEdgeId(model);
     onChange(connect(model, c.source, c.target));
   };
@@ -483,15 +489,27 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   /** A new element goes into the selected subgraph, or next to the selected node. */
   const targetParent = (): string | null => subgraph?.id ?? node?.parent ?? null;
 
+  const stateDiagram = model.kind === 'state';
   const onAddNode = (): void => {
     pendingSelect.current = nextNodeId(model);
-    onChange(addNode(model, 'New node', 'rect', targetParent()));
+    onChange(stateDiagram ? addNode(model, 'New state', 'round', targetParent()) : addNode(model, 'New node', 'rect', targetParent()));
   };
+  /** State diagrams: `[*]` of the selected composite (or the top level). */
+  const onAddPseudo = (kind: 'start' | 'end'): void => onChange(addPseudoState(model, targetParent(), kind));
+  const noteTarget = node && !node.state ? node.id : null;
 
   const onAddSubgraph = (): void => {
     pendingSelect.current = nextSubgraphId(model);
     onChange(addSubgraph(model, 'Group', targetParent()));
   };
+
+  /** A new lane goes after the last one. */
+  const onAddLane = (): void => {
+    pendingSelect.current = nextSubgraphId(model);
+    onChange(addSubgraph(model, 'Lane', null));
+  };
+  const swimlane = isSwimlane(model);
+  const isLane = (id: string): boolean => swimlane && model.subgraphs.some((s) => s.id === id && s.parent === null);
 
   const deleteSelected = (): void => {
     onChange(removeElements(model, selectedNodes.map((n) => n.id), selectedEdges.map((e) => e.id)));
@@ -503,13 +521,31 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`}>
       <div className="toolbar">
         <button onClick={onAddNode} disabled={readOnly}>
-          + Node
+          {stateDiagram ? '+ State' : '+ Node'}
         </button>
+        {stateDiagram && (
+          <>
+            <button onClick={() => onAddPseudo('start')} disabled={readOnly} title="[*] start of the selected composite state, or of the diagram">
+              + Start
+            </button>
+            <button onClick={() => onAddPseudo('end')} disabled={readOnly} title="[*] end of the selected composite state, or of the diagram">
+              + End
+            </button>
+            <button onClick={() => noteTarget && onChange(addNote(model, noteTarget))} disabled={readOnly || !noteTarget} title="A note next to the selected state">
+              + Note
+            </button>
+          </>
+        )}
+        {swimlane && (
+          <button onClick={onAddLane} disabled={readOnly} title="A swimlane: a top-level subgraph of a swimlane-beta diagram">
+            + Lane
+          </button>
+        )}
         <button onClick={onAddSubgraph} disabled={readOnly}>
-          + Subgraph
+          {stateDiagram ? '+ Composite' : '+ Subgraph'}
         </button>
-        <label>
-          Direction{' '}
+        <label title={swimlane ? 'LR: lanes are rows, the flow goes down through them. TB: lanes are columns.' : undefined}>
+          {swimlane ? 'Lanes' : 'Direction'}{' '}
           <select
             value={model.direction}
             disabled={readOnly}
@@ -526,7 +562,11 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         <button onClick={() => void fitView({ padding: 0.2 })}>Fit</button>
       </div>
 
-      {!readOnly && node && (
+      {!readOnly && stateDiagram && node && <StateNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && stateDiagram && subgraph && <StateSubgraphInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && stateDiagram && edge && <StateEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
+
+      {!readOnly && !stateDiagram && node && (
         <div className="inspector">
           <div className="inspector-title">Node {node.id}</div>
           <label>
@@ -588,9 +628,11 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         </div>
       )}
 
-      {!readOnly && subgraph && (
+      {!readOnly && !stateDiagram && subgraph && (
         <div className="inspector">
-          <div className="inspector-title">Subgraph {subgraph.id}</div>
+          <div className="inspector-title">
+            {isLane(subgraph.id) ? 'Lane' : 'Subgraph'} {subgraph.id}
+          </div>
           <label>
             Label
             <LabelInput
@@ -651,7 +693,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         </div>
       )}
 
-      {!readOnly && edge && (
+      {!readOnly && !stateDiagram && edge && (
         <div className="inspector">
           <div className="inspector-title">
             Edge {edge.ref ? `${edge.ref}: ` : ''}
@@ -783,6 +825,169 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
           </RenameContext.Provider>
         </CollapseContext.Provider>
       </ImageConsentContext.Provider>
+    </div>
+  );
+}
+
+interface StateInspectorProps {
+  model: FlowModel;
+  onChange: (model: FlowModel) => void;
+  onDelete: () => void;
+}
+
+/** State diagrams: a state, `[*]`, choice, fork, join or note. */
+function StateNodeInspector({ model, node, onChange, onDelete }: StateInspectorProps & { node: FlowNode }): JSX.Element {
+  const pseudo = node.state === 'start' || node.state === 'end';
+  const title = pseudo ? `[*] ${node.state}` : node.state === 'note' ? `Note on ${node.note?.of}` : `State ${node.id}`;
+  return (
+    <div className="inspector">
+      <div className="inspector-title">{title}</div>
+      {!pseudo && node.state !== 'fork' && node.state !== 'join' && node.state !== 'choice' && (
+        <label>
+          {node.state === 'note' ? 'Text' : 'Label'}
+          <LabelInput key={`${node.id}:${node.label}`} value={node.label} onCommit={(label) => onChange(updateNode(model, node.id, { label }))} />
+        </label>
+      )}
+      {!pseudo && node.state !== 'note' && (
+        <label>
+          Type
+          <select value={node.state ?? 'state'} onChange={(e) => onChange(setStateKind(model, node.id, e.target.value as (typeof STATE_KINDS)[number]['kind']))}>
+            {STATE_KINDS.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                {k.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {node.note && (
+        <label>
+          Side
+          <select
+            value={node.note.position}
+            onChange={(e) => {
+              const note = { ...node.note!, position: e.target.value as 'left of' | 'right of' };
+              const next = { ...model, nodes: model.nodes.map((n) => (n.id === node.id ? { ...n, note } : n)) };
+              onChange({ ...next, edges: next.edges.map((ed) => (ed.noteLink && (ed.source === node.id || ed.target === node.id) ? noteLink({ ...node, note }) : ed)) });
+            }}
+          >
+            <option value="right of">right of</option>
+            <option value="left of">left of</option>
+          </select>
+        </label>
+      )}
+      {node.descriptions && node.descriptions.length > 0 && (
+        <div className="muted inspector-note">More description lines are kept: {node.descriptions.join(' · ')}</div>
+      )}
+      {!pseudo && node.state !== 'note' && (
+        <ParentSelect model={model} value={node.parent} exclude={new Set()} onSelect={(parent) => onChange(setParent(model, node.id, parent))} />
+      )}
+      {!pseudo && node.state !== 'note' && (
+        <StyleFields id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
+      )}
+      <button className="danger" onClick={onDelete}>
+        Delete {node.state === 'note' ? 'note' : 'state'}
+      </button>
+    </div>
+  );
+}
+
+/** State diagrams: a composite state, or a concurrency region in one. */
+function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: StateInspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
+  if (subgraph.region) {
+    return (
+      <div className="inspector">
+        <div className="inspector-title">Concurrent region of {subgraph.parent}</div>
+        <div className="muted inspector-note">Regions are separated by -- in the code. Add states with + State while the region is selected.</div>
+        <button className="danger" onClick={onDelete} title="Its states move to the composite state">
+          Delete region (keep states)
+        </button>
+      </div>
+    );
+  }
+  const addRegion = (): void => {
+    const regions = model.subgraphs.filter((s) => s.parent === subgraph.id && s.region);
+    const id = (k: number): string => `${subgraph.id}__r${k}`;
+    let k = regions.length + 1;
+    while (model.subgraphs.some((s) => s.id === id(k))) k++;
+    const created: FlowSubgraph[] = [];
+    let next = model;
+    if (regions.length === 0) {
+      // The current contents become the first region.
+      created.push({ id: id(k), label: '', markdown: false, parent: subgraph.id, direction: null, region: true });
+      const first = id(k);
+      next = {
+        ...next,
+        nodes: next.nodes.map((n) => (n.parent === subgraph.id ? { ...n, parent: first } : n)),
+        subgraphs: next.subgraphs.map((s) => (s.parent === subgraph.id ? { ...s, parent: first } : s)),
+      };
+      k++;
+    }
+    created.push({ id: id(k), label: '', markdown: false, parent: subgraph.id, direction: null, region: true });
+    onChange({ ...next, subgraphs: [...next.subgraphs, ...created] });
+  };
+  return (
+    <div className="inspector">
+      <div className="inspector-title">Composite state {subgraph.id}</div>
+      <label>
+        Label
+        <LabelInput key={`${subgraph.id}:${subgraph.label}`} value={subgraph.label} onCommit={(label) => onChange(updateSubgraph(model, subgraph.id, { label }))} />
+      </label>
+      <label>
+        Direction
+        <select
+          value={subgraph.direction ?? ''}
+          onChange={(e) => onChange(updateSubgraph(model, subgraph.id, { direction: (e.target.value || null) as Direction | null }))}
+        >
+          <option value="">(inherit)</option>
+          {DIRECTIONS.map((d) => (
+            <option key={d}>{d}</option>
+          ))}
+        </select>
+      </label>
+      <ParentSelect
+        model={model}
+        value={subgraph.parent}
+        exclude={subgraphWithDescendants(model, subgraph.id)}
+        onSelect={(parent) => onChange(setParent(model, subgraph.id, parent))}
+      />
+      <button onClick={addRegion} title="Concurrent regions, separated by -- in the code">
+        + Concurrent region
+      </button>
+      <StyleFields id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
+      <button className="danger" onClick={onDelete} title="The states inside move up one level">
+        Delete composite (keep states)
+      </button>
+    </div>
+  );
+}
+
+/** State diagrams: a transition. Its label is the only setting. */
+function StateEdgeInspector({ model, edge, onChange, onDelete }: StateInspectorProps & { edge: FlowEdge }): JSX.Element {
+  if (edge.noteLink) {
+    return (
+      <div className="inspector">
+        <div className="inspector-title">Note link</div>
+        <div className="muted inspector-note">Select the note to change or delete it.</div>
+      </div>
+    );
+  }
+  const name = (id: string): string => {
+    const kind = model.nodes.find((n) => n.id === id)?.state;
+    return kind === 'start' || kind === 'end' ? '[*]' : id;
+  };
+  return (
+    <div className="inspector">
+      <div className="inspector-title">
+        Transition {name(edge.source)} → {name(edge.target)}
+      </div>
+      <label>
+        Label
+        <LabelInput key={`${edge.id}:${edge.label}`} value={edge.label} onCommit={(label) => onChange(updateEdge(model, edge.id, { label }))} />
+      </label>
+      <button className="danger" onClick={onDelete}>
+        Delete transition
+      </button>
     </div>
   );
 }

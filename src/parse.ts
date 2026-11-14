@@ -8,8 +8,14 @@
 import mermaid from 'mermaid';
 import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEnd, type Asset, type EdgeOptions, type FlowEdge, type Styled, type FlowModel, type FlowNode, type FlowSubgraph, type Stroke } from './model';
 import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
+import { diagramType, HEADER_LINE, type DiagramType } from './diagramTypes';
+import { stateModel } from './stateDiagram';
 
-export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string };
+/**
+ * `ok`: a diagram the canvas edits. Otherwise an error; `preview` is set when Mermaid accepts the
+ * code but it is a type the canvas does not edit, so the app shows Mermaid's rendering instead.
+ */
+export type ParseResult = { ok: true; model: FlowModel } | { ok: false; error: string; preview?: DiagramType };
 
 interface MermaidVertex {
   id: string;
@@ -96,16 +102,31 @@ const STROKE_FROM_MERMAID: Record<string, Stroke> = {
   invisible: 'invisible',
 };
 
-class UnsupportedError extends Error {}
+/** Something Mermaid accepts that the canvas cannot keep. */
+export class UnsupportedError extends Error {}
 
-let initialized = false;
+let initialized: Promise<void> | undefined;
 
-async function ensureInitialized(): Promise<void> {
-  if (initialized) return;
-  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
-  // The first parse registers the lazy diagram detectors.
-  await mermaid.parse('flowchart TB\n  a');
-  initialized = true;
+let mermaidQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs Mermaid work one call at a time. Parsing and rendering fill Mermaid's diagram DBs, which
+ * are shared: two parses that overlap (for example of two architecture diagrams) mix their data.
+ */
+export function withMermaid<T>(work: () => Promise<T>): Promise<T> {
+  const run = mermaidQueue.then(work, work);
+  mermaidQueue = run.catch(() => undefined);
+  return run;
+}
+
+/** Sets up Mermaid once (securityLevel strict) and registers its diagram detectors. */
+export function ensureInitialized(): Promise<void> {
+  initialized ??= withMermaid(async () => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+    // The first parse registers the lazy diagram detectors.
+    await mermaid.parse('flowchart TB\n  a');
+  });
+  return initialized;
 }
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -380,7 +401,8 @@ function toEdgeOptions(e: MermaidEdge, where: string): EdgeOptions {
 
 /** Front matter: `---` on the first line, up to the next line that is only `---`. */
 const FRONT_MATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
-const HEADER = /^[ \t]*(?:flowchart|graph)\b/m;
+/** The header line of any diagram type. */
+const HEADER = new RegExp(HEADER_LINE.source, 'm');
 
 /**
  * The text before the `flowchart` line (front matter, directives, comments), without trailing
@@ -396,9 +418,19 @@ export function preambleOf(text: string): string {
 export async function parse(text: string): Promise<ParseResult> {
   try {
     await ensureInitialized();
-    const diagram = await mermaid.mermaidAPI.getDiagramFromText(text);
-    if (!diagram.type.startsWith('flowchart')) {
-      return { ok: false, error: `Only flowcharts are supported (found "${diagram.type}").` };
+    const diagram = await withMermaid(() => mermaid.mermaidAPI.getDiagramFromText(text));
+    const type = diagramType(diagram.type);
+    if (type.support !== 'canvas') {
+      return { ok: false, error: `The canvas does not edit this type yet (${type.name}).`, preview: type };
+    }
+    if (type.name === 'State diagram') {
+      try {
+        return { ok: true, model: stateModel(diagram.db, text) };
+      } catch (err) {
+        // Mermaid accepts it: show its drawing, and say why the canvas cannot edit it.
+        if (err instanceof UnsupportedError) return { ok: false, error: err.message, preview: type };
+        throw err;
+      }
     }
     const db = diagram.db as unknown as MermaidFlowDb;
     const direction = toDirection(db.getDirection() ?? 'TB');
@@ -428,7 +460,7 @@ export async function parse(text: string): Promise<ParseResult> {
       }
     }
 
-    const model: FlowModel = { direction, nodes, subgraphs, edges };
+    const model: FlowModel = { ...(diagram.type === 'swimlane' ? { kind: 'swimlane' as const } : {}), direction, nodes, subgraphs, edges };
     const classDefs = [...db.getClasses().values()].map((c) => ({ name: c.id, styles: cleanStyles(c.styles) }));
     if (classDefs.length > 0) model.classDefs = classDefs;
     for (const item of [...nodes, ...subgraphs, ...edges]) {

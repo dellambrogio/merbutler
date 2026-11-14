@@ -4,6 +4,9 @@ import { Canvas } from './Canvas';
 import { extractMermaid } from './clipboard';
 import { CodeEditor } from './CodeEditor';
 import { Gallery } from './Gallery';
+import { Preview } from './Preview';
+import { hasStructuredEditor, StructuredEditor, structuredKind } from './StructuredEditor';
+import type { DiagramType } from './diagramTypes';
 import type { FlowModel } from './model';
 import { parse } from './parse';
 import { serialize } from './serialize';
@@ -59,6 +62,8 @@ export function App(): JSX.Element {
   const [code, setCode] = useState<string>(loadCode);
   const [model, setModel] = useState<FlowModel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** A diagram type the canvas does not edit: the code Mermaid last accepted, drawn by Mermaid. */
+  const [preview, setPreview] = useState<{ code: string; type: DiagramType; reason?: string } | null>(null);
   const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -105,6 +110,11 @@ export function App(): JSX.Element {
     if (seq !== parseSeq.current) return; // A newer parse or a canvas edit came first.
     if (result.ok) {
       setModel(result.model);
+      setPreview(null);
+      setError(null);
+    } else if (result.preview) {
+      // A type the canvas edits, with something it cannot keep: say what.
+      setPreview({ code: text, type: result.preview, ...(result.preview.support === 'canvas' ? { reason: result.error } : {}) });
       setError(null);
     } else {
       setError(result.error);
@@ -126,9 +136,20 @@ export function App(): JSX.Element {
     clearTimeout(timer.current);
     parseSeq.current++; // Drop any parse that is still running.
     setModel(next);
+    setPreview(null);
     setError(null);
     setCode(serialize(next));
   }, []);
+
+  /** A structured editor (outline, table) changed the diagram: the code follows at once. */
+  const onStructuredChange = useCallback(
+    (next: string): void => {
+      clearTimeout(timer.current);
+      setCode(next);
+      void runParse(next);
+    },
+    [runParse],
+  );
 
   /** Replaces the whole code with pasted text. Markdown code fences are removed. */
   const replaceFromPaste = useCallback(
@@ -199,7 +220,7 @@ export function App(): JSX.Element {
     <div className="app">
       <header className="app-header">
         <strong>Merbutler</strong>
-        <span className="muted">Mermaid flowchart editor</span>
+        <span className="muted">Mermaid diagram editor</span>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
         <button onClick={() => setGalleryOpen((open) => !open)} aria-pressed={galleryOpen}>
@@ -231,13 +252,22 @@ export function App(): JSX.Element {
           <CodeEditor value={code} onChange={onCodeChange} error={error} completionData={completionData} fontSize={fontSize} />
           {error && (
             <div className="error" role="alert">
-              <strong>Canvas is read-only until the code parses.</strong>
+              <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
               <pre>{error}</pre>
             </div>
           )}
         </section>
         <section className="pane canvas-pane">
-          {model ? (
+          {preview && hasStructuredEditor(preview.type.name) ? (
+            <div className="structured-layout">
+              <StructuredEditor code={preview.code} typeName={preview.type.name} editable={error === null} onChange={onStructuredChange} />
+              <div className="structured-preview">
+                <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} editor={structuredKind(preview.type.name) ?? undefined} />
+              </div>
+            </div>
+          ) : preview ? (
+            <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} />
+          ) : model ? (
             <ReactFlowProvider>
               <Canvas model={model} readOnly={error !== null} onChange={onModelChange} />
             </ReactFlowProvider>

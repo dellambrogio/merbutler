@@ -1,8 +1,10 @@
 /**
- * Example diagrams for the gallery, one per feature of the Mermaid flowchart syntax
- * (https://mermaid.js.org/syntax/flowchart.html). The gallery shows Mermaid's own rendering
- * of each example, and whether the visual editor supports it.
+ * Example diagrams for the gallery: one per feature of the Mermaid flowchart syntax
+ * (https://mermaid.js.org/syntax/flowchart.html), then every example of Mermaid's "All Diagram
+ * Examples" page, by type. The gallery shows Mermaid's own rendering of each example, and whether
+ * the visual editor supports it.
  */
+import { MERMAID_EXAMPLES } from './mermaidExamples';
 
 export interface GalleryExample {
   id: string;
@@ -20,6 +22,8 @@ export interface GalleryExample {
 
 export interface GalleryGroup {
   title: string;
+  /** The part of the gallery the group is in. */
+  part: 'Flowchart syntax' | 'Mermaid examples';
   examples: GalleryExample[];
 }
 
@@ -86,7 +90,7 @@ const EXPANDED_SHAPES: Array<[string, string]> = [
   ['text', 'Text block'],
 ];
 
-export const GALLERY: GalleryGroup[] = [
+const FLOWCHART_SYNTAX: Array<Omit<GalleryGroup, 'part'>> = [
   {
     title: 'Basics',
     examples: [
@@ -263,3 +267,12 @@ export const GALLERY: GalleryGroup[] = [
     ],
   },
 ];
+
+/** The page's sections as groups. Ids are `ex-<section>-<example>`, so they never clash with the syntax examples. */
+const PAGE_EXAMPLES: GalleryGroup[] = MERMAID_EXAMPLES.map((section) => ({
+  title: section.title,
+  part: 'Mermaid examples',
+  examples: section.examples.map((ex) => ({ id: `ex-${section.id}-${ex.id}`, title: ex.title, code: ex.code })),
+}));
+
+export const GALLERY: GalleryGroup[] = [...FLOWCHART_SYNTAX.map((g) => ({ ...g, part: 'Flowchart syntax' as const })), ...PAGE_EXAMPLES];

@@ -57,3 +57,23 @@ describe('palette', () => {
     expect(nextClassStyles(presets('soft').map((p) => presetStyles(p, 'box')))).toHaveLength(3);
   });
 });
+
+describe('class sets', () => {
+  test('add a palette set, skipping names that exist', async () => {
+    const { CLASS_SETS } = await import('../src/flowchart/palette');
+    const { addClassDefs, isClassName } = await import('../src/core/model');
+    expect(CLASS_SETS).toHaveLength(18);
+    for (const set of CLASS_SETS) for (const c of set.classes) expect(isClassName(c.name)).toBe(true);
+    let model = await parseOk('flowchart LR\n  a --> b\n  classDef warning fill:#f00\n');
+    const rainbow = CLASS_SETS.find((s) => s.prefix === 'rainbow')!;
+    model = addClassDefs(model, [{ name: 'rainbow-1', styles: ['fill:#000'] }]);
+    model = addClassDefs(model, rainbow.classes);
+    expect(model.classDefs!.map((c) => c.name)).toEqual(['warning', 'rainbow-1', 'rainbow-2', 'rainbow-3', 'rainbow-4', 'rainbow-5', 'rainbow-6']);
+    expect(model.classDefs![1].styles).toEqual(['fill:#000']);
+    const written = serialize(model);
+    // A light fill gets a deep shade of its hue as text, a dark fill white text.
+    expect(written).toContain('classDef rainbow-3 fill:#feca3a,stroke:#a58326,color:#40330f');
+    expect(written).toContain('classDef rainbow-6 fill:#6a4c92,stroke:#45315f,color:#ffffff');
+    expect(serialize(await parseOk(written))).toBe(written);
+  });
+});

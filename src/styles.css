@@ -577,6 +577,13 @@ button.danger { color: var(--danger); }
 .class-new { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--border); margin-top: 6px; }
 .class-new input { flex: 1; min-width: 0; }
 .class-new .field-error { flex-basis: 100%; }
+.class-sets { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 10px 10px; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.class-set { align-self: stretch; display: flex; flex-direction: column; gap: 4px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+.class-set-head { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.class-set-names { flex: 1; min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-set-head button { flex: none; font-size: 12px; padding: 1px 8px; }
+.class-set-preview { display: flex; height: 16px; border-radius: 4px; overflow: hidden; }
+.class-set-preview span { flex: 1; }
 
 /* Edge curve and length pickers. */
 .curve-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }

@@ -234,6 +234,11 @@ export function addClassDef(model: FlowModel, name: string, styles: string[] = [
   return { ...model, classDefs: [...(model.classDefs ?? []), { name, styles }] };
 }
 
+/** Adds several `classDef`s in order. Names that are invalid or taken are skipped. */
+export function addClassDefs(model: FlowModel, defs: ReadonlyArray<{ name: string; styles: readonly string[] }>): FlowModel {
+  return defs.reduce((next, d) => addClassDef(next, d.name, [...d.styles]), model);
+}
+
 export function updateClassDef(model: FlowModel, name: string, styles: string[]): FlowModel {
   return { ...model, classDefs: (model.classDefs ?? []).map((c) => (c.name === name ? { ...c, styles } : c)) };
 }

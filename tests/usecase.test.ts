@@ -32,10 +32,10 @@ describe('use case diagrams', () => {
   test('actors, use cases, boundaries, packages and labels', async () => {
     const { model, written } = await roundtrip(examples[1].code);
     expect(model.kind).toBe('usecase');
-    expect(model.nodes.find((n) => n.id === 'Customer')?.usecase).toEqual({ kind: 'actor' });
-    expect(model.nodes.find((n) => n.id === 'PlaceOrder')).toMatchObject({ label: 'Place order', parent: 'E_commerce_System', usecase: { kind: 'usecase' } });
-    expect(model.subgraphs.find((s) => s.id === 'Admin_Panel')?.package).toBe(true);
-    expect(written).toContain('systemBoundary Admin_Panel("Admin Panel")@{ type: package }');
+    expect(model.nodes.find((n) => n.id === 'Reader')?.usecase).toEqual({ kind: 'actor' });
+    expect(model.nodes.find((n) => n.id === 'BorrowBook')).toMatchObject({ label: 'Borrow a book', parent: 'Library_System', usecase: { kind: 'usecase' } });
+    expect(model.subgraphs.find((s) => s.id === 'Staff_Portal')?.package).toBe(true);
+    expect(written).toContain('systemBoundary Staff_Portal("Staff Portal")@{ type: package }');
   });
 
   test('every arrow, include, extend, generalization, notes, styles and settings', async () => {

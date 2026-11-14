@@ -1,7 +1,7 @@
 /**
  * Example diagrams for the gallery: one per feature of the Mermaid flowchart syntax
- * (https://mermaid.js.org/syntax/flowchart.html), then every example of Mermaid's "All Diagram
- * Examples" page, by type. The gallery shows Mermaid's own rendering of each example, and whether
+ * (https://mermaid.js.org/syntax/flowchart.html), then examples of every Mermaid diagram type
+ * (mermaidExamples.ts), by type. The gallery shows Mermaid's own rendering of each example, and whether
  * the visual editor supports it.
  */
 import { MERMAID_EXAMPLES } from './mermaidExamples';
@@ -23,7 +23,7 @@ export interface GalleryExample {
 export interface GalleryGroup {
   title: string;
   /** The part of the gallery the group is in. */
-  part: 'Flowchart syntax' | 'Mermaid examples';
+  part: 'Flowchart syntax' | 'Every diagram type';
   examples: GalleryExample[];
 }
 
@@ -268,10 +268,10 @@ const FLOWCHART_SYNTAX: Array<Omit<GalleryGroup, 'part'>> = [
   },
 ];
 
-/** The page's sections as groups. Ids are `ex-<section>-<example>`, so they never clash with the syntax examples. */
+/** The diagram types as groups. Ids are `ex-<section>-<example>`, so they never clash with the syntax examples. */
 const PAGE_EXAMPLES: GalleryGroup[] = MERMAID_EXAMPLES.map((section) => ({
   title: section.title,
-  part: 'Mermaid examples',
+  part: 'Every diagram type',
   examples: section.examples.map((ex) => ({ id: `ex-${section.id}-${ex.id}`, title: ex.title, code: ex.code })),
 }));
 

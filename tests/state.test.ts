@@ -35,36 +35,36 @@ describe('state diagrams', () => {
     const { model, written } = await roundtrip(examples[2].code);
     expect(model.kind).toBe('state');
     const kinds = Object.fromEntries(model.nodes.map((n) => [n.id, n.state ?? 'state']));
-    expect(kinds).toMatchObject({ battery_check: 'choice', root_start: 'start', root_end: 'end', PowerOn: 'state' });
-    expect(model.edges.find((e) => e.source === 'battery_check' && e.target === 'LowPowerMode')?.label).toBe('battery < 20%');
-    expect(written).toContain('state battery_check <<choice>>');
-    expect(written).toContain('[*] --> PowerOn');
-    expect(written).toContain('LowPowerMode --> [*] : power off');
+    expect(kinds).toMatchObject({ charge_check: 'choice', root_start: 'start', root_end: 'end', Booting: 'state' });
+    expect(model.edges.find((e) => e.source === 'charge_check' && e.target === 'SafeMode')?.label).toBe('charge < 10%');
+    expect(written).toContain('state charge_check <<choice>>');
+    expect(written).toContain('[*] --> Booting');
+    expect(written).toContain('SafeMode --> [*] : shut down');
   });
 
   test('concurrency regions keep their states and their own [*]', async () => {
     const { model, written } = await roundtrip(examples[2].code);
     const regions = model.subgraphs.filter((s) => s.region);
     expect(regions.map((r) => [r.id, r.parent])).toEqual([
-      ['Active__r1', 'Active'],
-      ['Active__r2', 'Active'],
+      ['Running__r1', 'Running'],
+      ['Running__r2', 'Running'],
     ]);
-    expect(model.nodes.find((n) => n.id === 'ScreenOn')?.parent).toBe('Active__r2');
-    expect(model.nodes.find((n) => n.id === 'Active__r1_start')?.state).toBe('start');
-    expect(written).toMatch(/state Active \{[\s\S]*--[\s\S]*\}/);
+    expect(model.nodes.find((n) => n.id === 'Online')?.parent).toBe('Running__r2');
+    expect(model.nodes.find((n) => n.id === 'Running__r1_start')?.state).toBe('start');
+    expect(written).toMatch(/state Running \{[\s\S]*--[\s\S]*\}/);
   });
 
   test('composite states, direction, notes', async () => {
     const { model, written } = await roundtrip(examples[1].code);
     expect(model.direction).toBe('LR');
-    expect(model.subgraphs.map((s) => s.id)).toEqual(['Fulfilment']);
-    expect(model.nodes.find((n) => n.id === 'Packing')?.parent).toBe('Fulfilment');
+    expect(model.subgraphs.map((s) => s.id)).toEqual(['InTransit']);
+    expect(model.nodes.find((n) => n.id === 'Sorting')?.parent).toBe('InTransit');
     const note = model.nodes.find((n) => n.state === 'note')!;
-    expect(note.note).toEqual({ position: 'right of', of: 'Paid' });
-    expect(note.label).toBe('Payment can be card,\nwallet, or bank transfer');
-    expect(model.edges.some((e) => e.noteLink && e.source === 'Paid' && e.target === note.id)).toBe(true);
+    expect(note.note).toEqual({ position: 'right of', of: 'Labelled' });
+    expect(note.label).toBe('Labels can be printed\nat home or at a shop');
+    expect(model.edges.some((e) => e.noteLink && e.source === 'Labelled' && e.target === note.id)).toBe(true);
     expect(written).toContain('direction LR');
-    expect(written).toContain('note right of Paid');
+    expect(written).toContain('note right of Labelled');
   });
 
   test('descriptions, classes, styles, fork and join, comments', async () => {

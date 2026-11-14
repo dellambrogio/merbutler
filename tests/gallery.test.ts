@@ -16,7 +16,7 @@ describe('gallery', () => {
     }
   });
 
-  test('has every example of the Mermaid examples page', () => {
+  test('has the examples of every diagram type', () => {
     expect(examples.filter((e) => e.id.startsWith('ex-')).length).toBe(81);
   });
 

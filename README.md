@@ -57,8 +57,8 @@ flowchart LR
 - 🗂️ **Every Mermaid diagram type**: the canvas edits flowcharts, swimlanes (`swimlane-beta`), state diagrams and
   use case diagrams;
   outline and table editors cover the others; the rest open as Mermaid's own drawing, with pan and zoom.
-- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, and all 81 examples of Mermaid's
-  "All Diagram Examples" page, drawn by Mermaid, with a badge that says how the app edits each. Click one to open it.
+- 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, and 81 examples of every Mermaid
+  diagram type, drawn by Mermaid, with a badge that says how the app edits each. Click one to open it.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.
 
 ## Quick start
@@ -250,7 +250,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/Preview.tsx`, `src/render.ts` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
 | `src/outline.ts`, `src/OutlineEditor.tsx` | Indentation trees and the outline editor |
 | `src/tables.tsx`, `src/StructuredEditor.tsx` | Table editors per type, and the panel next to the preview |
-| `src/mermaidExamples.ts` | The 81 examples of Mermaid's "All Diagram Examples" page |
+| `src/mermaidExamples.ts` | Examples of every diagram type, with the features of Mermaid's "All Diagram Examples" page |
 | `src/layout.ts`, `src/layoutEngine.ts` | Model → positioned React Flow nodes and edges, with dagre or ELK |
 | `src/labels.ts`, `src/LabelText.tsx` | Label line breaks and Markdown, rendered as safe React elements |
 | `src/clipboard.ts` | Extracts Mermaid code from pasted text and code fences |

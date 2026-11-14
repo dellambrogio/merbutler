@@ -1,18 +1,19 @@
 /**
- * The examples of Mermaid's "All Diagram Examples" page (https://mermaid.js.org/syntax/all-examples.html,
- * docs for Mermaid 12.3.0): 81 examples of 34 diagram sections, verbatim. Generated from the page; edit only
- * to follow a new version of it.
+ * One or more examples of every Mermaid diagram type, written for this app. They use the same
+ * syntax features as the examples on Mermaid's "All Diagram Examples" page
+ * (https://mermaid.js.org/syntax/all-examples.html, Mermaid 12.3.0), with their own subjects,
+ * names and connections, so the gallery shows what each type can do.
  */
 
 export interface MermaidExample {
-  /** The anchor of the example's heading on the page. Unique only within its section. */
+  /** Unique within its section. */
   id: string;
   title: string;
   code: string;
 }
 
 export interface MermaidExampleSection {
-  /** The anchor of the section's heading on the page. */
+  /** The diagram type, as a slug. */
   id: string;
   title: string;
   examples: MermaidExample[];
@@ -24,76 +25,76 @@ export const MERMAID_EXAMPLES: MermaidExampleSection[] = [
     title: 'Flowchart',
     examples: [
       {
-        id: 'basic-flowchart',
-        title: 'Basic Flowchart',
+        id: 'morning-routine',
+        title: 'Morning Routine',
         code: `flowchart TD
-    A[Christmas] -->|Get money| B(Go shopping)
-    B --> C{Let me think}
-    C -->|One| D[Laptop]
-    C -->|Two| E[iPhone]
-    C -->|Three| F[fa:fa-car Car]
+    A[Alarm rings] -->|Get up| B(Make breakfast)
+    B --> C{What to drink?}
+    C -->|Hot| D[Tea]
+    C -->|Cold| E[Juice]
+    C -->|Strong| F[fa:fa-mug-hot Coffee]
 `,
       },
       {
-        id: 'online-checkout-flow',
-        title: 'Online Checkout Flow',
+        id: 'library-book-loan',
+        title: 'Library Book Loan',
         code: `flowchart TD
-    Start([Visit online store]) --> Browse[Browse products]
-    Browse --> Cart[Add items to cart]
-    Cart --> Decide{Ready to check out?}
-    Decide -->|Keep shopping| Browse
-    Decide -->|Yes| Pay[Enter payment details]
-    Pay --> Valid{Payment accepted?}
-    Valid -->|No| Retry[Show error message]
-    Retry --> Pay
-    Valid -->|Yes| Confirm[Order confirmed]
-    Confirm --> Done([Email receipt])
+    Enter([Walk into library]) --> Search[Search the catalogue]
+    Search --> Found{Book on the shelf?}
+    Found -->|No| Reserve[Place a reservation]
+    Reserve --> Search
+    Found -->|Yes| Card[Scan library card]
+    Card --> Allowed{Loan limit reached?}
+    Allowed -->|Yes| Return[Return an old book first]
+    Return --> Card
+    Allowed -->|No| Stamp[Book checked out]
+    Stamp --> Leave([Read at home])
 
-    style Start fill:#e8f5e9,stroke:#43a047
-    style Done fill:#e8f5e9,stroke:#43a047
-    style Valid fill:#fff3e0,stroke:#fb8c00
+    style Enter fill:#e3f2fd,stroke:#1e88e5
+    style Leave fill:#e3f2fd,stroke:#1e88e5
+    style Allowed fill:#fce4ec,stroke:#d81b60
 `,
       },
       {
-        id: 'ci-cd-pipeline-with-subgraphs',
-        title: 'CI/CD Pipeline with Subgraphs',
+        id: 'mobile-app-release-with-subgraphs',
+        title: 'Mobile App Release with Subgraphs',
         code: `flowchart LR
-    subgraph dev[Development]
-        Code[Write code] --> PR[Open pull request]
+    subgraph design[Design]
+        Sketch[Sketch screens] --> Review[Design review]
     end
 
-    subgraph ci[Continuous Integration]
-        Build[Build] --> Test[Run tests]
-        Test --> Gate{Tests pass?}
+    subgraph build[Build]
+        Compile[Compile app] --> Lint[Run linters]
+        Lint --> Check{All green?}
     end
 
-    subgraph cd[Deployment]
-        Stage[Deploy to staging] --> Approve[Manual approval]
-        Approve --> Prod[Deploy to production]
+    subgraph ship[Store release]
+        Beta[Beta testers] --> Submit[Submit to store]
+        Submit --> Live[Available to everyone]
     end
 
-    PR --> Build
-    Gate -->|Yes| Stage
-    Gate -->|No| Code
+    Review --> Compile
+    Check -->|Yes| Beta
+    Check -->|No| Sketch
 `,
       },
       {
-        id: 'expanded-node-shapes',
-        title: 'Expanded Node Shapes',
+        id: 'insurance-claim-with-expanded-shapes',
+        title: 'Insurance Claim with Expanded Shapes',
         code: `flowchart TD
-    Form@{ shape: manual-input, label: "User fills in form" }
-    Docs@{ shape: docs, label: "Uploaded documents" }
-    Check@{ shape: procs, label: "Automated checks" }
-    Decision@{ shape: diam, label: "Application approved?" }
-    DB@{ shape: cyl, label: "Customer database" }
-    Letter@{ shape: stadium, label: "Send welcome email" }
+    Claim@{ shape: manual-input, label: "Customer reports damage" }
+    Photos@{ shape: docs, label: "Photos and receipts" }
+    Rules@{ shape: procs, label: "Fraud and policy checks" }
+    Covered@{ shape: diam, label: "Damage covered?" }
+    Ledger@{ shape: cyl, label: "Claims ledger" }
+    Payout@{ shape: stadium, label: "Pay the customer" }
 
-    Form --> Docs
-    Docs --> Check
-    Check --> Decision
-    Decision -->|Yes| DB
-    Decision -->|No| Form
-    DB --> Letter
+    Claim --> Photos
+    Photos --> Rules
+    Rules --> Covered
+    Covered -->|Yes| Ledger
+    Covered -->|No| Claim
+    Ledger --> Payout
 `,
       },
     ],
@@ -103,69 +104,68 @@ export const MERMAID_EXAMPLES: MermaidExampleSection[] = [
     title: 'C4 Diagram',
     examples: [
       {
-        id: 'internet-banking-system-context',
-        title: 'Internet Banking System Context',
+        id: 'online-learning-platform-context',
+        title: 'Online Learning Platform Context',
         code: `C4Context
-    title System Context diagram for Internet Banking System
-    Enterprise_Boundary(b0, "BankBoundary0") {
-        Person(customerA, "Banking Customer A", "A customer of the bank, with personal bank accounts.")
-        Person(customerB, "Banking Customer B")
-        Person_Ext(customerC, "Banking Customer C", "desc")
+    title System Context diagram for an Online Learning Platform
+    Enterprise_Boundary(e0, "SchoolGroup") {
+        Person(student, "Student", "Takes courses and submits assignments.")
+        Person(teacher, "Teacher")
+        Person_Ext(parent, "Parent", "desc")
 
-        Person(customerD, "Banking Customer D", "A customer of the bank, <br/> with personal bank accounts.")
+        Person(tutor, "Tutor", "Helps students, <br/> one group at a time.")
 
-        System(SystemAA, "Internet Banking System", "Allows customers to view information about their bank accounts, and make payments.")
+        System(Platform, "Learning Platform", "Hosts courses, quizzes and grades, and sends reminders.")
 
-        Enterprise_Boundary(b1, "BankBoundary") {
-            SystemDb_Ext(SystemE, "Mainframe Banking System", "Stores all of the core banking information about customers, accounts, transactions, etc.")
+        Enterprise_Boundary(e1, "Campus") {
+            SystemDb_Ext(Records, "Student Records", "Stores enrolment, grades and attendance for every student.")
 
-            System_Boundary(b2, "BankBoundary2") {
-                System(SystemA, "Banking System A")
-                System(SystemB, "Banking System B", "A system of the bank, with personal bank accounts. next line.")
+            System_Boundary(e2, "Content") {
+                System(Video, "Video Service")
+                System(Quiz, "Quiz Engine", "Builds and scores quizzes. second line.")
             }
 
-            System_Ext(SystemC, "E-mail system", "The internal Microsoft Exchange e-mail system.")
-            SystemDb(SystemD, "Banking System D Database", "A system of the bank, with personal bank accounts.")
+            System_Ext(Mail, "Mail Relay", "The campus mail server.")
+            SystemDb(Library, "Course Library Database", "All course material and versions.")
 
-            Boundary(b3, "BankBoundary3", "boundary") {
-                SystemQueue(SystemF, "Banking System F Queue", "A system of the bank.")
-                SystemQueue_Ext(SystemG, "Banking System G Queue", "A system of the bank, with personal bank accounts.")
+            Boundary(e3, "Messaging", "boundary") {
+                SystemQueue(Events, "Event Queue", "Course events.")
+                SystemQueue_Ext(Push, "Push Queue", "Mobile notifications to students.")
             }
         }
     }
 
-    BiRel(customerA, SystemAA, "Uses")
-    BiRel(SystemAA, SystemE, "Uses")
-    Rel(SystemAA, SystemC, "Sends e-mails", "SMTP")
-    Rel(SystemC, customerA, "Sends e-mails to")
+    BiRel(student, Platform, "Studies with")
+    BiRel(Platform, Records, "Syncs")
+    Rel(Platform, Mail, "Sends reminders", "SMTP")
+    Rel(Mail, student, "Delivers reminders to")
 `,
       },
       {
-        id: 'internet-banking-container-diagram',
-        title: 'Internet Banking Container Diagram',
+        id: 'ride-sharing-container-diagram',
+        title: 'Ride Sharing Container Diagram',
         code: `C4Container
-    title Container diagram for Internet Banking System
+    title Container diagram for a Ride Sharing Service
 
-    Person(customer, "Banking Customer", "A customer of the bank, with personal bank accounts")
-    System_Ext(email_system, "E-Mail System", "The internal Microsoft Exchange system")
+    Person(rider, "Rider", "Someone who books rides")
+    System_Ext(maps, "Maps Provider", "Routes and travel times")
 
-    Container_Boundary(c1, "Internet Banking") {
-        Container(web_app, "Web Application", "JavaScript, React", "Delivers the static content and the SPA")
-        Container(spa, "Single-Page App", "JavaScript, React", "Provides all banking functionality via the browser")
-        Container(mobile_app, "Mobile App", "C#, Xamarin", "Provides a subset of banking functionality")
-        ContainerDb(database, "Database", "SQL Database", "Stores user registration, hashed auth credentials, access logs")
-        Container(backend_api, "API Application", "Java, Docker", "Provides banking functionality via JSON/HTTPS API")
+    Container_Boundary(r1, "Ride Sharing") {
+        Container(rider_app, "Rider App", "Kotlin, Swift", "Books rides and pays")
+        Container(driver_app, "Driver App", "Kotlin, Swift", "Accepts rides and navigates")
+        Container(web, "Web Portal", "TypeScript, React", "Ride history and receipts")
+        ContainerDb(trips, "Trips Database", "PostgreSQL", "Stores trips, payments and ratings")
+        Container(dispatch, "Dispatch API", "Go, Kubernetes", "Matches riders with drivers")
     }
 
-    Rel(customer, web_app, "Uses", "HTTPS")
-    Rel(customer, spa, "Uses", "HTTPS")
-    Rel(customer, mobile_app, "Uses")
-    Rel(web_app, spa, "Delivers")
-    Rel(spa, backend_api, "Makes API calls to", "JSON/HTTPS")
-    Rel(mobile_app, backend_api, "Makes API calls to", "JSON/HTTPS")
-    Rel(backend_api, database, "Reads from and writes to", "JDBC")
-    Rel(email_system, customer, "Sends e-mails to")
-    Rel(backend_api, email_system, "Sends e-mails using", "SMTP")
+    Rel(rider, rider_app, "Books with", "HTTPS")
+    Rel(rider, web, "Checks receipts", "HTTPS")
+    Rel(rider_app, dispatch, "Requests rides", "JSON/HTTPS")
+    Rel(driver_app, dispatch, "Reports location", "gRPC")
+    Rel(web, dispatch, "Reads history")
+    Rel(dispatch, trips, "Reads from and writes to", "SQL")
+    Rel(dispatch, maps, "Gets routes from", "HTTPS")
+    Rel(maps, driver_app, "Sends turn-by-turn directions")
 `,
       },
     ],
@@ -175,53 +175,49 @@ export const MERMAID_EXAMPLES: MermaidExampleSection[] = [
     title: 'Ishikawa Diagram',
     examples: [
       {
-        id: 'ishikawa-diagram-1',
-        title: 'Ishikawa Diagram',
+        id: 'slow-website',
+        title: 'Slow Website',
         code: `
 ishikawa-beta
-    Blurry Photo
-    Process
-        Out of focus
-        Shutter speed too slow
-        Protective film not removed
-        Beautification filter applied
-    User
-        Shaky hands
-    Equipment
-        LENS
-            Inappropriate lens
-            Damaged lens
-            Dirty lens
-        SENSOR
-            Damaged sensor
-            Dirty sensor
-    Environment
-        Subject moved too quickly
-        Too dark
-
+    Slow Website
+    Code
+        Too many database queries
+        Large images not compressed
+        No caching
+    People
+        No performance budget
+    Infrastructure
+        DATABASE
+            Missing index
+            Slow disk
+        NETWORK
+            No CDN
+            Far-away region
+    Traffic
+        Bot traffic spikes
+        Marketing campaign launch
 `,
       },
       {
-        id: 'late-food-delivery-root-causes',
-        title: 'Late Food Delivery Root Causes',
+        id: 'missed-train',
+        title: 'Missed Train',
         code: `
 ishikawa-beta
-    Late Food Delivery
+    Missed The Train
     Process
-        Orders batched too long
-        Kitchen queue not prioritized
+        Left home too late
+        Ticket bought at the station
     People
-        Not enough drivers on shift
-        New cook still in training
+        Overslept
+        Waited for a friend
     Equipment
-        Oven capacity too small
-        Delivery bags lose heat
+        Phone battery empty
+        Bike had a flat tyre
     Environment
-        Heavy rain
-        Road construction on main route
+        Snow on the roads
+        Platform changed last minute
     Measurement
-        No alert when prep time exceeds target
-
+        Clock five minutes slow
 `,
       },
     ],
@@ -231,39 +227,38 @@ ishikawa-beta
     title: 'Kanban Diagram',
     examples: [
       {
-        id: 'mermaid-sprint-board',
-        title: 'Mermaid Sprint Board',
+        id: 'website-redesign-board',
+        title: 'Website Redesign Board',
         code: `---
 config:
   kanban:
-    ticketBaseUrl: 'https://github.com/mermaid-js/mermaid/issues/#TICKET#'
+    ticketBaseUrl: 'https://example.com/tickets/#TICKET#'
 ---
 kanban
-  todo[Todo]
-    docs[Create documentation]
-    blog[Write blog post about the new diagram]@{ priority: 'Low' }
-  inProgress[In progress]
-    renderer[Improve renderer for edge cases]@{ assigned: 'knsv', priority: 'High' }
-  readyForTest[Ready for test]
-    parserTests[Create parsing tests]@{ ticket: 2038, assigned: 'K.Sveidqvist', priority: 'High' }
-  done[Done]
-    grammar[Design grammar]@{ assigned: 'knsv' }
-    longTitle[Title of diagram is more than 100 chars when user duplicates diagram with 100 char]@{ ticket: 2036, priority: 'Very High' }
-    dbFunction[Update DB function]@{ ticket: 2037, assigned: 'knsv', priority: 'High' }
+  backlog[Backlog]
+    copy[Rewrite the about page]
+    photos[Shoot new team photos]@{ priority: 'Low' }
+  doing[Doing]
+    nav[Simplify the navigation menu]@{ assigned: 'sam', priority: 'High' }
+  review[In review]
+    forms[Validate the contact form]@{ ticket: 142, assigned: 'R.Okafor', priority: 'High' }
+  shipped[Shipped]
+    logo[New logo in the header]@{ assigned: 'sam' }
+    longTitle[Make every page load in under two seconds on a slow mobile connection, even with all images]@{ ticket: 98, assigned: 'lee', priority: 'Very High' }
 `,
       },
       {
-        id: 'personal-task-board',
-        title: 'Personal Task Board',
+        id: 'home-projects-board',
+        title: 'Home Projects Board',
         code: `kanban
-  Todo
-    [Buy groceries]
-    [Book dentist appointment]
-  [In progress]
-    [Plan weekend trip]
-  Done
-    [Pay electricity bill]
-    [Renew gym membership]
+  Ideas
+    [Paint the hallway]
+    [Build a bird house]
+  [This weekend]
+    [Fix the leaking tap]
+  Finished
+    [Clean the gutters]
+    [Plant tomatoes]
 `,
       },
     ],
@@ -273,78 +268,78 @@ kanban
     title: 'Class Diagram',
     examples: [
       {
-        id: 'basic-class-inheritance',
-        title: 'Basic Class Inheritance',
+        id: 'vehicle-inheritance',
+        title: 'Vehicle Inheritance',
         code: `classDiagram
-    Animal <|-- Duck
-    Animal <|-- Fish
-    Animal <|-- Zebra
-    Animal : +int age
-    Animal : +String gender
-    Animal: +isMammal()
-    Animal: +mate()
-    class Duck{
-      +String beakColor
-      +swim()
-      +quack()
+    Vehicle <|-- Car
+    Vehicle <|-- Bicycle
+    Vehicle <|-- Truck
+    Vehicle : +int wheels
+    Vehicle : +String color
+    Vehicle: +isMotorized()
+    Vehicle: +move()
+    class Car{
+      +int doors
+      +honk()
+      +park()
     }
-    class Fish{
-      -int sizeInFeet
-      -canEat()
+    class Bicycle{
+      -int gears
+      -ringBell()
     }
-    class Zebra{
-      +bool is_wild
-      +run()
+    class Truck{
+      +int loadTons
+      +unload()
     }
 `,
       },
       {
-        id: 'e-commerce-domain-model',
-        title: 'E-commerce Domain Model',
+        id: 'library-domain-model',
+        title: 'Library Domain Model',
         code: `classDiagram
     direction LR
-    class Customer {
+    class Member {
         +String name
-        +String email
-        +register()
-        +placeOrder() Order
+        +String cardNumber
+        +join()
+        +borrow() Loan
     }
-    class Order {
-        +Date createdAt
-        +List~OrderItem~ items
-        +addItem(Product product, int quantity)
-        +total() float
+    class Loan {
+        +Date dueDate
+        +List~Copy~ copies
+        +extend(int days, bool online)
+        +isOverdue() bool
     }
-    class OrderItem {
-        +int quantity
-        +float unitPrice
+    class Copy {
+        +int shelf
+        +String condition
     }
-    class Product {
-        +String name
-        +float price
+    class Book {
+        +String title
+        +String isbn
     }
-    class PaymentMethod {
+    class Notifier {
         <<interface>>
-        +authorize(float amount) bool
+        +send(String message) bool
     }
-    class CreditCard {
-        +String maskedNumber
-        +authorize(float amount) bool
+    class EmailNotifier {
+        +String address
+        +send(String message) bool
     }
-    class GiftCard {
-        +float balance
-        +authorize(float amount) bool
+    class SmsNotifier {
+        +String phone
+        +send(String message) bool
     }
 
-    Customer "1" --> "0..*" Order : places
-    Order "1" *-- "1..*" OrderItem : contains
-    OrderItem "0..*" --> "1" Product : refers to
-    PaymentMethod <|.. CreditCard
-    PaymentMethod <|.. GiftCard
-    Order --> PaymentMethod : paid via
+    Member "1" --> "0..*" Loan : opens
+    Loan "1" *-- "1..*" Copy : holds
+    Copy "0..*" --> "1" Book : copy of
+    Notifier <|.. EmailNotifier
+    Notifier <|.. SmsNotifier
+    Loan --> Notifier : reminds via
 
-    note for PaymentMethod "New payment providers only
-need to implement authorize()"
+    note for Notifier "New channels only
+need to implement send()"
 `,
       },
     ],
@@ -357,61 +352,61 @@ need to implement authorize()"
         id: 'basic-sequence',
         title: 'Basic Sequence',
         code: `sequenceDiagram
-    Alice->>+John: Hello John, how are you?
-    Alice->>+John: John, can you hear me?
-    John-->>-Alice: Hi Alice, I can hear you!
-    John-->>-Alice: I feel great!
+    Client->>+Server: Open a connection
+    Client->>+Server: Send the request
+    Server-->>-Client: Here is the response
+    Server-->>-Client: Connection closed
 `,
       },
       {
-        id: 'online-payment-flow',
-        title: 'Online Payment Flow',
+        id: 'hotel-booking',
+        title: 'Hotel Booking',
         code: `sequenceDiagram
     autonumber
-    actor Customer
-    participant Shop as Web Shop
-    participant Pay as Payment Service
-    participant Bank
+    actor Guest
+    participant Site as Booking Site
+    participant Hotel as Hotel System
+    participant Card as Card Network
 
-    Customer->>Shop: Place order
-    activate Shop
-    Shop->>Pay: Create payment request
-    activate Pay
-    Pay->>Bank: Authorize card
-    Bank-->>Pay: Authorization result
-    alt Payment approved
-        Pay-->>Shop: Payment confirmed
-        Shop-->>Customer: Show receipt
-    else Payment declined
-        Pay-->>Shop: Payment failed
-        Shop-->>Customer: Ask for another card
+    Guest->>Site: Choose dates and room
+    activate Site
+    Site->>Hotel: Hold the room
+    activate Hotel
+    Hotel->>Card: Pre-authorize deposit
+    Card-->>Hotel: Deposit result
+    alt Deposit accepted
+        Hotel-->>Site: Room booked
+        Site-->>Guest: Send confirmation
+    else Deposit refused
+        Hotel-->>Site: Room released
+        Site-->>Guest: Ask for another card
     end
-    deactivate Pay
-    deactivate Shop
+    deactivate Hotel
+    deactivate Site
 `,
       },
       {
-        id: 'food-delivery-with-parallel-actions',
-        title: 'Food Delivery with Parallel Actions',
+        id: 'taxi-ride-with-parallel-actions',
+        title: 'Taxi Ride with Parallel Actions',
         code: `sequenceDiagram
-    participant App as Mobile App
-    participant API as Order Service
-    participant Kitchen
-    actor Courier
+    participant App as Rider App
+    participant API as Dispatch Service
+    participant Billing
+    actor Driver
 
-    App->>API: Submit order
-    Note right of API: Validate items,<br/>charge payment
-    par Notify kitchen
-        API->>Kitchen: New order ticket
-    and Confirm to customer
-        API-->>App: Order accepted, ETA 30 min
+    App->>API: Request a ride
+    Note right of API: Find nearby cars,<br/>estimate the fare
+    par Reserve a driver
+        API->>Driver: New ride offer
+    and Confirm to rider
+        API-->>App: Driver found, arriving in 5 min
     end
-    Kitchen-->>API: Order ready
-    API->>Courier: Request pickup
-    loop Until delivered
-        Courier->>App: Share live location
+    Driver-->>API: Rider picked up
+    API->>Billing: Start the meter
+    loop Every minute
+        Driver->>App: Share position
     end
-    Courier-->>App: Order delivered
+    Driver-->>App: Ride finished
 `,
       },
     ],
@@ -421,23 +416,23 @@ need to implement authorize()"
     title: 'Pie Chart',
     examples: [
       {
-        id: 'basic-pie-chart',
-        title: 'Basic Pie Chart',
-        code: `pie title Pets adopted by volunteers
-    "Dogs" : 386
-    "Cats" : 85
-    "Rats" : 15
+        id: 'favorite-fruits',
+        title: 'Favorite Fruits',
+        code: `pie title Favorite fruits in our class
+    "Apples" : 42
+    "Bananas" : 31
+    "Cherries" : 12
 `,
       },
       {
-        id: 'workday-breakdown-with-values',
-        title: 'Workday Breakdown with Values',
-        code: `pie showData title Where the workday goes (minutes)
-    "Focused work" : 210
-    "Meetings" : 120
-    "Email and chat" : 90
-    "Breaks" : 45
-    "Context switching" : 15
+        id: 'weekend-hours-with-values',
+        title: 'Weekend Hours with Values',
+        code: `pie showData title How a Saturday is spent (hours)
+    "Sleeping" : 9
+    "Outdoors" : 4
+    "Cooking and eating" : 3
+    "Reading" : 2
+    "Chores" : 1.5
 `,
       },
     ],
@@ -447,35 +442,35 @@ need to implement authorize()"
     title: 'User Journey Diagram',
     examples: [
       {
-        id: 'my-working-day',
-        title: 'My Working Day',
+        id: 'making-breakfast',
+        title: 'Making Breakfast',
         code: `journey
-    title My working day
-    section Go to work
-      Make tea: 5: Me
-      Go upstairs: 3: Me
-      Do work: 1: Me, Cat
-    section Go home
-      Go downstairs: 5: Me
-      Sit down: 5: Me
+    title Making breakfast
+    section Kitchen
+      Boil water: 4: Me
+      Toast bread: 3: Me
+      Burn the toast: 1: Me, Dog
+    section Table
+      Eat breakfast: 6: Me
+      Wash the dishes: 2: Me
 `,
       },
       {
-        id: 'online-grocery-shopping',
-        title: 'Online Grocery Shopping',
+        id: 'moving-house',
+        title: 'Moving House',
         code: `journey
-    title Ordering groceries online
-    section Browse and select
-      Search for items: 6: Customer
-      Compare prices: 4: Customer
-      Add to basket: 7: Customer
-    section Checkout
-      Choose delivery slot: 5: Customer
-      Pay for order: 3: Customer
-    section Fulfilment
-      Pick items in store: 4: Store staff
-      Deliver groceries: 5: Driver
-      Unpack at home: 7: Customer
+    title Moving to a new flat
+    section Search
+      Browse listings: 5: Renter
+      Visit flats: 3: Renter
+      Sign the lease: 6: Renter
+    section Pack
+      Buy boxes: 4: Renter
+      Pack the kitchen: 2: Renter
+    section Move
+      Load the van: 3: Movers
+      Carry up the stairs: 1: Movers
+      First night at home: 7: Renter
 `,
       },
     ],
@@ -485,50 +480,50 @@ need to implement authorize()"
     title: 'Mindmap',
     examples: [
       {
-        id: 'basic-mindmap',
-        title: 'Basic Mindmap',
+        id: 'learning-mermaid',
+        title: 'Learning Mermaid',
         code: `mindmap
-  root((mindmap))
-    Origins
-      Long history
-      ::icon(fa fa-book)
-      Popularisation
-        British popular psychology author Tony Buzan
-    Research
-      On effectiveness<br/>and features
-      On Automatic creation
-        Uses
-            Creative techniques
-            Strategic planning
-            Argument mapping
+  root((Mermaid))
+    Diagrams
+      Flowcharts
+      ::icon(fa fa-diagram-project)
+      Sequence
+        Messages between participants
+    Syntax
+      Plain text<br/>in the repo
+      Front matter
+        Config
+            Themes
+            Looks
+            Layouts
     Tools
-      Pen and paper
-      Mermaid
+      Live editor
+      Merbutler
 `,
       },
       {
-        id: 'trip-planning-with-shapes-and-icons',
-        title: 'Trip Planning with Shapes and Icons',
+        id: 'garden-planning-with-shapes-and-icons',
+        title: 'Garden Planning with Shapes and Icons',
         code: `mindmap
-  root((Summer Trip))
-    Destination
-      Beach town
-      Mountain village
-    Budget
-      ::icon(fa fa-wallet)
-      Flights
-      Hotel
-      Food and activities
-    Packing
-      Documents
-        Passport
-        Travel insurance
-      reminder{{Sunscreen!}}
-    Activities
-      ::icon(fa fa-person-hiking)
-      Hiking
-      Snorkeling
-      Local food tour
+  root((Spring Garden))
+    Beds
+      Raised bed
+      Herb spiral
+    Plants
+      ::icon(fa fa-seedling)
+      Tomatoes
+      Beans
+      Sunflowers
+    Tools
+      Hand tools
+        Trowel
+        Pruning shears
+      water{{Water daily!}}
+    Wildlife
+      ::icon(fa fa-dove)
+      Bird feeder
+      Bee hotel
+      Small pond
 `,
       },
     ],
@@ -538,53 +533,53 @@ need to implement authorize()"
     title: 'Requirement Diagram',
     examples: [
       {
-        id: 'e-bike-braking-system',
-        title: 'E-Bike Braking System',
+        id: 'smart-thermostat',
+        title: 'Smart Thermostat',
         code: `requirementDiagram
 
-    requirement rider_safety {
+    requirement comfort {
         id: 1
-        text: Riders must be able to stop safely in all conditions.
+        text: Rooms reach the set temperature within 30 minutes.
         risk: high
         verifymethod: test
     }
 
-    functionalRequirement brake_response {
+    functionalRequirement schedule {
         id: 1.1
-        text: Brakes engage within 100 ms of lever pull.
+        text: Users can set a weekly heating schedule.
         risk: medium
         verifymethod: test
     }
 
-    performanceRequirement stopping_distance {
+    performanceRequirement accuracy {
         id: 1.2
-        text: Stop from 25 km/h within 4 m on dry pavement.
+        text: Measured temperature within 0.5 degrees.
         risk: medium
         verifymethod: demonstration
     }
 
-    designConstraint water_resistance {
+    designConstraint battery_life {
         id: 1.3
-        text: Brake electronics must be IP67 rated.
+        text: Runs two years on two AA batteries.
         risk: low
         verifymethod: inspection
     }
 
-    element brake_controller {
+    element sensor_board {
         type: hardware
-        docRef: "specs/brake-controller"
+        docRef: "docs/sensor-board"
     }
 
-    element road_test_suite {
-        type: "test suite"
-        docRef: "qa/road-tests"
+    element lab_tests {
+        type: "test plan"
+        docRef: "qa/lab-tests"
     }
 
-    rider_safety - contains -> brake_response
-    rider_safety - contains -> stopping_distance
-    brake_response - derives -> water_resistance
-    brake_controller - satisfies -> brake_response
-    road_test_suite - verifies -> stopping_distance
+    comfort - contains -> schedule
+    comfort - contains -> accuracy
+    schedule - derives -> battery_life
+    sensor_board - satisfies -> accuracy
+    lab_tests - verifies -> accuracy
 `,
       },
     ],
@@ -594,33 +589,32 @@ need to implement authorize()"
     title: 'Radar Diagram',
     examples: [
       {
-        id: 'student-grades',
-        title: 'Student Grades',
+        id: 'weekly-fitness',
+        title: 'Weekly Fitness',
         code: `---
-title: "Grades"
+title: "Fitness"
 ---
 radar-beta
-  axis m["Math"], s["Science"], e["English"]
-  axis h["History"], g["Geography"], a["Art"]
-  curve a["Alice"]{85, 90, 80, 70, 75, 90}
-  curve b["Bob"]{70, 75, 85, 80, 90, 85}
+  axis r["Running"], c["Cycling"], s["Swimming"]
+  axis y["Yoga"], w["Weights"], h["Hiking"]
+  curve k["Kim"]{60, 80, 40, 70, 55, 90}
+  curve j["Jo"]{85, 50, 75, 40, 80, 60}
 
   max 100
   min 0
-
 `,
       },
       {
-        id: 'framework-comparison-with-polygon-grid',
-        title: 'Framework Comparison with Polygon Grid',
+        id: 'laptop-comparison-with-polygon-grid',
+        title: 'Laptop Comparison with Polygon Grid',
         code: `radar-beta
-  title Frontend Framework Comparison
-  axis perf["Performance"], dx["Dev Experience"], eco["Ecosystem"]
-  axis learn["Easy to Learn"], docs["Documentation"]
+  title Laptop Comparison
+  axis cpu["Speed"], bat["Battery"], scr["Screen"]
+  axis wt["Light weight"], price["Price"]
 
-  curve react["React"]{4, 4, 5, 3, 4}
-  curve vue["Vue"]{4, 5, 4, 4, 5}
-  curve svelte["Svelte"]{5, 5, 3, 4, 4}
+  curve air["Ultrabook"]{3, 5, 4, 5, 2}
+  curve pro["Workstation"]{5, 2, 5, 2, 1}
+  curve budget["Budget"]{2, 4, 2, 3, 5}
 
   graticule polygon
   max 5
@@ -637,37 +631,34 @@ radar-beta
         id: 'basic-state-diagram',
         title: 'Basic State Diagram',
         code: `stateDiagram-v2
-    [*] --> Still
-    Still --> [*]
-    Still --> Moving
-    Moving --> Still
-    Moving --> Crash
-    Crash --> [*]
+    [*] --> Idle
+    Idle --> [*]
+    Idle --> Brewing
+    Brewing --> Idle
+    Brewing --> Jammed
+    Jammed --> [*]
 `,
       },
       {
-        id: 'order-lifecycle-with-composite-states',
-        title: 'Order Lifecycle with Composite States',
+        id: 'parcel-lifecycle-with-composite-states',
+        title: 'Parcel Lifecycle with Composite States',
         code: `stateDiagram-v2
     direction LR
-    [*] --> Placed
-    Placed --> Paid : payment received
-    Placed --> Cancelled : customer cancels
-    Paid --> Fulfilment
-
-    state Fulfilment {
-        [*] --> Packing
-        Packing --> Shipped : handed to courier
-        Shipped --> [*]
+    [*] --> Booked
+    Booked --> Labelled : label printed
+    Booked --> Withdrawn : sender cancels
+    Labelled --> InTransit
+    state InTransit {
+        [*] --> Sorting
+        Sorting --> OnTruck : loaded at the hub
+        OnTruck --> [*]
     }
-
-    Fulfilment --> Delivered : courier confirms
+    InTransit --> Delivered : signed for
     Delivered --> [*]
-    Cancelled --> [*]
-
-    note right of Paid
-        Payment can be card,
-        wallet, or bank transfer
+    Withdrawn --> [*]
+    note right of Labelled
+        Labels can be printed
+        at home or at a shop
     end note
 `,
       },
@@ -675,24 +666,22 @@ radar-beta
         id: 'choice-and-concurrency',
         title: 'Choice and Concurrency',
         code: `stateDiagram-v2
-    state battery_check <<choice>>
-    [*] --> PowerOn
-    PowerOn --> battery_check
-    battery_check --> LowPowerMode : battery < 20%
-    battery_check --> Active : battery >= 20%
-
-    state Active {
-        [*] --> Playing
-        Playing --> Paused : pause
-        Paused --> Playing : play
+    state charge_check <<choice>>
+    [*] --> Booting
+    Booting --> charge_check
+    charge_check --> SafeMode : charge < 10%
+    charge_check --> Running : charge >= 10%
+    state Running {
+        [*] --> Downloading
+        Downloading --> Installing : done
+        Installing --> Downloading : retry
         --
-        [*] --> ScreenOn
-        ScreenOn --> ScreenDimmed : idle 30s
-        ScreenDimmed --> ScreenOn : touch
+        [*] --> Online
+        Online --> Offline : signal lost
+        Offline --> Online : reconnected
     }
-
-    LowPowerMode --> [*] : power off
-    Active --> [*] : power off
+    SafeMode --> [*] : shut down
+    Running --> [*] : shut down
 `,
       },
     ],
@@ -702,75 +691,74 @@ radar-beta
     title: 'Entity Relationship Diagram',
     examples: [
       {
-        id: 'basic-er-schema',
-        title: 'Basic ER Schema',
+        id: 'school-enrollment',
+        title: 'School Enrollment',
         code: `erDiagram
-    CUSTOMER ||--o{ ORDER : places
-    ORDER ||--|{ ORDER_ITEM : contains
-    PRODUCT ||--o{ ORDER_ITEM : includes
-    CUSTOMER {
+    STUDENT ||--o{ ENROLLMENT : makes
+    COURSE ||--|{ ENROLLMENT : receives
+    TEACHER ||--o{ COURSE : teaches
+    STUDENT {
         string id
         string name
-        string email
+        date birthday
     }
-    ORDER {
-        string id
-        date orderDate
-        string status
+    COURSE {
+        string code
+        string title
+        int credits
     }
-    PRODUCT {
+    TEACHER {
         string id
         string name
-        float price
+        string office
     }
-    ORDER_ITEM {
-        int quantity
-        float price
+    ENROLLMENT {
+        date enrolledOn
+        string grade
     }
 `,
       },
       {
-        id: 'streaming-service-with-keys-and-comments',
-        title: 'Streaming Service with Keys and Comments',
+        id: 'music-library-with-keys-and-comments',
+        title: 'Music Library with Keys and Comments',
         code: `erDiagram
-    USER ||--o{ SUBSCRIPTION : has
-    PLAN ||--o{ SUBSCRIPTION : "subscribed via"
-    USER ||--o{ WATCH_HISTORY : logs
-    EPISODE ||--o{ WATCH_HISTORY : "appears in"
-    SHOW ||--|{ EPISODE : contains
-    USER {
+    LISTENER ||--o{ PLAYLIST : creates
+    ARTIST ||--o{ ALBUM : "released as"
+    PLAYLIST ||--o{ PLAYLIST_ENTRY : holds
+    TRACK ||--o{ PLAYLIST_ENTRY : "added to"
+    ALBUM ||--|{ TRACK : contains
+    LISTENER {
         string id PK
-        string email UK "Used for login"
+        string username UK "Shown on profiles"
         string country
     }
-    SUBSCRIPTION {
+    PLAYLIST {
         string id PK
-        string userId FK
-        string planId FK
-        date startedAt
-        bool autoRenew
+        string listenerId FK
+        string name
+        bool isPublic
     }
-    PLAN {
+    ARTIST {
         string id PK
-        string name "Basic, Standard or Premium"
-        float monthlyPrice
+        string name "Stage name"
+        int debutYear
     }
-    SHOW {
+    ALBUM {
         string id PK
+        string artistId FK
         string title
-        string genre
     }
-    EPISODE {
+    TRACK {
         string id PK
-        string showId FK
-        int seasonNumber
-        int episodeNumber
+        string albumId FK
+        int number
+        int seconds
     }
-    WATCH_HISTORY {
-        string userId FK
-        string episodeId FK
-        date watchedAt
-        int secondsWatched
+    PLAYLIST_ENTRY {
+        string playlistId FK
+        string trackId FK
+        date addedAt
+        int position
     }
 `,
       },
@@ -784,54 +772,54 @@ radar-beta
         id: 'basic-git-flow',
         title: 'Basic Git Flow',
         code: `gitGraph
-    commit id: "a3f82c1"
-    branch develop
-    checkout develop
-    commit id: "b7e41d9"
-    commit id: "c9d52e4"
+    commit id: "init"
+    branch staging
+    checkout staging
+    commit id: "add login"
+    commit id: "add logout"
     checkout main
-    merge develop id: "d4e8f3a"
-    commit id: "e1b6c90"
-    branch feature
-    checkout feature
-    commit id: "f2a8d17"
-    commit id: "a8c3f54"
+    merge staging id: "release 1"
+    commit id: "update readme"
+    branch search
+    checkout search
+    commit id: "search box"
+    commit id: "search results"
     checkout main
-    merge feature id: "b9d7e21"
+    merge search id: "release 2"
 `,
       },
       {
         id: 'release-and-hotfix-workflow',
         title: 'Release and Hotfix Workflow',
         code: `gitGraph
-    commit id: "initial setup"
+    commit id: "project skeleton"
     branch develop
-    commit id: "feat: login page"
-    commit id: "feat: search"
+    commit id: "feat: cart"
+    commit id: "feat: checkout"
     checkout main
-    merge develop tag: "v1.0.0"
+    merge develop tag: "v2.0.0"
     checkout develop
-    commit id: "feat: user profile"
+    commit id: "feat: wishlist"
     checkout main
     branch hotfix
-    commit id: "fix: crash on load"
+    commit id: "fix: tax rounding"
     checkout main
-    merge hotfix tag: "v1.0.1"
+    merge hotfix tag: "v2.0.1"
     checkout develop
-    cherry-pick id: "fix: crash on load"
-    commit id: "feat: dark mode"
+    cherry-pick id: "fix: tax rounding"
+    commit id: "feat: gift cards"
     checkout main
-    merge develop tag: "v1.1.0"
+    merge develop tag: "v2.1.0"
 `,
       },
       {
         id: 'highlighted-commits',
         title: 'Highlighted Commits',
         code: `gitGraph TB:
-    commit id: "v2 groundwork"
-    commit id: "schema migration" type: HIGHLIGHT
-    commit id: "revert experiment" type: REVERSE
-    commit id: "stabilize" tag: "v2.0.0-rc1"
+    commit id: "new parser"
+    commit id: "drop old API" type: HIGHLIGHT
+    commit id: "undo cache change" type: REVERSE
+    commit id: "polish" tag: "v3.0.0-beta"
 `,
       },
     ],
@@ -841,56 +829,56 @@ radar-beta
     title: 'Architecture Diagram',
     examples: [
       {
-        id: 'basic-system-architecture',
-        title: 'Basic System Architecture',
+        id: 'photo-storage',
+        title: 'Photo Storage',
         code: `architecture-beta
-    group api(cloud)[API]
+    group media(cloud)[Media]
 
-    service db(database)[Database] in api
-    service disk1(disk)[Storage] in api
-    service disk2(disk)[Storage] in api
-    service server(server)[Server] in api
+    service meta(database)[Metadata] in media
+    service hot(disk)[Hot Storage] in media
+    service cold(disk)[Archive] in media
+    service thumbs(server)[Thumbnailer] in media
 
-    db:L -- R:server
-    disk1:T -- B:server
-    disk2:T -- B:db
+    meta:L -- R:thumbs
+    hot:T -- B:thumbs
+    cold:T -- B:meta
 `,
       },
       {
-        id: 'web-app-with-frontend-and-backend-groups',
-        title: 'Web App with Frontend and Backend Groups',
+        id: 'shop-with-public-and-private-groups',
+        title: 'Shop with Public and Private Groups',
         code: `architecture-beta
-    group frontend(cloud)[Frontend]
-    group backend(cloud)[Backend]
+    group public(cloud)[Public]
+    group private(cloud)[Private]
 
-    service web(internet)[Website] in frontend
-    service mobile(internet)[Mobile App] in frontend
-    service api(server)[API Server] in backend
-    service auth(server)[Auth Service] in backend
-    service db(database)[Database] in backend
-    service files(disk)[File Storage] in backend
+    service shop(internet)[Shop Website] in public
+    service app(internet)[Shop App] in public
+    service orders(server)[Orders API] in private
+    service pay(server)[Payments] in private
+    service stock(database)[Stock] in private
+    service images(disk)[Images] in private
 
-    web:R --> L:api
-    mobile:R --> L:api
-    api:R --> L:auth
-    api:B --> T:db
-    db:R -- L:files
+    shop:R --> L:orders
+    app:R --> L:orders
+    orders:R --> L:pay
+    orders:B --> T:stock
+    stock:R -- L:images
 `,
       },
       {
-        id: 'load-balancing-with-junctions',
-        title: 'Load Balancing with Junctions',
+        id: 'queue-workers-with-junctions',
+        title: 'Queue Workers with Junctions',
         code: `architecture-beta
-    service user(internet)[User]
-    service lb(server)[Load Balancer]
-    service app1(server)[App Server 1]
-    service app2(server)[App Server 2]
-    junction fanout
+    service client(internet)[Client]
+    service queue(server)[Job Queue]
+    service w1(server)[Worker 1]
+    service w2(server)[Worker 2]
+    junction split
 
-    user:R -- L:lb
-    lb:R -- L:fanout
-    app1:B -- T:fanout
-    app2:T -- B:fanout
+    client:R -- L:queue
+    queue:R -- L:split
+    w1:B -- T:split
+    w2:T -- B:split
 `,
       },
     ],
@@ -900,46 +888,46 @@ radar-beta
     title: 'XY Chart',
     examples: [
       {
-        id: 'sales-revenue',
-        title: 'Sales Revenue',
+        id: 'monthly-rainfall',
+        title: 'Monthly Rainfall',
         code: `xychart-beta
-    title "Sales Revenue"
+    title "Monthly Rainfall"
     x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
-    y-axis "Revenue (in $)" 4000 --> 11000
-    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
-    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
+    y-axis "Rain (in mm)" 20 --> 120
+    bar [80, 65, 60, 45, 50, 40, 35, 45, 60, 85, 100, 95]
+    line [80, 65, 60, 45, 50, 40, 35, 45, 60, 85, 100, 95]
 `,
       },
       {
-        id: 'coffee-sales-with-data-labels',
-        title: 'Coffee Sales with Data Labels',
+        id: 'ice-cream-sales-with-data-labels',
+        title: 'Ice Cream Sales with Data Labels',
         code: `---
 config:
   xyChart:
     showDataLabel: true
 ---
 xychart-beta
-    title "Cups sold per day"
-    x-axis [Espresso, Latte, "Cold Brew", Mocha, Tea]
-    y-axis "Cups" 0 --> 120
-    bar [95, 110, 68, 45, 30]
+    title "Scoops sold on Sunday"
+    x-axis [Vanilla, Chocolate, "Salted Caramel", Lemon, Mint]
+    y-axis "Scoops" 0 --> 150
+    bar [120, 140, 85, 40, 55]
 `,
       },
       {
-        id: 'sign-ups-vs-churn',
-        title: 'Sign-ups vs Churn',
+        id: 'downloads-vs-uninstalls',
+        title: 'Downloads vs Uninstalls',
         code: `---
 config:
   themeVariables:
     xyChart:
-      plotColorPalette: '#2563eb, #dc2626'
+      plotColorPalette: '#16a34a, #ea580c'
 ---
 xychart-beta
-    title "Sign-ups vs churned users"
-    x-axis [Q1, Q2, Q3, Q4]
-    y-axis "Users" 0 --> 500
-    line [120, 260, 380, 470]
-    line [40, 60, 90, 110]
+    title "App downloads vs uninstalls"
+    x-axis [Jan, Feb, Mar, Apr]
+    y-axis "Installs" 0 --> 800
+    line [150, 340, 560, 720]
+    line [30, 80, 110, 150]
 `,
       },
     ],
@@ -949,38 +937,38 @@ xychart-beta
     title: 'Sankey Diagram',
     examples: [
       {
-        id: 'monthly-budget-flow',
-        title: 'Monthly Budget Flow',
+        id: 'household-energy-use',
+        title: 'Household Energy Use',
         code: `sankey-beta
 
-Salary,Budget,3000
-Freelance work,Budget,1200
-Budget,Rent,1300
-Budget,Groceries,600
-Budget,Transport,250
-Budget,Fun,350
-Budget,Savings,1700
+Grid,Home,520
+Solar panels,Home,180
+Home,Heating,260
+Home,Kitchen,120
+Home,Lighting,60
+Home,Laundry,90
+Home,Electronics,170
 `,
       },
       {
-        id: 'job-application-funnel',
-        title: 'Job Application Funnel',
+        id: 'website-visitor-funnel',
+        title: 'Website Visitor Funnel',
         code: `sankey-beta
 
-Applications,Screening,120
-Screening,Rejected early,70
-Screening,Phone interview,50
-Phone interview,Rejected,20
-Phone interview,Technical interview,30
-Technical interview,Rejected late,12
-Technical interview,Offer,18
-Offer,Declined,4
-Offer,Hired,14
+Visitors,Product page,900
+Product page,Left the site,520
+Product page,Added to cart,380
+Added to cart,Abandoned cart,150
+Added to cart,Checkout,230
+Checkout,Payment failed,30
+Checkout,Paid,200
+Paid,Returned,20
+Paid,Kept,180
 `,
       },
       {
-        id: 'energy-flow-uk',
-        title: 'Energy Flow (UK)',
+        id: 'water-use-in-a-town',
+        title: 'Water Use in a Town',
         code: `---
 config:
   sankey:
@@ -988,74 +976,33 @@ config:
 ---
 sankey-beta
 
-Agricultural 'waste',Bio-conversion,124.729
-Bio-conversion,Liquid,0.597
-Bio-conversion,Losses,26.862
-Bio-conversion,Solid,280.322
-Bio-conversion,Gas,81.144
-Biofuel imports,Liquid,35
-Biomass imports,Solid,35
-Coal imports,Coal,11.606
-Coal reserves,Coal,63.965
-Coal,Solid,75.571
-District heating,Industry,10.639
-District heating,Heating and cooling - commercial,22.505
-District heating,Heating and cooling - homes,46.184
-Electricity grid,Over generation / exports,104.453
-Electricity grid,Heating and cooling - homes,113.726
-Electricity grid,H2 conversion,27.14
-Electricity grid,Industry,342.165
-Electricity grid,Road transport,37.797
-Electricity grid,Agriculture,4.412
-Electricity grid,Heating and cooling - commercial,40.858
-Electricity grid,Losses,56.691
-Electricity grid,Rail transport,7.863
-Electricity grid,Lighting & appliances - commercial,90.008
-Electricity grid,Lighting & appliances - homes,93.494
-Gas imports,NGas,40.719
-Gas reserves,NGas,82.233
-Gas,Heating and cooling - commercial,0.129
-Gas,Losses,1.401
-Gas,Thermal generation,151.891
-Gas,Agriculture,2.096
-Gas,Industry,48.58
-Geothermal,Electricity grid,7.013
-H2 conversion,H2,20.897
-H2 conversion,Losses,6.242
-H2,Road transport,20.897
-Hydro,Electricity grid,6.995
-Liquid,Industry,121.066
-Liquid,International shipping,128.69
-Liquid,Road transport,135.835
-Liquid,Domestic aviation,14.458
-Liquid,International aviation,206.267
-Liquid,Agriculture,3.64
-Liquid,National navigation,33.218
-Liquid,Rail transport,4.413
-Marine algae,Bio-conversion,4.375
-NGas,Gas,122.952
-Nuclear,Thermal generation,839.978
-Oil imports,Oil,504.287
-Oil reserves,Oil,107.703
-Oil,Liquid,611.99
-Other waste,Solid,56.587
-Other waste,Bio-conversion,77.81
-Pumped heat,Heating and cooling - homes,193.026
-Pumped heat,Heating and cooling - commercial,70.672
-Solar PV,Electricity grid,59.901
-Solar Thermal,Heating and cooling - homes,19.263
-Solar,Solar Thermal,19.263
-Solar,Solar PV,59.901
-Solid,Agriculture,0.882
-Solid,Thermal generation,400.12
-Solid,Industry,46.477
-Thermal generation,Electricity grid,525.531
-Thermal generation,Losses,787.129
-Thermal generation,District heating,79.329
-Tidal,Electricity grid,9.452
-UK land based bioenergy,Bio-conversion,182.01
-Wave,Electricity grid,19.013
-Wind,Electricity grid,289.366
+River,Treatment plant,620.5
+Wells,Treatment plant,210.25
+Rain tanks,Gardens,35.75
+Treatment plant,Losses,48.4
+Treatment plant,Homes,402.6
+Treatment plant,Businesses,214.9
+Treatment plant,Public use,164.85
+Homes,Showers,120.3
+Homes,Toilets,98.1
+Homes,Kitchen,61.7
+Homes,Gardens,52.4
+Homes,Laundry,70.1
+Businesses,Restaurants,64.2
+Businesses,Offices,40.5
+Businesses,Factories,110.2
+Public use,Parks,74.3
+Public use,Pools,48.15
+Public use,Fire service,12.4
+Public use,Street cleaning,30
+Showers,Sewer,120.3
+Toilets,Sewer,98.1
+Kitchen,Sewer,61.7
+Laundry,Sewer,70.1
+Factories,Sewer,95
+Sewer,Wastewater plant,445.2
+Wastewater plant,Sea,430
+Wastewater plant,Sludge,15.2
 `,
       },
     ],
@@ -1065,47 +1012,47 @@ Wind,Electricity grid,289.366
     title: 'Gantt Chart',
     examples: [
       {
-        id: 'product-launch-plan',
-        title: 'Product Launch Plan',
+        id: 'garden-renovation',
+        title: 'Garden Renovation',
         code: `gantt
-    title Product Launch Plan
+    title Garden Renovation
     dateFormat YYYY-MM-DD
-    section Planning
-        Market research      :done, research, 2024-03-01, 10d
-        Define requirements  :done, reqs, after research, 7d
+    section Prepare
+        Clear old plants     :done, clear, 2024-04-01, 5d
+        Draw the plan        :done, plan, after clear, 3d
     section Build
-        Design prototype     :active, proto, after reqs, 14d
-        User testing         :testing, after proto, 7d
-    section Launch
-        Marketing campaign   :marketing, after proto, 14d
-        Release day          :milestone, after testing, 0d
+        Lay the paths        :active, paths, after plan, 10d
+        Build raised beds    :beds, after paths, 6d
+    section Plant
+        Plant vegetables     :veg, after paths, 7d
+        Garden party         :milestone, after beds, 0d
 `,
       },
       {
-        id: 'website-redesign-with-dependencies',
-        title: 'Website Redesign with Dependencies',
+        id: 'conference-planning-with-dependencies',
+        title: 'Conference Planning with Dependencies',
         code: `gantt
-    title Website Redesign Project
+    title Conference Planning
     dateFormat YYYY-MM-DD
     excludes weekends
 
-    section Discovery
-        Stakeholder interviews :done, interviews, 2024-01-08, 5d
-        Competitive analysis   :done, analysis, 2024-01-10, 4d
+    section Venue
+        Shortlist venues     :done, venues, 2024-02-05, 5d
+        Sign the contract    :done, contract, 2024-02-07, 4d
 
-    section Design
-        Wireframes             :active, wireframes, after interviews, 7d
-        Visual design          :design, after wireframes, 10d
-        Design sign-off        :milestone, after design, 0d
+    section Program
+        Open submissions     :active, cft, after venues, 10d
+        Pick the speakers    :speakers, after cft, 7d
+        Program published    :milestone, after speakers, 0d
 
-    section Development
-        Frontend build         :crit, frontend, after design, 15d
-        CMS integration        :cms, after wireframes, 12d
-        Content migration      :content, after cms, 5d
+    section Logistics
+        Book catering        :crit, catering, after contract, 12d
+        Print badges         :badges, after speakers, 4d
+        Set up rooms         :setup, after badges, 2d
 
-    section Launch
-        QA testing             :qa, after frontend content, 5d
-        Go live                :milestone, after qa, 0d
+    section Event
+        Rehearsal            :rehearsal, after setup catering, 1d
+        Conference day       :milestone, after rehearsal, 0d
 `,
       },
     ],
@@ -1115,30 +1062,30 @@ Wind,Electricity grid,289.366
     title: 'Timeline Diagram',
     examples: [
       {
-        id: 'project-timeline',
-        title: 'Project Timeline',
+        id: 'space-exploration',
+        title: 'Space Exploration',
         code: `timeline
-    title History of Social Media Platform
-    2002 : LinkedIn
-    2004 : Facebook
-         : Google
-    2005 : YouTube
-    2006 : Twitter
+    title Milestones of space exploration
+    1957 : Sputnik 1
+    1961 : First human in orbit
+         : First American in space
+    1969 : Moon landing
+    1971 : First space station
 `,
       },
       {
-        id: 'product-roadmap-with-sections',
-        title: 'Product Roadmap with Sections',
+        id: 'year-plan-with-sections',
+        title: 'Year Plan with Sections',
         code: `timeline
-    title Product Roadmap 2024
-    section Q1 Foundations
-        January : Team hired : Tech stack chosen
-        February : MVP scoped
-        March : Alpha release
-    section Q2 Growth
-        April : Beta program opens
-        May : Mobile app : Public API
-        June : v1.0 launch
+    title Team plan for the year
+    section H1 Build
+        January : Hire two engineers : Pick the stack
+        March : Prototype ready
+        May : Private beta
+    section H2 Grow
+        July : Public launch
+        September : Android app : Team plan
+        November : First conference talk
 `,
       },
     ],
@@ -1148,42 +1095,42 @@ Wind,Electricity grid,289.366
     title: 'Quadrant Chart',
     examples: [
       {
-        id: 'product-positioning',
-        title: 'Product Positioning',
+        id: 'feature-priorities',
+        title: 'Feature Priorities',
         code: `quadrantChart
-    title Reach and engagement of campaigns
-    x-axis Low Reach --> High Reach
-    y-axis Low Engagement --> High Engagement
-    quadrant-1 We should expand
-    quadrant-2 Need to promote
-    quadrant-3 Re-evaluate
-    quadrant-4 May be improved
-    Campaign A: [0.3, 0.6]
-    Campaign B: [0.45, 0.23]
-    Campaign C: [0.57, 0.69]
-    Campaign D: [0.78, 0.34]
-    Campaign E: [0.40, 0.34]
-    Campaign F: [0.35, 0.78]
+    title Value and effort of planned features
+    x-axis Low Effort --> High Effort
+    y-axis Low Value --> High Value
+    quadrant-1 Plan carefully
+    quadrant-2 Do now
+    quadrant-3 Maybe later
+    quadrant-4 Avoid
+    Dark mode: [0.25, 0.7]
+    Offline sync: [0.8, 0.85]
+    Export to PDF: [0.4, 0.3]
+    Custom themes: [0.65, 0.35]
+    Keyboard shortcuts: [0.2, 0.55]
+    Plugin system: [0.9, 0.6]
 `,
       },
       {
-        id: 'eisenhower-matrix-with-styled-points',
-        title: 'Eisenhower Matrix with Styled Points',
+        id: 'weekly-chores-with-styled-points',
+        title: 'Weekly Chores with Styled Points',
         code: `quadrantChart
-    title Task Prioritization
-    x-axis Not Urgent --> Urgent
-    y-axis Not Important --> Important
-    quadrant-1 Do first
-    quadrant-2 Schedule
-    quadrant-3 Eliminate
-    quadrant-4 Delegate
-    Fix production outage: [0.88, 0.92] radius: 9
-    Plan next quarter: [0.28, 0.85]
-    Renew passport: [0.65, 0.75]
-    Answer routine emails: [0.78, 0.28]
-    Tidy desktop folders: [0.18, 0.12]
-    classDef urgent color: #ff3300
-    Book dentist appointment:::urgent: [0.72, 0.62]
+    title Chores this week
+    x-axis Can wait --> Due soon
+    y-axis Small --> Big
+    quadrant-1 Plan a slot
+    quadrant-2 Ask for help
+    quadrant-3 Skip
+    quadrant-4 Do today
+    Pay the rent: [0.92, 0.88] radius: 9
+    Clean the garage: [0.2, 0.9]
+    Water the plants: [0.75, 0.15]
+    Sort old photos: [0.1, 0.4]
+    Fix the bike light: [0.6, 0.3]
+    classDef urgent color: #d92d20
+    Renew insurance:::urgent: [0.85, 0.6]
 `,
       },
     ],
@@ -1193,41 +1140,40 @@ Wind,Electricity grid,289.366
     title: 'Packet Diagram',
     examples: [
       {
-        id: 'tcp-packet',
-        title: 'TCP Packet',
+        id: 'ipv4-header',
+        title: 'IPv4 Header',
         code: `---
-title: "TCP Packet"
+title: "IPv4 Header"
 ---
 packet
-0-15: "Source Port"
-16-31: "Destination Port"
-32-63: "Sequence Number"
-64-95: "Acknowledgment Number"
-96-99: "Data Offset"
-100-105: "Reserved"
-106: "URG"
-107: "ACK"
-108: "PSH"
-109: "RST"
-110: "SYN"
-111: "FIN"
-112-127: "Window"
-128-143: "Checksum"
-144-159: "Urgent Pointer"
-160-191: "(Options and Padding)"
-192-255: "Data (variable length)"
+0-3: "Version"
+4-7: "IHL"
+8-13: "DSCP"
+14-15: "ECN"
+16-31: "Total Length"
+32-47: "Identification"
+48: "Reserved"
+49: "DF"
+50: "MF"
+51-63: "Fragment Offset"
+64-71: "Time To Live"
+72-79: "Protocol"
+80-95: "Header Checksum"
+96-127: "Source Address"
+128-159: "Destination Address"
+160-191: "(Options)"
 `,
       },
       {
-        id: 'udp-packet-with-relative-bits',
-        title: 'UDP Packet with Relative Bits',
+        id: 'sensor-frame-with-relative-bits',
+        title: 'Sensor Frame with Relative Bits',
         code: `packet
-title UDP Packet
-+16: "Source Port"
-+16: "Destination Port"
-+16: "Length"
-+16: "Checksum"
-64-95: "Data (variable length)"
+title Sensor Frame
++8: "Start Byte"
++8: "Sensor Id"
++16: "Temperature"
++16: "Humidity"
+48-79: "Timestamp"
 `,
       },
     ],
@@ -1237,20 +1183,20 @@ title UDP Packet
     title: 'Block Diagram',
     examples: [
       {
-        id: 'three-tier-web-architecture',
-        title: 'Three-Tier Web Architecture',
+        id: 'smart-home-hub',
+        title: 'Smart Home Hub',
         code: `block-beta
   columns 3
-  user(("User")):3
+  phone(("Phone")):3
   space:3
-  ui["Web UI"] api["API Server"] db[("Database")]
+  hub["Home Hub"] lights["Lights"] logs[("Event Log")]
 
-  user --> ui
-  ui --> api
-  api --> db
+  phone --> hub
+  hub --> lights
+  lights --> logs
 
-  style user fill:#ffe0b2,stroke:#fb8c00
-  style db fill:#bbdefb,stroke:#1e88e5
+  style phone fill:#e1bee7,stroke:#8e24aa
+  style logs fill:#c8e6c9,stroke:#43a047
 `,
       },
       {
@@ -1258,18 +1204,18 @@ title UDP Packet
         title: 'Block Arrows and Nested Blocks',
         code: `block-beta
 columns 1
-  db(("DB"))
-  blockArrowId6<["&nbsp;&nbsp;&nbsp;"]>(down)
-  block:ID
-    A
-    B["A wide one in the middle"]
-    C
+  src(("Source"))
+  arrowDown<["&nbsp;&nbsp;&nbsp;"]>(down)
+  block:STAGES
+    Parse
+    Check["Type check the whole program"]
+    Emit
   end
   space
-  D
-  ID --> D
-  C --> D
-  style B fill:#969,stroke:#333,stroke-width:4px
+  Out
+  STAGES --> Out
+  Emit --> Out
+  style Check fill:#9cf,stroke:#333,stroke-width:4px
 `,
       },
     ],
@@ -1279,46 +1225,46 @@ columns 1
     title: 'Treemap',
     examples: [
       {
-        id: 'monthly-household-budget',
-        title: 'Monthly Household Budget',
+        id: 'holiday-budget',
+        title: 'Holiday Budget',
         code: `---
 config:
   treemap:
     valueFormat: '$0,0'
 ---
 treemap-beta
-"Monthly Budget"
-    "Housing"
-        "Rent": 1400
-        "Utilities": 220
-        "Internet": 60
+"Summer Holiday"
+    "Travel"
+        "Flights": 900
+        "Trains": 140
+        "Taxis": 60
+    "Stay"
+        "Hotel": 1100
+        "Camping": 120
     "Food"
-        "Groceries": 480
-        "Dining out": 180
-    "Transport"
-        "Car payment": 320
-        "Fuel": 140
-    "Savings"
-        "Emergency fund": 300
-        "Retirement": 400
+        "Restaurants": 450
+        "Groceries": 160
+    "Fun"
+        "Museums": 80
+        "Boat trip": 150
 `,
       },
       {
-        id: 'disk-usage-with-styling',
-        title: 'Disk Usage with Styling',
+        id: 'photo-library-with-styling',
+        title: 'Photo Library with Styling',
         code: `treemap-beta
-"Storage Used"
-    "Media":::warning
-        "Videos": 120
-        "Photos": 80
-        "Music": 25
-    "Documents"
-        "Work": 35
-        "Personal": 15
-    "Apps": 60
-    "System": 40
+"Photo Library"
+    "Travel":::big
+        "Japan": 140
+        "Norway": 90
+        "Portugal": 35
+    "Family"
+        "Birthdays": 45
+        "Holidays": 25
+    "Screenshots": 20
+    "Pets": 55
 
-classDef warning fill:#f96,stroke:#333;
+classDef big fill:#fc9,stroke:#333;
 `,
       },
     ],
@@ -1331,56 +1277,56 @@ classDef warning fill:#f96,stroke:#333;
         id: 'basic-use-cases',
         title: 'Basic Use Cases',
         code: `usecase-beta
-actor User("User")
-actor Admin("Administrator")
-Login("Log in")
-ViewProfile("View profile")
-ManageUsers("Manage users")
-ViewReports("View reports")
-User --> Login
-User --> ViewProfile
-Admin --> ManageUsers
-Admin --> ViewReports
+actor Client("Client")
+actor Teller("Bank teller")
+CheckBalance("Check balance")
+Transfer("Transfer money")
+OpenAccount("Open an account")
+PrintStatement("Print a statement")
+Client --> CheckBalance
+Client --> Transfer
+Teller --> OpenAccount
+Teller --> PrintStatement
 `,
       },
       {
         id: 'system-boundaries',
         title: 'System Boundaries',
         code: `usecase-beta
-actor Customer("Customer")
-actor SupportAgent("Support agent")
-systemBoundary "E-commerce System"
-  BrowseProducts("Browse products")
-  PlaceOrder("Place order")
-  TrackOrder("Track order")
+actor Reader("Reader")
+actor Librarian("Librarian")
+systemBoundary "Library System"
+  SearchCatalogue("Search the catalogue")
+  BorrowBook("Borrow a book")
+  RenewLoan("Renew a loan")
 end
-systemBoundary "Admin Panel"
-  ProcessOrders("Process orders")
-  HandleReturns("Handle returns")
+systemBoundary "Staff Portal"
+  AddBooks("Add new books")
+  ChaseLateReturns("Chase late returns")
 end
-Admin_Panel@{ type: package }
-Customer --> BrowseProducts
-Customer --> PlaceOrder
-Customer --> TrackOrder
-SupportAgent --> ProcessOrders
-SupportAgent --> HandleReturns
+Staff_Portal@{ type: package }
+Reader --> SearchCatalogue
+Reader --> BorrowBook
+Reader --> RenewLoan
+Librarian --> AddBooks
+Librarian --> ChaseLateReturns
 `,
       },
       {
         id: 'actor-collaboration',
         title: 'Actor Collaboration',
         code: `usecase-beta
-actor Developer("Developer")
-actor Reviewer("Reviewer")
-actor Manager("Release manager")
-WriteCode("Write code")
-ReviewCode("Review code")
-ApproveRelease("Approve release")
-Developer --> WriteCode
-Reviewer --> ReviewCode
-Manager --> ApproveRelease
-Developer -- "collaborates with" --> Reviewer
-Manager --> Developer
+actor Writer("Writer")
+actor Editor("Editor")
+actor Publisher("Publisher")
+DraftArticle("Draft an article")
+EditArticle("Edit the article")
+Publish("Publish online")
+Writer --> DraftArticle
+Editor --> EditArticle
+Publisher --> Publish
+Writer -- "works with" --> Editor
+Publisher --> Writer
 `,
       },
     ],
@@ -1390,45 +1336,43 @@ Manager --> Developer
     title: 'Event Modeling Diagram',
     examples: [
       {
-        id: 'shopping-cart-story',
-        title: 'Shopping Cart Story',
+        id: 'table-reservation-story',
+        title: 'Table Reservation Story',
         code: `eventmodeling
 
-tf 01 ui ShopUI
-tf 02 cmd AddItemToCart
-tf 03 evt ItemAdded
-tf 04 rmo CartView ->> 03
-tf 05 ui CheckoutUI
-tf 06 cmd PlaceOrder
-tf 07 evt OrderPlaced
-tf 08 rmo OrderStatus ->> 07
-
+tf 01 ui BookingUI
+tf 02 cmd ReserveTable
+tf 03 evt TableReserved
+tf 04 rmo ReservationList ->> 03
+tf 05 ui ArrivalUI
+tf 06 cmd SeatGuests
+tf 07 evt GuestsSeated
+tf 08 rmo FloorPlan ->> 07
 `,
       },
       {
-        id: 'cross-system-flow-with-data',
-        title: 'Cross-System Flow with Data',
+        id: 'shipping-flow-with-data',
+        title: 'Shipping Flow with Data',
         code: `eventmodeling
 
-tf 01 ui CartUI
-tf 02 cmd AddItem [[AddItem01]]
-tf 03 evt ItemAdded [[ItemAdded]]
+tf 01 ui OrderUI
+tf 02 cmd ShipOrder [[ShipOrder01]]
+tf 03 evt OrderShipped [[OrderShipped]]
 
-rf 04 evt Warehouse.StockChanged
-tf 05 pcr StockProcessor
-tf 06 cmd UpdateAvailability
-tf 07 evt Shop.AvailabilityUpdated
+rf 04 evt Carrier.ParcelScanned
+tf 05 pcr TrackingProcessor
+tf 06 cmd UpdateTracking
+tf 07 evt Shop.TrackingUpdated
 
-data AddItem01 {
-  sku: 'SHIRT-M'
-  quantity: 2
+data ShipOrder01 {
+  orderId: 'A-1042'
+  boxes: 3
 }
 
-data ItemAdded {
-  sku: string
-  quantity: number
+data OrderShipped {
+  orderId: string
+  boxes: number
 }
-
 `,
       },
     ],
@@ -1438,34 +1382,34 @@ data ItemAdded {
     title: 'Venn Diagram',
     examples: [
       {
-        id: 'product-sweet-spot',
-        title: 'Product Sweet Spot',
+        id: 'choosing-a-hobby',
+        title: 'Choosing a Hobby',
         code: `venn-beta
-    title "Finding the Product Sweet Spot"
-    set Desirable
-    set Feasible
-    set Viable
-    union Desirable,Feasible["Worth prototyping"]
-    union Feasible,Viable["Cheap to run"]
-    union Desirable,Viable["Hard to build"]
-    union Desirable,Feasible,Viable["Sweet spot"]
+    title "Picking a new hobby"
+    set Fun
+    set Cheap
+    set Healthy
+    union Fun,Cheap["Board games"]
+    union Cheap,Healthy["Walking"]
+    union Fun,Healthy["Climbing"]
+    union Fun,Cheap,Healthy["Cycling"]
 `,
       },
       {
-        id: 'team-skill-overlap-with-sizes-and-styles',
-        title: 'Team Skill Overlap with Sizes and Styles',
+        id: 'language-skills-with-sizes-and-styles',
+        title: 'Language Skills with Sizes and Styles',
         code: `venn-beta
-    title "Where our teams overlap"
-    set FE["Frontend"]:18
-        text fe1["React"]
-        text fe2["CSS"]
-    set BE["Backend"]:22
-        text be1["Databases"]
-        text be2["APIs"]
-    union FE,BE["Full-stack"]:8
-        text fs1["TypeScript"]
-    style FE fill:skyblue
-    style BE fill:lightgreen
+    title "Languages spoken in the office"
+    set EN["English"]:20
+        text en1["Sales"]
+        text en2["Support"]
+    set ES["Spanish"]:12
+        text es1["Logistics"]
+        text es2["Finance"]
+    union EN,ES["Both"]:6
+        text both1["Management"]
+    style EN fill:gold
+    style ES fill:lightcoral
 `,
       },
     ],
@@ -1478,30 +1422,30 @@ data ItemAdded {
         id: 'project-file-structure',
         title: 'Project File Structure',
         code: `treeView-beta
-            my-project/
-                src/
-                    components/
-                        Button.tsx
-                        Header.tsx
-                    App.tsx
-                    index.js
-                .gitignore
-                package.json
-                README.md
+            recipe-app/
+                lib/
+                    widgets/
+                        RecipeCard.tsx
+                        SearchBar.tsx
+                    main.tsx
+                    routes.js
+                .editorconfig
+                tsconfig.json
+                CHANGELOG.md
 `,
       },
       {
         id: 'shared-drive-with-quoted-names',
         title: 'Shared Drive with Quoted Names',
         code: `treeView-beta
-            "Team Drive"
-                "Quarterly Reports"
-                    "Q1 Review.pdf"
-                    "Q2 Review.pdf"
-                "Brand Assets"
-                    "logo.svg"
-                    "style guide.md"
-                "Meeting Notes"
+            "Family Drive"
+                "Holiday Photos"
+                    "Beach 2023.jpg"
+                    "Mountains 2024.jpg"
+                "House Papers"
+                    "lease.pdf"
+                    "insurance notes.md"
+                "Recipes"
 `,
       },
       {
@@ -1513,14 +1457,14 @@ config:
     showIcons: true
 ---
 treeView-beta
-            src/
-                App.tsx :::highlight icon(logos:react) ## main component
-                index.js ## entry point
-                styles.css icon(none)
-            data/
-                model.bin icon(logos:mysql)
-            .env ## environment variables
-            Dockerfile
+            app/
+                server.ts :::highlight icon(logos:nodejs-icon) ## starts the API
+                routes.js ## URL table
+                theme.css icon(none)
+            db/
+                seed.sql icon(logos:postgresql)
+            .env.example ## copy to .env
+            Makefile
             package.json
 `,
       },
@@ -1533,19 +1477,19 @@ config:
     showIcons: true
     defaultIconPack: material-icon-theme
     filenameIcons:
-      Dockerfile: docker
+      Makefile: makefile
     extensionIcons:
       .ts: typescript
       .tsx: react-ts
-      .txt: none
+      .log: none
 ---
 treeView-beta
-            my-project/
+            web-shop/
                 src/
-                    App.tsx
-                    utils.ts
-                Dockerfile
-                notes.txt
+                    Cart.tsx
+                    prices.ts
+                Makefile
+                build.log
                 README.md
 `,
       },
@@ -1553,13 +1497,13 @@ treeView-beta
         id: 'unicode-icons-in-filenames',
         title: 'Unicode Icons in Filenames',
         code: `treeView-beta
-            🚀 rocket-app/
-                📦 packages/
-                    🎨 ui/
-                    🛠️ utils/
-                🧪 tests/
-                📝 README.md
-                ⚙️ config.yaml
+            🌱 garden-planner/
+                📦 modules/
+                    🗺️ map/
+                    🌦️ weather/
+                🧪 checks/
+                📝 NOTES.md
+                ⚙️ settings.yaml
 `,
       },
     ],
@@ -1569,186 +1513,152 @@ treeView-beta
     title: 'Wardley Maps',
     examples: [
       {
-        id: 'tea-shop-value-chain',
-        title: 'Tea Shop Value Chain',
+        id: 'coffee-shop-value-chain',
+        title: 'Coffee Shop Value Chain',
         code: `wardley-beta
-title Tea Shop
+title Coffee Shop
 size [1100, 800]
 
-anchor Business [0.95, 0.63]
-anchor Public [0.95, 0.78]
-component Cup of Tea [0.79, 0.61] label [19, -4]
-component Cup [0.73, 0.78]
-component Tea [0.63, 0.81]
-component Hot Water [0.52, 0.80]
-component Water [0.38, 0.82]
-component Kettle [0.43, 0.35] label [-57, 4]
-component Power [0.1, 0.7] label [-27, 20]
+anchor Commuter [0.95, 0.60]
+anchor Office [0.95, 0.80]
+component Cup of Coffee [0.80, 0.62] label [19, -4]
+component Paper Cup [0.72, 0.80]
+component Beans [0.62, 0.70]
+component Grinder [0.50, 0.55]
+component Milk [0.40, 0.85]
+component Espresso Machine [0.45, 0.38] label [-80, 4]
+component Electricity [0.12, 0.90] label [-27, 20]
 
-Business -> Cup of Tea
-Public -> Cup of Tea
-Cup of Tea -> Cup
-Cup of Tea -> Tea
-Cup of Tea -> Hot Water
-Hot Water -> Water
-Hot Water -> Kettle
-Kettle -> Power
+Commuter -> Cup of Coffee
+Office -> Cup of Coffee
+Cup of Coffee -> Paper Cup
+Cup of Coffee -> Beans
+Cup of Coffee -> Grinder
+Grinder -> Milk
+Grinder -> Espresso Machine
+Espresso Machine -> Electricity
 
-evolve Kettle 0.62
-evolve Power 0.89
+evolve Espresso Machine 0.65
+evolve Grinder 0.75
 
-note "Standardising power allows Kettles to evolve faster" [0.30, 0.49]
-note "Hot water is obvious and well known" [0.48, 0.80]
-note "A generic note appeared" [0.23, 0.33]
-
+note "Cheaper machines let small shops compete" [0.30, 0.50]
+note "Milk is a commodity" [0.42, 0.88]
+note "Beans quality is the differentiator" [0.66, 0.40]
 `,
       },
       {
         id: 'custom-evolution-stages',
         title: 'Custom Evolution Stages',
         code: `wardley-beta
-title Data Evolution Pipeline
+title Research Tooling
 size [1100, 800]
 
-evolution Unmodelled -> Divergent -> Convergent -> Modelled
+evolution Idea -> Prototype -> Product -> Utility
 
-component User Needs [0.95, 0.05]
-component Data Collection [0.80, 0.15]
-component Custom Analytics [0.70, 0.35]
-component Standardized Reports [0.65, 0.65]
-component Commodity Storage [0.60, 0.85]
+component Scientist Needs [0.95, 0.10]
+component Lab Notebook [0.82, 0.20]
+component Custom Simulations [0.70, 0.30]
+component Shared Datasets [0.62, 0.60]
+component Cloud Compute [0.55, 0.88]
 
-User Needs -> Data Collection
-Data Collection -> Custom Analytics
-Custom Analytics -> Standardized Reports
-Standardized Reports -> Commodity Storage
+Scientist Needs -> Lab Notebook
+Lab Notebook -> Custom Simulations
+Custom Simulations -> Shared Datasets
+Shared Datasets -> Cloud Compute
 
-evolve Custom Analytics 0.60
-evolve Standardized Reports 0.85
-
+evolve Custom Simulations 0.55
+evolve Shared Datasets 0.80
 `,
       },
       {
         id: 'pipeline-components',
         title: 'Pipeline Components',
         code: `wardley-beta
-title Kettle Evolution Pipeline
+title Lighting Evolution Pipeline
 size [1100, 800]
 
-component Kettle [0.57, 0.45]
-component Power [0.10, 0.70]
+component Room Light [0.60, 0.50]
+component Electricity [0.12, 0.85]
 
-Kettle -> Power
+Room Light -> Electricity
 
-pipeline Kettle {
-  component Campfire Kettle [0.35] label [-60, 35]
-  component Electric Kettle [0.53] label [-60, 35]
-  component Smart Kettle [0.72] label [-30, 35]
+pipeline Room Light {
+  component Candle [0.20] label [-40, 35]
+  component Incandescent Bulb [0.50] label [-70, 35]
+  component LED Bulb [0.78] label [-30, 35]
 }
 
-Campfire Kettle -> Kettle
-Electric Kettle -> Kettle
-Smart Kettle -> Kettle
-
+Candle -> Room Light
+Incandescent Bulb -> Room Light
+LED Bulb -> Room Light
 `,
       },
       {
-        id: 'gpt-tokeniser-architecture',
-        title: 'GPT Tokeniser Architecture',
+        id: 'video-streaming-architecture',
+        title: 'Video Streaming Architecture',
         code: `wardley-beta
-title GPT Tokeniser
+title Video Streaming
 size [1100, 800]
 
-anchor GPT Tokeniser [0.90, 0.58]
+anchor Viewer [0.92, 0.60]
 
-component tokeniser [0.81, 0.58]
-component encoder [0.60, 0.32] label [1, -9]
-component decoder [0.60, 0.72]
-component methodology [0.72, 0.53]
-component training code [0.68, 0.26] label [-90, 2]
-component inference code [0.65, 0.37] label [-50, -12]
-component algo [0.53, 0.50] label [-15, -17]
-component GPT2 [0.81, 0.65] label [-14, 27]
-component GPT3 [0.81, 0.73] label [-15, 27]
-component GPT4 [0.81, 0.77] label [-14, 28]
-component GPT5 [0.81, 0.37] label [-10, 28]
-component GPT6 [0.81, 0.17] label [-20, 28]
-component GPT7 [0.81, 0.13] label [-13, 27]
-component tokeniser training data [0.29, 0.34] label [-74, -32]
-component special tokens [0.59, 0.26] label [-61, 15]
-component UTF8 [0.17, 0.74]
-component token vocabulary [0.41, 0.56] label [-25, 16]
-component byte pair encoding (BPE) [0.53, 0.76] label [-27, 19]
-component english text data [0.15, 0.37] label [0, 10]
-component code data [0.15, 0.30] label [-31, 23]
-component foreign text data [0.15, 0.23] label [-51, 18]
-component python [0.35, 0.84]
-component sentencepiece [0.25, 0.80] label [-49, 19]
-component IDE [0.27, 0.86]
-component MEGABYTE [0.53, 0.18] label [-28, 28]
-component text merging rules [0.60, 0.21] label [-64, -10]
-component security framework [0.67, 0.58] label [-27, 10]
-component Unicode Consortium [0.06, 0.55]
-component Unicode License v3 [0.13, 0.72] label [-29, 11]
+component player [0.82, 0.60]
+component recommendations [0.70, 0.30] label [1, -9]
+component catalogue [0.66, 0.66]
+component playback api [0.74, 0.52]
+component encoding jobs [0.58, 0.40] label [-80, 2]
+component watch history [0.55, 0.62] label [-60, -12]
+component ranking model [0.45, 0.25] label [-15, -17]
+component mobile app [0.82, 0.70] label [-14, 27]
+component smart tv app [0.82, 0.78] label [-15, 27]
+component web app [0.82, 0.86] label [-14, 28]
+component cdn [0.40, 0.82]
+component object storage [0.28, 0.88] label [-40, 12]
+component transcoder [0.48, 0.55] label [-50, 15]
+component codecs [0.30, 0.70]
+component analytics events [0.35, 0.45] label [-70, -20]
+component compute [0.15, 0.92]
+component licensing deals [0.60, 0.20] label [-60, 15]
 
-GPT Tokeniser -> tokeniser
+Viewer -> player
 
-tokeniser -> methodology
-methodology -> training code
-methodology -> inference code
-methodology -> security framework
+player -> playback api
+player -> recommendations
+playback api -> catalogue
+playback api -> cdn
+playback api -> watch history
 
-training code -> special tokens
-training code -> python
+recommendations -> ranking model
+ranking model -> analytics events
+ranking model -> watch history
 
-algo -> tokeniser training data
-training code -> text merging rules
+encoding jobs -> transcoder
+transcoder -> codecs
+transcoder -> compute
+cdn -> object storage
+object storage -> compute
 
-training code -> encoder
-inference code -> decoder
-encoder -> algo
-decoder -> algo
+catalogue -> licensing deals
+catalogue -> encoding jobs
 
-algo -> token vocabulary
-
-byte pair encoding (BPE) -> UTF8
-MEGABYTE -> UTF8
-UTF8 -> Unicode License v3
-Unicode License v3 -> Unicode Consortium
-
-tokeniser training data -> english text data
-tokeniser training data -> code data
-tokeniser training data -> foreign text data
-
-python -> IDE
-python -> sentencepiece
-
-pipeline tokeniser {
-  component tokeniser v1 [0.11]
-  component tokeniser v2 [0.80]
+pipeline player {
+  component player v1 [0.30]
+  component player v2 [0.75]
 }
 
-pipeline methodology {
-  component methodology v1 [0.20]
-  component methodology v2 [0.80]
+pipeline ranking model {
+  component rules [0.50]
+  component neural ranking [0.20]
 }
 
-pipeline algo {
-  component algo v1 [0.14]
-  component algo v2 [0.80]
-}
-
-deaccelerator License Play [0.13, 0.78]
+deaccelerator Regional Licensing [0.18, 0.60]
 
 annotations [1, 0]
-annotation 1,[0.57, 0.16] "Alternative algos in research"
-annotation 2,[0.57, 0.76] "Most popular, but not the most efficient"
-annotation 3,[0.20, 0.3] "Ensure balanced token vocabulary"
-annotation 4,[0.60, 0.28] "Required for delimiters"
-annotation 5,[0.70, 0.50] "A structured approach for achieving a goal"
+annotation 1,[0.50, 0.15] "Ranking models change every quarter"
+annotation 2,[0.45, 0.78] "Bandwidth is a commodity now"
+annotation 3,[0.62, 0.22] "Deals decide what can be shown"
 
-note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Salesforce" [0.04, 0.35]
-
+note "Codec choice affects every device" [0.25, 0.60]
 `,
       },
     ],
@@ -1758,60 +1668,58 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Cynefin Framework',
     examples: [
       {
-        id: 'incident-response',
-        title: 'Incident Response',
+        id: 'customer-support-triage',
+        title: 'Customer Support Triage',
         code: `cynefin-beta
-  title Incident Response
+  title Customer Support Triage
 
   complex
-    "Investigate root cause"
-    "Run chaos experiment"
+    "Churn after the redesign"
+    "Try a new onboarding call"
 
   complicated
-    "Analyze performance data"
-    "Expert review needed"
+    "Billing mismatch across systems"
+    "Ask the payments team"
 
   clear
-    "Restart service"
-    "Apply known fix"
+    "Password reset"
+    "Resend the invoice"
 
   chaotic
-    "Page on-call immediately"
+    "Site down for everyone"
 
   confusion
-    "Unknown failure mode"
+    "Ticket with no details"
 
-  complex --> complicated : "Pattern identified"
-  clear --> chaotic : "Complacency"
-
+  complex --> complicated : "Cause narrowed down"
+  clear --> chaotic : "Outdated runbook"
 `,
       },
       {
-        id: 'product-strategy-with-domain-transitions',
-        title: 'Product Strategy with Domain Transitions',
+        id: 'team-practices-with-domain-transitions',
+        title: 'Team Practices with Domain Transitions',
         code: `cynefin-beta
-  title Product Strategy
+  title Team Practices
 
   complex
-    "New market entry"
-    "Pricing experiments"
+    "Remote culture"
+    "New product line"
 
   complicated
-    "Competitive analysis"
-    "Capacity planning"
+    "Hiring pipeline"
+    "Cloud cost tuning"
 
   clear
-    "Standard onboarding"
-    "Invoice processing"
+    "Expense reports"
+    "Laptop setup"
 
   chaotic
-    "PR crisis response"
+    "Security breach"
 
-  complex --> complicated : "Patterns emerge"
-  complicated --> clear : "Playbook written"
-  clear --> chaotic : "Complacency"
-  chaotic --> complex : "Stabilized"
-
+  complex --> complicated : "Experiments converge"
+  complicated --> clear : "Checklist agreed"
+  clear --> chaotic : "Nobody owns it"
+  chaotic --> complex : "Fire is out"
 `,
       },
     ],
@@ -1821,44 +1729,43 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Railroad Diagram (IR)',
     examples: [
       {
-        id: 'expression-grammar',
-        title: 'Expression Grammar',
+        id: 'boolean-expression-grammar',
+        title: 'Boolean Expression Grammar',
         code: `railroad-beta
-    title Expression Grammar
+    title Boolean Expression Grammar
 
-    expression = sequence(
-        nonterminal("term"),
+    disjunction = sequence(
+        nonterminal("conjunction"),
         zeroOrMore(sequence(
-            choice(terminal("+"), terminal("-")),
-            nonterminal("term")
+            terminal("or"),
+            nonterminal("conjunction")
         ))
     ) ;
-    term = sequence(
-        nonterminal("factor"),
+    conjunction = sequence(
+        nonterminal("negation"),
         zeroOrMore(sequence(
-            choice(terminal("*"), terminal("/")),
-            nonterminal("factor")
+            terminal("and"),
+            nonterminal("negation")
         ))
     ) ;
-    factor = choice(
-        nonterminal("number"),
-        sequence(terminal("("), nonterminal("expression"), terminal(")"))
+    negation = choice(
+        sequence(terminal("not"), nonterminal("negation")),
+        nonterminal("atom")
     ) ;
-    number = oneOrMore(nonterminal("digit")) ;
-    digit = choice(terminal("0"), terminal("1"), terminal("2"), terminal("3"), terminal("4"), terminal("5"), terminal("6"), terminal("7"), terminal("8"), terminal("9")) ;
+    atom = choice(terminal("true"), terminal("false"), sequence(terminal("("), nonterminal("disjunction"), terminal(")"))) ;
 `,
       },
       {
-        id: 'json-grammar',
-        title: 'JSON Grammar',
+        id: 'csv-grammar',
+        title: 'CSV Grammar',
         code: `railroad-beta
-    title JSON Grammar
+    title CSV Grammar
 
-    json = nonterminal("element") ;
-    element = choice(nonterminal("object"), nonterminal("array"), nonterminal("string"), nonterminal("number"), terminal("true"), terminal("false"), terminal("null")) ;
-    object = sequence(terminal("{"), optional(sequence(nonterminal("member"), zeroOrMore(sequence(terminal(","), nonterminal("member"))))), terminal("}")) ;
-    array = sequence(terminal("["), optional(sequence(nonterminal("element"), zeroOrMore(sequence(terminal(","), nonterminal("element"))))), terminal("]")) ;
-    member = sequence(nonterminal("string"), terminal(":"), nonterminal("element")) ;
+    file = sequence(nonterminal("record"), zeroOrMore(sequence(terminal("newline"), nonterminal("record")))) ;
+    record = sequence(nonterminal("field"), zeroOrMore(sequence(terminal(","), nonterminal("field")))) ;
+    field = choice(nonterminal("quoted"), nonterminal("plain"), terminal("")) ;
+    quoted = sequence(terminal("\\""), zeroOrMore(nonterminal("char")), terminal("\\"")) ;
+    plain = oneOrMore(nonterminal("char")) ;
 `,
       },
     ],
@@ -1868,30 +1775,30 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Railroad Diagram (EBNF)',
     examples: [
       {
-        id: 'expression-grammar-1',
-        title: 'Expression Grammar',
+        id: 'date-grammar',
+        title: 'Date Grammar',
         code: `railroad-ebnf-beta
-    title Expression Grammar
+    title Date Grammar
 
-    expression = term ( "+" term | "-" term )* ;
-    term = factor ( "*" factor | "/" factor )* ;
-    factor = number | "(" expression ")" ;
-    number = digit+ ;
+    date = year "-" month "-" day ;
+    year = digit digit digit digit ;
+    month = "0" digit | "1" ( "0" | "1" | "2" ) ;
+    day = ( "0" | "1" | "2" ) digit | "3" ( "0" | "1" ) ;
     digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 `,
       },
       {
-        id: 'semantic-version',
-        title: 'Semantic Version',
+        id: 'url-path',
+        title: 'URL Path',
         code: `railroad-ebnf-beta
-    title Semantic Version
+    title URL Path
 
-    version = core ( "-" prerelease )? ( "+" build )? ;
-    core = number "." number "." number ;
-    prerelease = identifier ( "." identifier )* ;
-    build = identifier ( "." identifier )* ;
-    number = digit+ ;
-    identifier = ( letter | digit )+ ;
+    path = ( "/" segment )+ ( "?" query )? ;
+    segment = ( letter | digit | "-" )* ;
+    query = pair ( "&" pair )* ;
+    pair = name "=" value ;
+    name = letter+ ;
+    value = ( letter | digit )* ;
     letter = "a" | "b" | "c" ;
     digit = "0" | "1" | "2" ;
 `,
@@ -1903,26 +1810,25 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Railroad Diagram (ABNF)',
     examples: [
       {
-        id: 'email-address',
-        title: 'Email Address',
+        id: 'hex-color',
+        title: 'Hex Color',
         code: `railroad-abnf-beta
-    title Email Address
+    title Hex Color
 
-    address = local-part "@" domain ;
-    local-part = 1*( ALPHA / DIGIT / "." / "-" ) ;
-    domain = label *( "." label ) ;
-    label = 1*( ALPHA / DIGIT / "-" ) ;
+    color = "#" ( 6HEXDIG / 3HEXDIG ) ;
+    HEXDIG = DIGIT / "A" / "B" / "C" / "D" / "E" / "F" ;
 `,
       },
       {
-        id: 'phone-number',
-        title: 'Phone Number',
+        id: 'time-of-day',
+        title: 'Time of Day',
         code: `railroad-abnf-beta
-    title Phone Number
+    title Time of Day
 
-    phone = [ "+" country-code ] subscriber ;
-    country-code = 1*DIGIT ;
-    subscriber = 1*( DIGIT / "-" / " " ) ;
+    time = hour ":" minute [ ":" second ] ;
+    hour = 2DIGIT ;
+    minute = 2DIGIT ;
+    second = 2DIGIT ;
 `,
       },
     ],
@@ -1932,27 +1838,28 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Railroad Diagram (PEG)',
     examples: [
       {
-        id: 'calculator-grammar',
-        title: 'Calculator Grammar',
+        id: 'list-grammar',
+        title: 'List Grammar',
         code: `railroad-peg-beta
-    title Calculator Grammar
+    title List Grammar
 
-    Expression <- Term (("+" / "-") Term)* ;
-    Term <- Factor (("*" / "/") Factor)* ;
-    Factor <- Number / "(" Expression ")" ;
+    List <- "[" Items? "]" ;
+    Items <- Item ("," Item)* ;
+    Item <- Number / Word / List ;
     Number <- Digit+ ;
-    Digit <- "0" / "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9" ;
+    Word <- Letter+ ;
+    Digit <- "0" / "1" / "2" ;
+    Letter <- "a" / "b" / "c" ;
 `,
       },
       {
-        id: 'identifiers-with-predicates',
-        title: 'Identifiers with Predicates',
+        id: 'numbers-with-predicates',
+        title: 'Numbers with Predicates',
         code: `railroad-peg-beta
-    title Identifiers (keywords excluded)
+    title Numbers (no leading zero)
 
-    Identifier <- !Keyword Letter Letter* ;
-    Keyword <- "if" / "else" / "while" ;
-    Letter <- "a" / "b" / "c" / "_" ;
+    Number <- "0" / !"0" Digit Digit* ;
+    Digit <- "0" / "1" / "2" / "3" ;
 `,
       },
     ],
@@ -1962,48 +1869,48 @@ note "Voting members: Adobe, Amazon, Apple, Google, Meta, Microsoft, Netflix, Sa
     title: 'Swimlane Diagram',
     examples: [
       {
-        id: 'support-request',
-        title: 'Support Request',
+        id: 'expense-claim',
+        title: 'Expense Claim',
         code: `swimlane-beta LR
-  subgraph Customer
-    request[Request service]
-    receive[Receive update]
+  subgraph Employee
+    submit[Submit receipt]
+    paid[Money received]
   end
 
-  subgraph Support
-    triage[Triage request]
-    answer[Send answer]
+  subgraph Manager
+    check[Check the claim]
+    approve[Approve claim]
   end
 
-  subgraph Engineering
-    investigate[Investigate issue]
-    fix[Prepare fix]
+  subgraph Finance
+    audit[Audit the receipt]
+    transfer[Transfer money]
   end
 
-  request --> triage
-  triage -->|Known issue| answer
-  triage -->|Needs code change| investigate
-  investigate --> fix --> answer
-  answer --> receive
+  submit --> check
+  check -->|Small amount| approve
+  check -->|Over the limit| audit
+  audit --> transfer --> approve
+  approve --> paid
 `,
       },
       {
-        id: 'quote-approval',
-        title: 'Quote Approval',
+        id: 'content-review',
+        title: 'Content Review',
         code: `swimlane-beta LR
-  subgraph sales [Sales team]
-    lead([Qualify lead])
-    quote[Prepare quote]
+  subgraph authors [Authors]
+    draft([Write draft])
+    revise[Revise text]
   end
 
-  subgraph finance [Finance team]
-    review{Terms OK?}
-    approve((Approved))
+  subgraph editors [Editors]
+    ok{Ready to publish?}
+    publish((Published))
   end
 
-  lead --> quote --> review
-  review -->|Yes| approve
-  review -->|No| quote
+  draft --> revise --> ok
+  ok -->|Yes| publish
+  ok -->|No| revise
 `,
       },
     ],

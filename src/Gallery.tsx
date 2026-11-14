@@ -343,6 +343,7 @@ function TypeList({ current, shown, onShow }: { current: GalleryType; shown: Gal
           {GALLERY_TYPES.filter((t) => t.family === family).map((t) => {
             const open = t === current;
             const support = typeSupport(t);
+            const preview = previews.get(typeExamples(t)[0].id);
             return (
               <button
                 key={t.id}
@@ -352,11 +353,21 @@ function TypeList({ current, shown, onShow }: { current: GalleryType; shown: Gal
                 onClick={() => onShow(t.id)}
                 title={support ? SUPPORT_HINT[support] : undefined}
               >
-                <span className={`gallery-type-item-dot chip-${(support ?? 'none').toLowerCase()}`}>
-                  <span className="gallery-dot" aria-hidden="true" />
+                <span className="gallery-type-item-head">
+                  <span className={`gallery-type-item-dot chip-${(support ?? 'none').toLowerCase()}`}>
+                    <span className="gallery-dot" aria-hidden="true" />
+                  </span>
+                  <span className="gallery-type-item-title">{t.title}</span>
+                  <span className="gallery-count">{typeExamples(t).length}</span>
                 </span>
-                <span className="gallery-type-item-title">{t.title}</span>
-                <span className="gallery-count">{typeExamples(t).length}</span>
+                <span className="gallery-type-item-thumb" aria-hidden="true">
+                  {preview && 'svg' in preview ? (
+                    // Mermaid renders with securityLevel 'strict', and the examples are fixed text in this app.
+                    <span className="gallery-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+                  ) : (
+                    <span className="muted">{preview ? 'No preview' : '…'}</span>
+                  )}
+                </span>
               </button>
             );
           })}

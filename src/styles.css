@@ -473,9 +473,18 @@ button.danger { color: var(--danger); }
 }
 .gallery-type-list-family:first-child .gallery-type-list-heading { padding-top: 2px; }
 .gallery-type-item {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; text-align: left;
-  border: none; border-radius: 6px; background: none; color: var(--muted); opacity: 0.6;
+  display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 6px 8px 8px; margin-bottom: 4px; text-align: left;
+  border: none; border-radius: 8px; background: none; color: var(--muted); opacity: 0.6;
 }
+.gallery-type-item-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Mermaid draws for a light background, in both color schemes. Other types' previews are grey. */
+.gallery-type-item-thumb {
+  display: flex; align-items: center; justify-content: center; height: 72px; padding: 4px; overflow: hidden;
+  background: #fff; border: 1px solid var(--border); border-radius: 5px; pointer-events: none;
+  font-size: 11px; filter: grayscale(1);
+}
+.gallery-type-item:hover .gallery-type-item-thumb, .gallery-type-item.current .gallery-type-item-thumb { filter: none; }
+.gallery-type-item.current .gallery-type-item-thumb { border-color: transparent; }
 .gallery-type-item:hover, .gallery-type-item:focus-visible { opacity: 1; color: var(--text); background: var(--active-line); outline: none; }
 .gallery-type-item.current { opacity: 1; color: #fff; background: var(--accent); font-weight: 600; }
 .gallery-type-item.current .gallery-count { color: inherit; opacity: 0.85; }

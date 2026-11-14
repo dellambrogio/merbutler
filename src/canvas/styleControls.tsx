@@ -56,11 +56,12 @@ export function ColorField({ label, value, palette, onChange }: { label: string;
             onClick={() => onChange(c)}
           />
         ))}
+      </div>
+      <div className="color-field-row">
         <label className="color-custom" title="Pick any color">
           <input type="color" value={current ?? '#ffffff'} aria-label={`${label}: custom color`} onChange={(e) => onChange(e.target.value)} />
         </label>
-      </div>
-      <input
+        <input
         className="color-text mono"
         value={draft}
         placeholder="not set"
@@ -73,6 +74,7 @@ export function ColorField({ label, value, palette, onChange }: { label: string;
           if (e.key === 'Escape') setDraft(value);
         }}
       />
+      </div>
     </div>
   );
 }
@@ -186,7 +188,8 @@ export function StyleSwatch({ styles, text = 'Aa' }: { styles: readonly string[]
         borderColor: v('stroke'),
         borderWidth: width ? (/^\d+(\.\d+)?$/.test(width) ? `${width}px` : width) : undefined,
         borderStyle: v('stroke-dasharray') ? 'dashed' : undefined,
-        color: v('color'),
+        // Mermaid's dark default text on a fill without its own text color, also in dark mode.
+        color: v('color') ?? (v('fill') ? '#333333' : undefined),
         fontWeight: v('font-weight'),
         fontStyle: v('font-style'),
       }}

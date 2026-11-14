@@ -49,6 +49,8 @@ flowchart LR
 
 - ✍️ **Two-way sync**: type code and the canvas updates; edit the canvas and the code is regenerated.
 - 🧩 **Subgraphs**: nested, with their own direction, and edges to or from a whole subgraph.
+- 🎨 **Styling without syntax**: color swatches and pickers for nodes and edges, and a panel to create, edit and apply
+  style classes (`classDef`).
 - 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
@@ -136,7 +138,9 @@ just dev        # open the URL that Vite prints
 | Markdown label | Select the node, edge or subgraph → inspector → **Markdown** |
 | Change shape | Select the node → inspector |
 | Connect | Hover over a node or subgraph to show its handles, then drag from a handle and drop it on a handle of another node or subgraph |
-| Edge label, stroke, end marker, both ends | Select the edge → inspector |
+| Edge label, line, end marker, both ends, curve | Select the edge → inspector: the line (normal, dotted, thick, invisible) and the marker (none, arrow, circle, cross) are picked from small drawings |
+| Colors and text style | Select a node, subgraph or edge → inspector → **Own style**: swatches or any color for fill, border (or line) and text, border width and style, bold, italic. Written as `style id …` / `linkStyle n …`; **Reset** removes it, **Advanced** shows it as text |
+| Style classes | Toolbar → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select |
 | Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit, re-layout. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |

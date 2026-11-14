@@ -33,6 +33,12 @@ preview: build
 # Type-check and test
 ci: check test
 
+# Deploy main to GitHub Pages (runs the Pages workflow) and follow the run
+deploy:
+    gh workflow run pages.yml --ref main
+    sleep 3
+    gh run watch --exit-status "$(gh run list --workflow pages.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
+
 # Remove build output
 clean:
     rm -rf dist

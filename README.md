@@ -94,6 +94,7 @@ just dev        # open the URL that Vite prints
 | `just build` | Type-check and build to `dist/` |
 | `just preview` | Build and serve the production build |
 | `just clean` | Remove build output |
+| `just deploy` | Run the GitHub Pages workflow on `main` and follow it (needs `gh`) |
 
 `just` alone lists all recipes. Without `just`, use `npm install`, `npm run dev`, `npm test` and `npm run build`.
 

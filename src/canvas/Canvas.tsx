@@ -12,6 +12,7 @@ import {
   type EdgeChange,
   type NodeChange,
   type OnBeforeDelete,
+  type OnNodeDrag,
 } from '@xyflow/react';
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
@@ -23,6 +24,7 @@ import {
   addSubgraph,
   connect,
   diagramTitle,
+  groupInSubgraph,
   isSwimlane,
   nextEdgeId,
   nextNodeId,
@@ -39,7 +41,7 @@ import { ContextMenu } from './ContextMenu';
 import { ClassPanel, type Selection } from './ClassPanel';
 import { MultiInspector } from './MultiInspector';
 import { OpenClassesContext } from './styleControls';
-import { menuFor, type MenuTarget } from './canvasMenu';
+import { canMove, menuFor, moveTargets, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
 import { useDraggablePanels } from './draggablePanels';
@@ -112,7 +114,7 @@ function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
 }
 
 export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: CanvasProps): JSX.Element {
-  const { fitView } = useReactFlow();
+  const { fitView, getInternalNode, screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const title = diagramTitle(model);
   const theme = useMemo(() => diagramTheme(model), [model]);
@@ -138,6 +140,8 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     layoutKey.current = `${model.direction}|${laid.nodes.map((n) => n.id).sort().join(',')}`;
     const select = pendingSelect.current;
     pendingSelect.current = null;
+    // Mermaid has no positions: an element can be dragged only to move it into another subgraph.
+    laid.nodes = laid.nodes.map((n) => ({ ...n, draggable: canMove(model, n.id) }));
     if (select) {
       setNodes(laid.nodes.map((n) => ({ ...n, selected: n.id === select })));
       setEdges(laid.edges);
@@ -188,6 +192,60 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     }
     setNodes((prev) => applyNodeChanges(changes.filter((c) => c.type !== 'remove'), prev));
   }, []);
+  /**
+   * Dragging moves elements into another subgraph (or to the top level): the subgraph under the
+   * pointer is the drop target. Mermaid keeps no positions, so a drop anywhere else puts the
+   * elements back where the layout placed them.
+   */
+  const [dropInto, setDropInto] = useState<string | null>(null);
+  /** The dragged elements whose parent is not dragged too: they are the ones that move. */
+  const movedRoots = (dragged: CanvasNode[]): string[] => {
+    const ids = new Set(dragged.map((n) => n.id));
+    return dragged.filter((n) => !n.parentId || !ids.has(n.parentId)).map((n) => n.id).filter((id) => canMove(model, id));
+  };
+  /** The smallest subgraph under the point that can take all the moved elements, or null for the top level. */
+  const dropTargetAt = (e: MouseEvent | TouchEvent, moved: string[]): string | null => {
+    const point = 'changedTouches' in e ? e.changedTouches[0] : e;
+    if (!point) return null;
+    const p = screenToFlowPosition({ x: point.clientX, y: point.clientY });
+    const allowed = moved.map((id) => new Set(moveTargets(model, id)));
+    let best: string | null = null;
+    let bestArea = Infinity;
+    for (const n of nodesRef.current) {
+      if (n.type !== 'subgraph' || !allowed.every((a) => a.has(n.id))) continue;
+      const internal = getInternalNode(n.id);
+      if (!internal) continue;
+      const { x, y } = internal.internals.positionAbsolute;
+      const w = internal.measured.width ?? n.width ?? 0;
+      const h = internal.measured.height ?? n.height ?? 0;
+      if (p.x < x || p.x > x + w || p.y < y || p.y > y + h || w * h >= bestArea) continue;
+      best = n.id;
+      bestArea = w * h;
+    }
+    return best;
+  };
+  const parentOf = (id: string): string | null =>
+    model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null;
+  const onNodeDrag: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
+    const moved = movedRoots(dragged);
+    const target = dropTargetAt(e, moved);
+    // Highlight only a real move.
+    setDropInto(moved.some((id) => parentOf(id) !== target) ? target : null);
+  };
+  const onNodeDragStop: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
+    setDropInto(null);
+    const moved = movedRoots(dragged);
+    const target = dropTargetAt(e, moved);
+    let next = model;
+    for (const id of moved) if (parentOf(id) !== target) next = setParent(next, id, target);
+    if (next !== model) onChange(next);
+    else void relayout();
+  };
+  const shownNodes = useMemo(
+    () => (dropInto ? nodes.map((n) => (n.id === dropInto ? { ...n, className: 'drop-target' } : n)) : nodes),
+    [nodes, dropInto],
+  );
+
   const onEdgesChange = useCallback((changes: EdgeChange[]): void => {
     setEdges((prev) => applyEdgeChanges(changes.filter((c) => c.type !== 'remove'), prev));
   }, []);
@@ -268,9 +326,25 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const onAddPseudo = (kind: 'start' | 'end'): void => onChange(addPseudoState(model, targetParent(), kind));
   const noteTarget = node && !node.state ? node.id : null;
 
+  /** The selected nodes and subgraphs that can go into a new subgraph. */
+  const groupable = selectedNodes.map((n) => n.id).filter((id) => canMove(model, id));
+  /**
+   * Puts the selected elements into a new subgraph, or adds an empty one when nothing that can
+   * move is selected. A state diagram cannot put a composite straight into one that has regions.
+   */
   const onAddSubgraph = (): void => {
-    pendingSelect.current = nextSubgraphId(model);
-    onChange(addSubgraph(model, 'Group', targetParent()));
+    const label = stateDiagram ? 'Composite' : 'Group';
+    const id = nextSubgraphId(model);
+    if (groupable.length > 0) {
+      const grouped = groupInSubgraph(model, groupable, label);
+      const parent = grouped.subgraphs.find((s) => s.id === id)?.parent ?? null;
+      if (grouped === model || !moveTargets(model, groupable[0]).includes(parent)) return;
+      pendingSelect.current = id;
+      onChange(grouped);
+      return;
+    }
+    pendingSelect.current = id;
+    onChange(addSubgraph(model, label, targetParent()));
   };
 
   /** A new lane goes after the last one. */
@@ -350,7 +424,6 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
       selectOnly({ kind: 'edge', id });
     },
     fit: (): void => void fitView({ padding: 0.2, duration: 250 }),
-    relayout: (): void => void relayout(),
   };
   const openedMenu = menu ? menuFor(model, menu.target, readOnly, menuActions) : null;
 
@@ -378,6 +451,13 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
 
   /** The ContextMenu key or Shift+F10 opens the menu of the selected element, at the element. */
   const onCanvasKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    // Ctrl/Cmd+G: put the selection into a new subgraph.
+    if (e.key.toLowerCase() === 'g' && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      if (readOnly || usecaseDiagram || groupable.length === 0 || (e.target as HTMLElement).closest('input, textarea, select')) return;
+      e.preventDefault();
+      onAddSubgraph();
+      return;
+    }
     if (!(e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) return;
     if ((e.target as HTMLElement).closest('input, textarea, select, .context-menu')) return;
     e.preventDefault();
@@ -434,8 +514,12 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           </button>
         )}
         {!usecaseDiagram && (
-          <button onClick={onAddSubgraph} disabled={readOnly}>
-            {stateDiagram ? '+ Composite' : '+ Subgraph'}
+          <button
+            onClick={onAddSubgraph}
+            disabled={readOnly}
+            title={groupable.length > 0 ? 'Put the selection into a new subgraph (Ctrl+G)' : 'Add an empty subgraph. Select nodes first to put them into it (Ctrl+G).'}
+          >
+            {groupable.length > 0 ? (stateDiagram ? 'Group in composite' : 'Group in subgraph') : stateDiagram ? '+ Composite' : '+ Subgraph'}
           </button>
         )}
         <label title={swimlane ? 'LR: lanes are rows, the flow goes down through them. TB: lanes are columns.' : undefined}>
@@ -452,9 +536,6 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         </label>
         <button onClick={() => setClassesOpen((o) => !o)} aria-pressed={classesOpen} title="Style classes (classDef): create, edit, apply">
           Classes{(model.classDefs?.length ?? 0) > 0 ? ` ${model.classDefs!.length}` : ''}
-        </button>
-        <button onClick={() => void relayout()} title="Discard manual moves">
-          Re-layout
         </button>
         <button onClick={() => void fitView({ padding: 0.2 })}>Fit</button>
       </div>
@@ -496,11 +577,14 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           <RenameContext.Provider value={rename}>
           <EditRequestContext.Provider value={editRequest}>
             <ReactFlow
-              nodes={nodes}
+              nodes={shownNodes}
               edges={edges}
               nodeTypes={nodeTypes}
               edgeTypes={EDGE_TYPES}
               onNodesChange={onNodesChange}
+              onNodeDrag={onNodeDrag}
+              onNodeDragStop={onNodeDragStop}
+              nodesDraggable={!readOnly}
               onEdgesChange={onEdgesChange}
               onBeforeDelete={onBeforeDelete}
               onConnect={onConnect}

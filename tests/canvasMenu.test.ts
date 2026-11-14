@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { MenuItem } from '../src/canvas/ContextMenu';
-import { menuFor, type MenuActions, type MenuTarget } from '../src/canvas/canvasMenu';
-import { duplicateNode, reverseEdge, type FlowModel } from '../src/core/model';
+import { canMove, menuFor, moveTargets, type MenuActions, type MenuTarget } from '../src/canvas/canvasMenu';
+import { duplicateNode, groupInSubgraph, reverseEdge, type FlowModel } from '../src/core/model';
 import { parse } from '../src/core/parse';
 import { serialize } from '../src/core/serialize';
 
@@ -19,7 +19,6 @@ function open(model: FlowModel, target: MenuTarget, readOnly = false) {
     rename: (id) => (log.renamed = id),
     editEdgeLabel: (id) => (log.edgeLabel = id),
     fit: () => {},
-    relayout: () => {},
   };
   const menu = menuFor(model, target, readOnly, actions);
   /** Finds an entry by its path of labels and runs it. */
@@ -141,7 +140,7 @@ describe('canvas context menu', () => {
   test('read-only: only the view entries, on the canvas only', async () => {
     const model = await parseOk('flowchart LR\n  a --> b\n');
     expect(open(model, { kind: 'node', id: 'a' }, true).menu).toBeNull();
-    expect(open(model, { kind: 'pane' }, true).labels()).toEqual(['Fit view', 'Re-layout']);
+    expect(open(model, { kind: 'pane' }, true).labels()).toEqual(['Fit view']);
   });
 
   test('reverse and duplicate', async () => {
@@ -152,4 +151,34 @@ describe('canvas context menu', () => {
     expect(copy.model.nodes.find((n) => n.id === copy.id)).toMatchObject({ label: copy.id });
     expect(duplicateNode(model, 'a').model.nodes.find((n) => n.id === 'n1')?.click).toBeUndefined();
   });
+
+  test('what can be dragged into a subgraph, and where to', async () => {
+    const flow = await parseOk('flowchart LR\n  subgraph A\n    subgraph B\n      b\n    end\n  end\n  a --> b\n');
+    expect(canMove(flow, 'a')).toBe(true);
+    expect(moveTargets(flow, 'a')).toEqual([null, 'A', 'B']);
+    // A subgraph cannot go into itself or its descendants.
+    expect(moveTargets(flow, 'A')).toEqual([null]);
+    const lanes = await parseOk('swimlane-beta LR\n  subgraph L1\n    x\n  end\n');
+    expect(canMove(lanes, 'L1')).toBe(false);
+    expect(canMove(lanes, 'x')).toBe(true);
+    const state = await parseOk('stateDiagram-v2\n  [*] --> S\n  note right of S : hi\n');
+    expect(state.nodes.filter((n) => canMove(state, n.id)).map((n) => n.id)).toEqual(['S']);
+  });
+
+  test('grouping the selection into a new subgraph', async () => {
+    const model = await parseOk('flowchart LR\n  subgraph A\n    x\n    subgraph B\n      y\n    end\n  end\n  z\n  x --> y\n');
+    // Inside A: the new subgraph goes into A.
+    const inA = groupInSubgraph(model, ['x', 'B', 'y']);
+    expect(inA.subgraphs.at(-1)).toMatchObject({ id: 's1', parent: 'A' });
+    expect(inA.nodes.find((n) => n.id === 'x')?.parent).toBe('s1');
+    expect(inA.subgraphs.find((s) => s.id === 'B')?.parent).toBe('s1');
+    // y moves with B.
+    expect(inA.nodes.find((n) => n.id === 'y')?.parent).toBe('B');
+    // Across the top level: the new subgraph goes to the top level.
+    const top = groupInSubgraph(model, ['y', 'z']);
+    expect(top.subgraphs.at(-1)?.parent).toBeNull();
+    expect(serialize(top)).toMatch(/subgraph s1 \[Group\]/);
+    expect(groupInSubgraph(model, ['nope'])).toBe(model);
+  });
 });
+

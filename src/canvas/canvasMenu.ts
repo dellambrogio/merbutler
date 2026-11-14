@@ -41,7 +41,6 @@ export interface MenuActions {
   /** Selects the edge and puts the cursor in its label field. */
   editEdgeLabel: (id: string) => void;
   fit: () => void;
-  relayout: () => void;
 }
 
 /** The shapes the menu offers; the inspector has all of them. */
@@ -51,7 +50,7 @@ const nameOf = (item: { id: string; label: string }): string => (item.label && i
 
 /** The menu for one target, or null if there is nothing to offer. */
 export function menuFor(model: FlowModel, target: MenuTarget, readOnly: boolean, actions: MenuActions): { title: string; items: MenuItem[] } | null {
-  const view = [action('Fit view', actions.fit), action('Re-layout', actions.relayout, { hint: 'discards moves' })];
+  const view = [action('Fit view', actions.fit)];
   if (target.kind === 'pane') return { title: 'Diagram', items: readOnly ? view : [...paneItems(model, actions), separator, ...view] };
   if (readOnly) return null;
   if (target.kind === 'node') {
@@ -82,16 +81,39 @@ function subgraphTitle(model: FlowModel, sub: FlowSubgraph): string {
   return `Subgraph ${nameOf(sub)}`;
 }
 
-/** Moves an element, with the right "Move to" choices for its kind of diagram. */
-function moveItem(model: FlowModel, id: string, current: string | null, actions: MenuActions, isSubgraph: boolean): MenuItem {
-  const exclude = isSubgraph ? subgraphWithDescendants(model, id) : new Set<string>();
+/**
+ * Whether an element can move to another parent (by the menu or by dragging it). Notes, `[*]`
+ * states, regions, lanes and use case boundaries stay where they are.
+ */
+export function canMove(model: FlowModel, id: string): boolean {
+  const node = model.nodes.find((n) => n.id === id);
+  if (node) {
+    if (node.note) return false;
+    if (model.kind === 'state') return node.state !== 'start' && node.state !== 'end';
+    if (model.kind === 'usecase') return node.usecase !== undefined;
+    return true;
+  }
+  const sub = model.subgraphs.find((s) => s.id === id);
+  if (!sub) return false;
+  if (model.kind === 'state') return !sub.region;
+  if (model.kind === 'usecase') return false;
+  return !(model.kind === 'swimlane' && sub.parent === null);
+}
+
+/** Where an element can move: the top level (null) or a subgraph, with the rules of its kind of diagram. */
+export function moveTargets(model: FlowModel, id: string): (string | null)[] {
+  const exclude = model.subgraphs.some((s) => s.id === id) ? subgraphWithDescendants(model, id) : new Set<string>();
   // State diagrams: a composite with regions holds its states in the regions.
   const filter = (s: FlowSubgraph): boolean => model.kind !== 'state' || s.region === true || !model.subgraphs.some((r) => r.region && r.parent === s.id);
+  return [null, ...model.subgraphs.filter((s) => !exclude.has(s.id) && filter(s)).map((s) => s.id)];
+}
+
+/** Moves an element, with the right "Move to" choices for its kind of diagram. */
+function moveItem(model: FlowModel, id: string, current: string | null, actions: MenuActions): MenuItem {
   const label = model.kind === 'swimlane' ? 'Move to lane' : model.kind === 'usecase' ? 'Move to boundary' : model.kind === 'state' ? 'Move into' : 'Move to subgraph';
-  const targets = [null, ...model.subgraphs.filter((s) => !exclude.has(s.id) && filter(s)).map((s) => s.id)];
   return submenu(
     label,
-    targets.map((parent) => {
+    moveTargets(model, id).map((parent) => {
       const sub = parent === null ? null : model.subgraphs.find((s) => s.id === parent)!;
       const text = sub === null ? 'Top level' : sub.region ? `Region of ${sub.parent}` : nameOf(sub);
       return action(text, () => actions.change(setParent(model, id, parent)), { checked: current === parent, disabled: current === parent });
@@ -129,7 +151,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
       );
     }
     if (plain) items.push(action('Add note', () => actions.change(addNote(model, node.id))));
-    if (!pseudo) items.push(moveItem(model, node.id, node.parent, actions, false));
+    if (!pseudo) items.push(moveItem(model, node.id, node.parent, actions));
     return [...items, separator, remove];
   }
 
@@ -142,7 +164,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
         actions.change(connect(addUseCaseNode(model, 'usecase', parent, id), node.id, id), id);
       }),
       action('Add note', () => actions.change(addUseCaseNote(model, node.id))),
-      moveItem(model, node.id, node.parent, actions, false),
+      moveItem(model, node.id, node.parent, actions),
       separator,
       remove,
     ];
@@ -169,7 +191,7 @@ function nodeItems(model: FlowModel, node: FlowNode, actions: MenuActions): Menu
             ...(MENU_SHAPES.includes(node.shape) ? [] : [separator, action(SHAPE_INFO[node.shape].title, () => {}, { checked: true, disabled: true })]),
           ],
     ),
-    moveItem(model, node.id, node.parent, actions, false),
+    moveItem(model, node.id, node.parent, actions),
     separator,
     remove,
   ];
@@ -192,7 +214,7 @@ function subgraphItems(model: FlowModel, sub: FlowSubgraph, actions: MenuActions
         ? []
         : [
             action('Add composite inside', () => actions.change(addSubgraph(model, 'Composite', sub.id), nextSubgraphId(model)), { disabled: hasRegions }),
-            moveItem(model, sub.id, sub.parent, actions, true),
+            moveItem(model, sub.id, sub.parent, actions),
           ]),
       separator,
       remove,
@@ -223,7 +245,7 @@ function subgraphItems(model: FlowModel, sub: FlowSubgraph, actions: MenuActions
       action('Inherit', () => actions.change(updateSubgraph(model, sub.id, { direction: null })), { checked: sub.direction === null }),
       ...DIRECTIONS.map((d) => action(d, () => actions.change(updateSubgraph(model, sub.id, { direction: d })), { checked: sub.direction === d })),
     ]),
-    ...(lane ? [] : [moveItem(model, sub.id, sub.parent, actions, true)]),
+    ...(lane ? [] : [moveItem(model, sub.id, sub.parent, actions)]),
     separator,
     remove,
   ];

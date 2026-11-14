@@ -356,6 +356,31 @@ export function addSubgraph(model: FlowModel, label = 'Group', parent: string | 
 }
 
 /**
+ * Puts elements (nodes and subgraphs) into a new subgraph. The new subgraph goes into the innermost
+ * subgraph that holds all of them. An element inside another of the elements moves with it.
+ */
+export function groupInSubgraph(model: FlowModel, ids: Iterable<string>, label = 'Group'): FlowModel {
+  const parentOf = (id: string): string | null =>
+    model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null;
+  /** The subgraphs around an element, innermost first, then null (the top level). */
+  const ancestors = (id: string): (string | null)[] => {
+    const chain: (string | null)[] = [];
+    for (let p = parentOf(id); p !== null && !chain.includes(p); p = parentOf(p)) chain.push(p);
+    return [...chain, null];
+  };
+  const known = new Set([...model.nodes.map((n) => n.id), ...model.subgraphs.map((s) => s.id)]);
+  const set = new Set([...ids].filter((id) => known.has(id)));
+  const roots = [...set].filter((id) => !ancestors(id).some((a) => a !== null && set.has(a)));
+  if (roots.length === 0) return model;
+  const chains = roots.map(ancestors);
+  const parent = chains[0].find((a) => chains.every((c) => c.includes(a))) ?? null;
+  const id = nextSubgraphId(model);
+  let next = addSubgraph(model, label, parent);
+  for (const r of roots) next = setParent(next, r, id);
+  return next;
+}
+
+/**
  * Mermaid trims labels and does not accept an empty node or subgraph label: an empty label
  * becomes the id. A plain label cannot hold a newline: it becomes `<br>`.
  */

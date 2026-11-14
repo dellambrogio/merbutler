@@ -643,3 +643,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .shape-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .shape-tile-name { font-size: 10px; line-height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .shape-picker-empty { font-size: 12px; margin: 4px; }
+/* Dragging moves an element into another subgraph: the one it would land in is highlighted. */
+.react-flow__node.dragging { opacity: 0.75; }
+.react-flow__node.drop-target > .subgraph-node { border-color: var(--accent); border-style: solid; border-width: 2px; background: var(--selection); }

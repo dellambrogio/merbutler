@@ -98,8 +98,9 @@ just dev        # open the URL that Vite prints
 - **View:** it fits the diagram again when nodes are added or removed, or the direction changes.
   Renames and style edits do not move the view.
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
-  With ELK, edges follow the routes ELK found, as in Mermaid. You can drag nodes (their edges then draw a plain curve),
-  but the next edit or **Re-layout** resets the positions.
+  With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
+  shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
+  drag), or to the top level when you drop it outside its subgraph. A drop that changes nothing puts it back.
 
 ## Code editor
 
@@ -132,10 +133,11 @@ just dev        # open the URL that Vite prints
 | Action | How |
 |---|---|
 | Add node | **+ Node** (goes into the selected subgraph, or next to the selected node) |
-| Add subgraph | **+ Subgraph** (same rule) |
+| Add subgraph | **+ Subgraph** with nothing selected (an empty subgraph; inside a selected lane or region) |
+| Group into a subgraph | Select nodes and subgraphs, then **Group in subgraph** (the same button) or **Ctrl+G**. The new subgraph goes where they all are |
 | Rename node | Double-click the node, or use the inspector. **Enter** saves, **Shift+Enter** adds a line break |
 | Rename subgraph | Double-click its title, or use the inspector |
-| Move into / out of a subgraph | Select the node or subgraph → inspector → **Subgraph** |
+| Move into / out of a subgraph | Drag it onto the subgraph (or out of it), or select it → inspector → **Subgraph** |
 | Markdown label | Select the node, edge or subgraph → inspector → **Markdown** |
 | Change shape | Select the node → inspector |
 | Connect | Hover over a node or subgraph to show its handles, then drag from a handle and drop it on a handle of another node or subgraph |
@@ -144,7 +146,7 @@ just dev        # open the URL that Vite prints
 | Style classes | Toolbar → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select |
-| Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit, re-layout. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
+| Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
 
 ## Every diagram type
 
@@ -215,7 +217,7 @@ deleting those parts. Today every example in the Gallery is editable, and none l
   or at the end), and is written back there. Deleting the element deletes its comment.
 - `direction` inside a subgraph works as in Mermaid: the canvas uses it only if no edge connects a node inside
   the subgraph to a node outside it. Edges that end at the subgraph itself are allowed.
-- Without an ELK route (dagre, or after you drag a node), edges use handles on fixed sides (for example right → left
+- Without an ELK route (dagre), edges use handles on fixed sides (for example right → left
   in LR), so an edge that goes against the flow direction can cross the nodes or subgraphs between its ends.
 - The canvas places nodes like Mermaid's engine, but not pixel for pixel: node sizes are estimated from the text.
 - A subgraph without an id (`subgraph Some title`) gets the id Mermaid gives it (for example `subGraph3`)

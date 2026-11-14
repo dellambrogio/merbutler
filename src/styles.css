@@ -407,6 +407,7 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .subgraph-node.region { border-style: dashed; border-radius: 4px; background: transparent; }
 .subgraph-node.region .subgraph-title { min-height: 10px; padding: 2px; }
 .inspector-note { font-size: 12px; }
+.inspector-hint { margin: -4px 0 0; font-size: 12px; }
 
 /* Structured editors (outline, tables) next to the preview. */
 .structured-layout { position: absolute; inset: 0; display: grid; grid-template-columns: var(--split, minmax(260px, 380px)) 1fr; }

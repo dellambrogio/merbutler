@@ -29,7 +29,7 @@ function searchText(shape: Shape): string {
   return [info.title, info.at, ...info.aliases, ...(info.brackets ?? []), info.group].join(' ').toLowerCase();
 }
 
-export function ShapePicker({ value, onChange }: { value: Shape; onChange: (shape: Shape) => void }): JSX.Element {
+export function ShapePicker({ value, onChange }: { value: Shape | null; onChange: (shape: Shape) => void }): JSX.Element {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const root = useRef<HTMLDivElement>(null);
@@ -109,13 +109,14 @@ export function ShapePicker({ value, onChange }: { value: Shape; onChange: (shap
     tiles[Math.max(0, Math.min(tiles.length - 1, index + step))]?.focus();
   };
 
-  const info = SHAPE_INFO[value];
+  // null: several nodes with different shapes.
+  const info = value ? SHAPE_INFO[value] : null;
   return (
     <div className="shape-picker" ref={root} onKeyDown={onKeyDown}>
       <span className="color-field-label">Shape</span>
-      <button ref={button} type="button" className="shape-picker-button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} title={`${info.title} (${info.at})`}>
-        <ShapeIcon shape={value} />
-        <span className="shape-picker-name">{info.title}</span>
+      <button ref={button} type="button" className="shape-picker-button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} title={info ? `${info.title} (${info.at})` : 'The selected nodes have different shapes'}>
+        {value ? <ShapeIcon shape={value} /> : <span className="shape-icon" aria-hidden="true" />}
+        <span className="shape-picker-name">{info ? info.title : 'Mixed'}</span>
         <span className="shape-picker-arrow" aria-hidden="true">
           {open ? '▴' : '▾'}
         </span>

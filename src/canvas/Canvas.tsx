@@ -37,6 +37,7 @@ import {
 import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
 import { ClassPanel, type Selection } from './ClassPanel';
+import { MultiInspector } from './MultiInspector';
 import { OpenClassesContext } from './styleControls';
 import { menuFor, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
@@ -359,6 +360,22 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     requestAnimationFrame(() => canvasRef.current?.querySelector<HTMLTextAreaElement>('.inspector textarea')?.focus());
   }, [edge]);
 
+  // Ctrl/Cmd+A selects every node and edge, when the focus is on the canvas or nowhere (after a click on the empty canvas).
+  useEffect(() => {
+    if (readOnly) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a') return;
+      const target = e.target as HTMLElement;
+      const onCanvas = canvasRef.current?.contains(target) && !target.closest('input, textarea, select, [contenteditable="true"], .inspector, .class-panel');
+      if (!onCanvas && target !== document.body) return;
+      e.preventDefault();
+      setNodes((prev) => prev.map((n) => (n.selected ? n : { ...n, selected: true })));
+      setEdges((prev) => prev.map((ed) => (ed.selected ? ed : { ...ed, selected: true })));
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [readOnly]);
+
   /** The ContextMenu key or Shift+F10 opens the menu of the selected element, at the element. */
   const onCanvasKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (!(e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) return;
@@ -455,6 +472,18 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
 
             {!readOnly && !stateDiagram && !usecaseDiagram && edge && <FlowEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
 
+      {!readOnly && selectedNodes.length + selectedEdges.length > 1 && (
+        <MultiInspector
+          model={model}
+          nodes={model.nodes.filter((n) => selectedNodes.some((x) => x.id === n.id))}
+          subgraphs={model.subgraphs.filter((sg) => selectedNodes.some((x) => x.id === sg.id))}
+          edges={model.edges.filter((e) => selectedEdges.some((x) => x.id === e.id))}
+          flowchart={!stateDiagram && !usecaseDiagram}
+          onChange={onChange}
+          onDelete={deleteSelected}
+        />
+      )}
+
       <datalist id="class-names">
         {(model.classDefs ?? [])
           .filter((c) => c.name !== 'default')
@@ -493,6 +522,8 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
               nodesConnectable={!readOnly}
               elementsSelectable={!readOnly}
               deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+              // Shift-click or Ctrl/Cmd-click adds to the selection; Shift-drag on the canvas draws a selection box.
+              multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
               zoomOnDoubleClick={false}
               minZoom={0.2}
               style={theme ? themeVars(theme) : undefined}

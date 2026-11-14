@@ -26,14 +26,18 @@ export const HUES: readonly Hue[] = [
   { name: 'violet', tint: '#ede9fe', mid: '#8b5cf6', deep: '#4c1d95' },
 ];
 
-/** White, mid gray, black: the first column of the grid. */
+/** White, mid gray, near black: the neutral swatches. */
 export const NEUTRALS = { tint: '#ffffff', mid: '#9ca3af', deep: '#111827' } as const;
 
-/** The swatch grid, one row per shade, a neutral first. */
-export const PALETTE_ROWS: readonly (readonly string[])[] = (['tint', 'mid', 'deep'] as const).map((shade) => [NEUTRALS[shade], ...HUES.map((h) => h[shade])]);
-
-/** Every palette color, for "is this a palette color?". */
-export const PALETTE_COLORS: ReadonlySet<string> = new Set(PALETTE_ROWS.flat());
+/** The swatches of a color field, one row: a neutral, then each hue in the field's shade. */
+export const SWATCHES = {
+  /** Fills: white and the tints. */
+  fill: [NEUTRALS.tint, ...HUES.map((h) => h.tint)],
+  /** Borders and lines: gray and the mid tones. */
+  line: [NEUTRALS.mid, ...HUES.map((h) => h.mid)],
+  /** Text: black, white, and the deep tones (slate's is close to black). */
+  text: [NEUTRALS.deep, NEUTRALS.tint, ...HUES.slice(1).map((h) => h.deep)],
+} as const;
 
 /** A look made of palette colors. `fill` is absent for edges. */
 export interface Preset {

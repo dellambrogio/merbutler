@@ -1,13 +1,13 @@
 /**
  * Visual controls for styles: color swatches with a custom color, widths, dash patterns, text
- * styles, palette presets, and the line and marker pickers of edges. They read and write the
+ * styles, class pull-down, and the line and marker pickers of edges. They read and write the
  * declarations of `style`, `linkStyle` and `classDef` (see `withDeclaration` in styling.ts).
  */
 import { createContext, useContext, useEffect, useRef, useState, type JSX } from 'react';
 import { curvePath } from './curves';
 import { EDGE_CURVES, EDGE_LENGTHS, type EdgeEnd, type FlowModel, type Stroke } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
-import { PALETTE_ROWS, presets, presetStyles, type Preset } from '../flowchart/palette';
+import { SWATCHES } from '../flowchart/palette';
 
 /** A color in a form `<input type="color">` accepts (#rrggbb), or null. */
 function hex6(value: string): string | null {
@@ -18,10 +18,10 @@ function hex6(value: string): string | null {
 }
 
 /**
- * A color: a row of swatches, a custom color, and the value as text (any CSS color). Empty means
+ * A color: one row of palette swatches, a custom color, and the value as text (any CSS color). Empty means
  * "not set" (the theme's color).
  */
-export function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }): JSX.Element {
+export function ColorField({ label, value, swatches, onChange }: { label: string; value: string; swatches: readonly string[]; onChange: (value: string) => void }): JSX.Element {
   const [draft, setDraft] = useState(value);
   const [shown, setShown] = useState(value);
   if (shown !== value) {
@@ -32,34 +32,26 @@ export function ColorField({ label, value, onChange }: { label: string; value: s
   return (
     <div className="color-field" role="group" aria-label={label}>
       <span className="color-field-label">{label}</span>
-      <div className="color-palette">
-        {PALETTE_ROWS.map((row, r) => (
-          <div className="color-swatches" key={r}>
-            {r === 0 ? (
-              <button
-                type="button"
-                className={`color-swatch none${value === '' ? ' selected' : ''}`}
-                title="Not set: the theme's color"
-                aria-label={`${label}: not set`}
-                aria-pressed={value === ''}
-                onClick={() => onChange('')}
-              />
-            ) : (
-              <span className="color-swatch-gap" />
-            )}
-            {row.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`color-swatch${current === c ? ' selected' : ''}`}
-                style={{ background: c }}
-                title={c}
-                aria-label={`${label}: ${c}`}
-                aria-pressed={current === c}
-                onClick={() => onChange(c)}
-              />
-            ))}
-          </div>
+      <div className="color-swatches">
+        <button
+          type="button"
+          className={`color-swatch none${value === '' ? ' selected' : ''}`}
+          title="Not set: the theme's color"
+          aria-label={`${label}: not set`}
+          aria-pressed={value === ''}
+          onClick={() => onChange('')}
+        />
+        {swatches.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={`color-swatch${current === c ? ' selected' : ''}`}
+            style={{ background: c }}
+            title={c}
+            aria-label={`${label}: ${c}`}
+            aria-pressed={current === c}
+            onClick={() => onChange(c)}
+          />
         ))}
       </div>
       <div className="color-field-row">
@@ -143,9 +135,8 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
   const dash = get('stroke-dasharray');
   return (
     <div className="appearance">
-      <PresetPicker styles={styles} kind={kind} onChange={onChange} />
-      {kind === 'box' && <ColorField label="Fill" value={get('fill')} onChange={(v) => set('fill', v)} />}
-      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} onChange={(v) => set('stroke', v)} />
+      {kind === 'box' && <ColorField label="Fill" value={get('fill')} swatches={SWATCHES.fill} onChange={(v) => set('fill', v)} />}
+      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} swatches={SWATCHES.line} onChange={(v) => set('stroke', v)} />
       <Segmented
         label={kind === 'box' ? 'Border width' : 'Line width'}
         value={width}
@@ -163,7 +154,7 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
           onChange={(v) => v !== 'custom' && set('stroke-dasharray', v)}
         />
       )}
-      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} onChange={(v) => set('color', v)} />
+      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} swatches={SWATCHES.text} onChange={(v) => set('color', v)} />
       {kind === 'box' && (
         <div className="segmented-field">
           <span className="color-field-label">Text style</span>
@@ -177,63 +168,6 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/** True when the styles already have every color of the preset. */
-function hasPreset(styles: readonly string[] | undefined, preset: Preset, kind: 'box' | 'edge'): boolean {
-  return presetStyles(preset, kind).every((d) => {
-    const at = d.indexOf(':');
-    return declarationValue(styles, d.slice(0, at)).toLowerCase() === d.slice(at + 1);
-  });
-}
-
-/**
- * Ready-made looks from the palette: one click sets the fill, border and text of a box (line and
- * label of an edge) to colors of one hue. Other declarations (widths, dashes, font) are kept.
- */
-export function PresetPicker({ styles, kind, onChange }: { styles: readonly string[] | undefined; kind: 'box' | 'edge'; onChange: (styles: string[]) => void }): JSX.Element {
-  const rows = kind === 'box' ? (['soft', 'strong'] as const) : (['soft'] as const);
-  const apply = (preset: Preset): void => {
-    let next = [...(styles ?? [])];
-    for (const d of presetStyles(preset, kind)) {
-      const at = d.indexOf(':');
-      next = withDeclaration(next, d.slice(0, at), d.slice(at + 1));
-    }
-    onChange(next);
-  };
-  return (
-    <div className="segmented-field">
-      <span className="color-field-label">Colors</span>
-      <div className="preset-grid" role="group" aria-label="Color presets">
-        {rows.map((variant) =>
-          presets(variant).map((p) => {
-            const on = hasPreset(styles, p, kind);
-            return (
-              <button
-                key={p.name}
-                type="button"
-                className={`preset${on ? ' selected' : ''}`}
-                aria-pressed={on}
-                title={`${p.name}: ${presetStyles(p, kind).join(', ')}`}
-                aria-label={p.name}
-                style={kind === 'box' ? { background: p.fill, borderColor: p.stroke, color: p.color } : { color: p.color }}
-                onClick={() => apply(p)}
-              >
-                {kind === 'box' ? (
-                  'Aa'
-                ) : (
-                  <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">
-                    <line x1="1" y1="6" x2="16" y2="6" stroke={p.stroke} strokeWidth="2" />
-                    <path d="M15 2 L21 6 L15 10 Z" fill={p.stroke} />
-                  </svg>
-                )}
-              </button>
-            );
-          }),
-        )}
-      </div>
     </div>
   );
 }

@@ -44,9 +44,9 @@ describe('style classes', () => {
 });
 
 describe('palette', () => {
-  test('presets and fresh class looks', async () => {
-    const { HUES, PALETTE_ROWS, nextClassStyles, presets, presetStyles } = await import('../src/flowchart/palette');
-    expect(PALETTE_ROWS.every((row) => row.length === HUES.length + 1)).toBe(true);
+  test('swatch rows and fresh class looks', async () => {
+    const { SWATCHES, nextClassStyles, presets, presetStyles } = await import('../src/flowchart/palette');
+    for (const row of Object.values(SWATCHES)) expect(new Set(row).size).toBe(10);
     const soft = presets('soft')[1];
     expect(presetStyles(soft, 'box')).toEqual([`fill:${soft.fill}`, `stroke:${soft.stroke}`, `color:${soft.color}`]);
     expect(presetStyles(soft, 'edge')).toEqual([`stroke:${soft.stroke}`, `color:${soft.color}`]);

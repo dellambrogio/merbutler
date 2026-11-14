@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, type EdgeProps } from '@xyflow/react';
+import { curvePath } from './curves';
 import { LabelText } from './LabelText';
 import type { LabelEdge } from './layout';
 import { textStyle } from '../flowchart/styling';
@@ -25,26 +26,9 @@ function edgePath(curve: string | undefined, params: PathParams): [string, numbe
 
 type Point = { x: number; y: number };
 
-/**
- * A path through a layout route. Corners are rounded (radius 8, less on short segments), except
- * for the `linear` curve, which Mermaid draws with sharp corners.
- */
+/** A path through a layout route, drawn with the edge's curve as Mermaid draws it. */
 function routePath(points: Point[], curve: string | undefined): string {
-  if (curve === 'linear' || points.length < 3) return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
-  let d = `M ${points[0].x},${points[0].y}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const [a, b, c] = [points[i - 1], points[i], points[i + 1]];
-    const r = Math.min(8, Math.hypot(b.x - a.x, b.y - a.y) / 2, Math.hypot(c.x - b.x, c.y - b.y) / 2);
-    const toward = (from: Point, to: Point): Point => {
-      const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-      return { x: from.x + ((to.x - from.x) / len) * r, y: from.y + ((to.y - from.y) / len) * r };
-    };
-    const p1 = toward(b, a);
-    const p2 = toward(b, c);
-    d += ` L ${p1.x},${p1.y} Q ${b.x},${b.y} ${p2.x},${p2.y}`;
-  }
-  const last = points[points.length - 1];
-  return `${d} L ${last.x},${last.y}`;
+  return curvePath(points.map((p) => [p.x, p.y] as const), curve);
 }
 
 /** The point halfway along a polyline. */

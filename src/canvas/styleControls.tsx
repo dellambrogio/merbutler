@@ -4,22 +4,7 @@
  * declarations of `style`, `linkStyle` and `classDef` (see `withDeclaration` in styling.ts).
  */
 import { useState, type JSX } from 'react';
-import {
-  curveBasis,
-  curveBumpX,
-  curveBumpY,
-  curveCardinal,
-  curveCatmullRom,
-  curveLinear,
-  curveMonotoneX,
-  curveMonotoneY,
-  curveNatural,
-  curveStep,
-  curveStepAfter,
-  curveStepBefore,
-  line,
-  type CurveFactory,
-} from 'd3-shape';
+import { curvePath } from './curves';
 import { EDGE_CURVES, EDGE_LENGTHS, type EdgeEnd, type FlowModel, type Stroke } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
 
@@ -323,22 +308,6 @@ export function EndPicker({ value, bothEnds, disabled, onChange, onBothEnds }: {
   );
 }
 
-/** The d3 curves Mermaid draws edges with, by the name in the code. */
-const CURVE_FACTORIES: Record<string, CurveFactory> = {
-  basis: curveBasis,
-  bumpX: curveBumpX,
-  bumpY: curveBumpY,
-  cardinal: curveCardinal,
-  catmullRom: curveCatmullRom,
-  linear: curveLinear,
-  monotoneX: curveMonotoneX,
-  monotoneY: curveMonotoneY,
-  natural: curveNatural,
-  step: curveStep,
-  stepAfter: curveStepAfter,
-  stepBefore: curveStepBefore,
-};
-
 const CURVE_TEXT: Record<string, string> = {
   basis: 'Smooth, does not pass through the bends (Mermaid\'s default)',
   bumpX: 'Smooth S-bends, flat at the ends (left to right)',
@@ -364,8 +333,7 @@ const CURVE_POINTS: Array<[number, number]> = [
 
 /** A small drawing of a curve through the sample bends (faint dots). */
 export function CurveSample({ curve }: { curve: string }): JSX.Element {
-  const factory = CURVE_FACTORIES[curve] ?? curveBasis;
-  const d = line().curve(factory)(CURVE_POINTS) ?? '';
+  const d = curvePath(CURVE_POINTS, curve);
   return (
     <svg width="52" height="27" viewBox="0 0 52 27" aria-hidden="true">
       {CURVE_POINTS.map(([x, y]) => (

@@ -37,6 +37,7 @@ import {
 import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
 import { ClassPanel, type Selection } from './ClassPanel';
+import { OpenClassesContext } from './styleControls';
 import { menuFor, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
@@ -276,6 +277,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   /** The style classes panel (toolbar → Classes). */
   const [classesOpen, setClassesOpen] = useState(false);
+  const openClasses = useCallback(() => setClassesOpen(true), []);
   const selection: Selection = {
     nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
     subgraphs: selectedNodes.filter((n) => n.type === 'subgraph').map((n) => n.id),
@@ -350,6 +352,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   return (
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} ref={canvasRef} onKeyDown={onCanvasKeyDown}>
+      <OpenClassesContext.Provider value={openClasses}>
       {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
       <div className="toolbar">
@@ -495,6 +498,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
           </RenameContext.Provider>
         </CollapseContext.Provider>
       </ImageConsentContext.Provider>
+      </OpenClassesContext.Provider>
     </div>
   );
 }

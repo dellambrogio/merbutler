@@ -3,7 +3,7 @@ import { useState, type JSX } from 'react';
 import { toEditText } from '../core/labels';
 import { commentsFromText, commentsToText, isSwimlane, type FlowModel, type Styled } from '../core/model';
 import { stylesFromText, stylesToText } from '../flowchart/styling';
-import { AppearanceFields, ClassChips } from './styleControls';
+import { AppearanceFields, ClassSelect } from './styleControls';
 
 /** What every inspector gets: the model, a way to change it, and the delete action. */
 export interface InspectorProps {
@@ -92,7 +92,7 @@ export function TextField({ value, onCommit, placeholder, list }: { value: strin
 }
 
 /**
- * Classes and own style of a node, subgraph or edge: class chips, then the appearance controls
+ * Classes and own style of a node, subgraph or edge: the class pull-down, then the appearance controls
  * (colors, widths, dashes, text), then the style as text under "Advanced". The own style is
  * written as `style id …` (`linkStyle n …` for an edge) and wins over the classes.
  */
@@ -108,7 +108,7 @@ export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
   const styles = stylesToText(item.styles);
   return (
     <div className="style-fields">
-      <ClassChips model={model} classes={item.classes} onChange={(classes) => onChange({ classes })} />
+      <ClassSelect model={model} classes={item.classes} onChange={(classes) => onChange({ classes })} />
       <div className="style-fields-own">
         <span className="style-fields-heading" title={styleTitle}>
           Own style

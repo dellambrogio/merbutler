@@ -1,17 +1,13 @@
 /**
  * Visual controls for styles: color swatches with a custom color, widths, dash patterns, text
- * styles, class chips, and the line and marker pickers of edges. They read and write the
+ * styles, palette presets, and the line and marker pickers of edges. They read and write the
  * declarations of `style`, `linkStyle` and `classDef` (see `withDeclaration` in styling.ts).
  */
-import { useState, type JSX } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type JSX } from 'react';
 import { curvePath } from './curves';
 import { EDGE_CURVES, EDGE_LENGTHS, type EdgeEnd, type FlowModel, type Stroke } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
-
-/** Fills: light tints that keep dark text readable. */
-export const FILL_COLORS = ['#ffffff', '#ececff', '#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#fee2e2', '#f3e8ff', '#e5e7eb', '#1f2937'];
-/** Lines, borders and text: strong colors. */
-export const LINE_COLORS = ['#333333', '#9370db', '#2563eb', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#9333ea', '#6b7280', '#ffffff'];
+import { PALETTE_ROWS, presets, presetStyles, type Preset } from '../flowchart/palette';
 
 /** A color in a form `<input type="color">` accepts (#rrggbb), or null. */
 function hex6(value: string): string | null {
@@ -25,7 +21,7 @@ function hex6(value: string): string | null {
  * A color: a row of swatches, a custom color, and the value as text (any CSS color). Empty means
  * "not set" (the theme's color).
  */
-export function ColorField({ label, value, palette, onChange }: { label: string; value: string; palette: readonly string[]; onChange: (value: string) => void }): JSX.Element {
+export function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }): JSX.Element {
   const [draft, setDraft] = useState(value);
   const [shown, setShown] = useState(value);
   if (shown !== value) {
@@ -36,26 +32,34 @@ export function ColorField({ label, value, palette, onChange }: { label: string;
   return (
     <div className="color-field" role="group" aria-label={label}>
       <span className="color-field-label">{label}</span>
-      <div className="color-swatches">
-        <button
-          type="button"
-          className={`color-swatch none${value === '' ? ' selected' : ''}`}
-          title="Not set: the theme's color"
-          aria-label={`${label}: not set`}
-          aria-pressed={value === ''}
-          onClick={() => onChange('')}
-        />
-        {palette.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`color-swatch${current === c ? ' selected' : ''}`}
-            style={{ background: c }}
-            title={c}
-            aria-label={`${label}: ${c}`}
-            aria-pressed={current === c}
-            onClick={() => onChange(c)}
-          />
+      <div className="color-palette">
+        {PALETTE_ROWS.map((row, r) => (
+          <div className="color-swatches" key={r}>
+            {r === 0 ? (
+              <button
+                type="button"
+                className={`color-swatch none${value === '' ? ' selected' : ''}`}
+                title="Not set: the theme's color"
+                aria-label={`${label}: not set`}
+                aria-pressed={value === ''}
+                onClick={() => onChange('')}
+              />
+            ) : (
+              <span className="color-swatch-gap" />
+            )}
+            {row.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`color-swatch${current === c ? ' selected' : ''}`}
+                style={{ background: c }}
+                title={c}
+                aria-label={`${label}: ${c}`}
+                aria-pressed={current === c}
+                onClick={() => onChange(c)}
+              />
+            ))}
+          </div>
         ))}
       </div>
       <div className="color-field-row">
@@ -139,8 +143,9 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
   const dash = get('stroke-dasharray');
   return (
     <div className="appearance">
-      {kind === 'box' && <ColorField label="Fill" value={get('fill')} palette={FILL_COLORS} onChange={(v) => set('fill', v)} />}
-      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} palette={LINE_COLORS} onChange={(v) => set('stroke', v)} />
+      <PresetPicker styles={styles} kind={kind} onChange={onChange} />
+      {kind === 'box' && <ColorField label="Fill" value={get('fill')} onChange={(v) => set('fill', v)} />}
+      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} onChange={(v) => set('stroke', v)} />
       <Segmented
         label={kind === 'box' ? 'Border width' : 'Line width'}
         value={width}
@@ -158,7 +163,7 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
           onChange={(v) => v !== 'custom' && set('stroke-dasharray', v)}
         />
       )}
-      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} palette={LINE_COLORS} onChange={(v) => set('color', v)} />
+      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} onChange={(v) => set('color', v)} />
       {kind === 'box' && (
         <div className="segmented-field">
           <span className="color-field-label">Text style</span>
@@ -172,6 +177,63 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** True when the styles already have every color of the preset. */
+function hasPreset(styles: readonly string[] | undefined, preset: Preset, kind: 'box' | 'edge'): boolean {
+  return presetStyles(preset, kind).every((d) => {
+    const at = d.indexOf(':');
+    return declarationValue(styles, d.slice(0, at)).toLowerCase() === d.slice(at + 1);
+  });
+}
+
+/**
+ * Ready-made looks from the palette: one click sets the fill, border and text of a box (line and
+ * label of an edge) to colors of one hue. Other declarations (widths, dashes, font) are kept.
+ */
+export function PresetPicker({ styles, kind, onChange }: { styles: readonly string[] | undefined; kind: 'box' | 'edge'; onChange: (styles: string[]) => void }): JSX.Element {
+  const rows = kind === 'box' ? (['soft', 'strong'] as const) : (['soft'] as const);
+  const apply = (preset: Preset): void => {
+    let next = [...(styles ?? [])];
+    for (const d of presetStyles(preset, kind)) {
+      const at = d.indexOf(':');
+      next = withDeclaration(next, d.slice(0, at), d.slice(at + 1));
+    }
+    onChange(next);
+  };
+  return (
+    <div className="segmented-field">
+      <span className="color-field-label">Colors</span>
+      <div className="preset-grid" role="group" aria-label="Color presets">
+        {rows.map((variant) =>
+          presets(variant).map((p) => {
+            const on = hasPreset(styles, p, kind);
+            return (
+              <button
+                key={p.name}
+                type="button"
+                className={`preset${on ? ' selected' : ''}`}
+                aria-pressed={on}
+                title={`${p.name}: ${presetStyles(p, kind).join(', ')}`}
+                aria-label={p.name}
+                style={kind === 'box' ? { background: p.fill, borderColor: p.stroke, color: p.color } : { color: p.color }}
+                onClick={() => apply(p)}
+              >
+                {kind === 'box' ? (
+                  'Aa'
+                ) : (
+                  <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">
+                    <line x1="1" y1="6" x2="16" y2="6" stroke={p.stroke} strokeWidth="2" />
+                    <path d="M15 2 L21 6 L15 10 Z" fill={p.stroke} />
+                  </svg>
+                )}
+              </button>
+            );
+          }),
+        )}
+      </div>
     </div>
   );
 }
@@ -200,38 +262,139 @@ export function StyleSwatch({ styles, text = 'Aa' }: { styles: readonly string[]
   );
 }
 
-/** The classes of an element as chips: click a class to add or remove it. */
-export function ClassChips({ model, classes, onChange }: { model: FlowModel; classes: readonly string[] | undefined; onChange: (classes: string[]) => void }): JSX.Element {
+/** Opens the Classes panel of the canvas, where classes are created and edited (null: no panel). */
+export const OpenClassesContext = createContext<(() => void) | null>(null);
+
+/**
+ * The class of an element: a pull-down of the defined classes, each with its name and a preview.
+ * Picking one makes it the element's only class; "No class" removes them. Classes are created
+ * and edited in the Classes panel, not here; the last entry opens it.
+ */
+export function ClassSelect({ model, classes, onChange }: { model: FlowModel; classes: readonly string[] | undefined; onChange: (classes: string[]) => void }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
+  const openClasses = useContext(OpenClassesContext);
   const defs = (model.classDefs ?? []).filter((c) => c.name !== 'default');
-  const has = new Set(classes ?? []);
-  // Classes the element uses that no classDef defines are kept and shown, so they can be removed.
-  const undefinedClasses = [...has].filter((c) => !defs.some((d) => d.name === c));
+  const current = classes ?? [];
+  // Classes the element uses that no classDef defines stay listed, so they can be seen.
+  const options: Array<{ name: string | null; styles: readonly string[] | null }> = [
+    { name: null, styles: [] },
+    ...defs.map((d) => ({ name: d.name, styles: d.styles })),
+    ...current.filter((c) => !defs.some((d) => d.name === c)).map((c) => ({ name: c, styles: null })),
+  ];
+  const stylesOf = (name: string): readonly string[] => defs.find((d) => d.name === name)?.styles ?? [];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent): void => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  // The entry after the options opens the Classes panel.
+  const last = options.length - (openClasses ? 0 : 1);
+  const manage = (): void => {
+    setOpen(false);
+    openClasses?.();
+  };
+  const choose = (i: number): void => (i === options.length ? manage() : pick(options[i].name));
+  const pick = (name: string | null): void => {
+    setOpen(false);
+    const next = name === null ? [] : [name];
+    if (next.length !== current.length || next.some((c, i) => c !== current[i])) onChange(next);
+  };
+  const show = (): void => {
+    const at = options.findIndex((o) => (o.name === null ? current.length === 0 : current.includes(o.name)));
+    setActive(Math.max(0, at));
+    setOpen(true);
+  };
+
   return (
-    <div className="class-chips-field">
-      <span className="color-field-label">Classes</span>
-      {defs.length === 0 && undefinedClasses.length === 0 ? (
-        <span className="muted class-chips-empty">None defined yet. Open Classes in the toolbar to make one.</span>
-      ) : (
-        <div className="class-chips">
-          {defs.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              className={`class-chip${has.has(d.name) ? ' on' : ''}`}
-              aria-pressed={has.has(d.name)}
-              title={`${has.has(d.name) ? 'Remove' : 'Add'} class ${d.name}: ${d.styles.join('; ') || 'no styles'}`}
-              onClick={() => onChange(has.has(d.name) ? [...has].filter((c) => c !== d.name) : [...has, d.name])}
+    <div className="class-select-field" ref={root}>
+      <span className="color-field-label" title="Written as class id name. Create and edit classes in the Classes panel of the toolbar.">
+        Class
+      </span>
+      <button
+        type="button"
+        className="class-select-button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title={current.length > 1 ? `Classes: ${current.join(', ')}. Picking one replaces them.` : undefined}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(e) => {
+          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault();
+            show();
+          } else if (open && e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActive((a) => Math.min(last, a + 1));
+          } else if (open && e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActive((a) => Math.max(0, a - 1));
+          } else if (open && e.key === 'Enter') {
+            e.preventDefault();
+            choose(active);
+          } else if (open && (e.key === 'Escape' || e.key === 'Tab')) {
+            setOpen(false);
+          }
+        }}
+      >
+        {current.length === 0 ? (
+          <span className="muted">No class</span>
+        ) : (
+          current.map((c) => (
+            <span key={c} className="class-select-value">
+              <StyleSwatch styles={stylesOf(c)} />
+              {c}
+            </span>
+          ))
+        )}
+        <span className="class-select-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && (
+        <ul className="class-select-menu" role="listbox" aria-label="Class">
+          {options.map((o, i) => {
+            const selected = o.name === null ? current.length === 0 : current.includes(o.name);
+            return (
+              <li
+                key={o.name ?? ''}
+                role="option"
+                aria-selected={selected}
+                className={`${i === active ? 'active' : ''}${selected ? ' selected' : ''}`}
+                onPointerEnter={() => setActive(i)}
+                onClick={() => pick(o.name)}
+              >
+                {o.name === null ? (
+                  <span className="muted">No class</span>
+                ) : (
+                  <>
+                    {o.styles ? <StyleSwatch styles={o.styles} /> : <span className="style-swatch undefined">?</span>}
+                    <span className="class-select-name">{o.name}</span>
+                    {!o.styles && <span className="muted">no classDef</span>}
+                  </>
+                )}
+              </li>
+            );
+          })}
+          {defs.length === 0 && <li className="class-select-hint muted">No classes yet.</li>}
+          {openClasses && (
+            <li
+              role="option"
+              aria-selected={false}
+              className={`class-select-manage${active === options.length ? ' active' : ''}`}
+              title="Open the Classes panel: create, rename, restyle and delete classes"
+              onPointerEnter={() => setActive(options.length)}
+              onClick={manage}
             >
-              <StyleSwatch styles={d.styles} text="" />
-              {d.name}
-            </button>
-          ))}
-          {undefinedClasses.map((c) => (
-            <button key={c} type="button" className="class-chip on undefined" aria-pressed title={`Class ${c} has no classDef. Click to remove it.`} onClick={() => onChange([...has].filter((x) => x !== c))}>
-              {c} ?
-            </button>
-          ))}
-        </div>
+              Manage classes…
+            </li>
+          )}
+        </ul>
       )}
     </div>
   );

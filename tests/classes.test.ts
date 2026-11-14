@@ -42,3 +42,18 @@ describe('style classes', () => {
     expect(serialize(model)).not.toContain('warm');
   });
 });
+
+describe('palette', () => {
+  test('presets and fresh class looks', async () => {
+    const { HUES, PALETTE_ROWS, nextClassStyles, presets, presetStyles } = await import('../src/flowchart/palette');
+    expect(PALETTE_ROWS.every((row) => row.length === HUES.length + 1)).toBe(true);
+    const soft = presets('soft')[1];
+    expect(presetStyles(soft, 'box')).toEqual([`fill:${soft.fill}`, `stroke:${soft.stroke}`, `color:${soft.color}`]);
+    expect(presetStyles(soft, 'edge')).toEqual([`stroke:${soft.stroke}`, `color:${soft.color}`]);
+    // A new class takes a hue no class uses yet.
+    const first = nextClassStyles([]);
+    const second = nextClassStyles([first]);
+    expect(second[0]).not.toBe(first[0]);
+    expect(nextClassStyles(presets('soft').map((p) => presetStyles(p, 'box')))).toHaveLength(3);
+  });
+});

@@ -15,6 +15,7 @@ import {
   type FlowModel,
 } from '../core/model';
 import { stylesFromText, stylesToText } from '../flowchart/styling';
+import { nextClassStyles } from '../flowchart/palette';
 import { TextField } from './fields';
 import { AppearanceFields, StyleSwatch } from './styleControls';
 
@@ -35,7 +36,7 @@ interface ClassPanelProps {
 const selectionSize = (s: Selection): number => s.nodes.length + s.subgraphs.length + s.edges.length;
 
 /** Why a new class name cannot be used, or null. */
-function nameProblem(model: FlowModel, name: string, current?: string): string | null {
+export function nameProblem(model: FlowModel, name: string, current?: string): string | null {
   if (name === '') return 'Give the class a name.';
   if (!isClassName(name)) return 'Use letters, digits, - and _, starting with a letter or _.';
   if (name !== current && model.classDefs?.some((c) => c.name === name)) return `A class ${name} exists already.`;
@@ -54,8 +55,8 @@ export function ClassPanel({ model, selection, readOnly, onChange, onClose }: Cl
     const why = nameProblem(model, name);
     setProblem(why);
     if (why) return;
-    // A new class starts with a visible look, so its effect shows at once.
-    let next = addClassDef(model, name, ['fill:#fef9c3', 'stroke:#ca8a04']);
+    // A new class starts with a visible look of its own, so its effect shows at once.
+    let next = addClassDef(model, name, nextClassStyles(defs.map((d) => d.styles)));
     if (selected > 0) next = toggleClassOn(next, name, selection);
     onChange(next);
     setDraft('');
@@ -131,8 +132,6 @@ function ClassRow({ def, model, used, selection, readOnly, expanded, onToggle, o
   onToggle: () => void;
   onChange: (model: FlowModel, renamedTo?: string) => void;
 }): JSX.Element {
-  const [confirm, setConfirm] = useState(false);
-  const [renameProblem, setRenameProblem] = useState<string | null>(null);
   const selected = selectionSize(selection);
   const onSelection = [
     ...model.nodes.filter((n) => selection.nodes.includes(n.id)),
@@ -163,49 +162,65 @@ function ClassRow({ def, model, used, selection, readOnly, expanded, onToggle, o
           </button>
         )}
       </div>
-      {expanded && (
-        <div className="class-row-body">
-          {!readOnly && (
-            <label>
-              Name
-              <TextField
-                key={`name:${def.name}`}
-                value={def.name}
-                onCommit={(text) => {
-                  const name = text.trim();
-                  const why = nameProblem(model, name, def.name);
-                  setRenameProblem(why);
-                  if (!why && name !== def.name) onChange(renameClassDef(model, def.name, name), name);
-                }}
-              />
-              {renameProblem && <span className="field-error">{renameProblem}</span>}
-            </label>
-          )}
-          <AppearanceFields key={def.styles.join(';')} styles={def.styles} kind="box" onChange={(styles) => onChange(updateClassDef(model, def.name, styles))} />
-          <details className="style-advanced">
-            <summary>Advanced: declarations as text</summary>
-            <label>
-              classDef {def.name}
-              <TextField key={`styles:${def.styles.join(';')}`} value={stylesToText(def.styles)} placeholder="fill:#f96; stroke:#333" onCommit={(text) => onChange(updateClassDef(model, def.name, stylesFromText(text)))} />
-            </label>
-          </details>
-          {!readOnly && (
-            <button
-              type="button"
-              className="danger"
-              onClick={() => {
-                if (used > 0 && !confirm) {
-                  setConfirm(true);
-                  return;
-                }
-                onChange(removeClassDef(model, def.name));
-              }}
-              onBlur={() => setConfirm(false)}
-            >
-              {confirm ? `Delete, and remove it from ${used} element${used === 1 ? '' : 's'}?` : 'Delete class'}
-            </button>
-          )}
-        </div>
+      {expanded && <ClassEditor def={def} model={model} used={used} readOnly={readOnly} onChange={onChange} />}
+    </div>
+  );
+}
+
+/**
+ * Edits one class: its name (renamed wherever it is used), its appearance, its declarations as
+ * text, and deletes it (asking first when elements use it).
+ */
+export function ClassEditor({ def, model, used, readOnly, onChange }: {
+  def: ClassDef;
+  model: FlowModel;
+  used: number;
+  readOnly: boolean;
+  onChange: (model: FlowModel, renamedTo?: string) => void;
+}): JSX.Element {
+  const [confirm, setConfirm] = useState(false);
+  const [renameProblem, setRenameProblem] = useState<string | null>(null);
+  return (
+    <div className="class-row-body">
+      {!readOnly && (
+        <label>
+          Name
+          <TextField
+            key={`name:${def.name}`}
+            value={def.name}
+            onCommit={(text) => {
+              const name = text.trim();
+              const why = nameProblem(model, name, def.name);
+              setRenameProblem(why);
+              if (!why && name !== def.name) onChange(renameClassDef(model, def.name, name), name);
+            }}
+          />
+          {renameProblem && <span className="field-error">{renameProblem}</span>}
+        </label>
+      )}
+      <AppearanceFields key={def.styles.join(';')} styles={def.styles} kind="box" onChange={(styles) => onChange(updateClassDef(model, def.name, styles))} />
+      <details className="style-advanced">
+        <summary>Advanced: declarations as text</summary>
+        <label>
+          classDef {def.name}
+          <TextField key={`styles:${def.styles.join(';')}`} value={stylesToText(def.styles)} placeholder="fill:#f96; stroke:#333" onCommit={(text) => onChange(updateClassDef(model, def.name, stylesFromText(text)))} />
+        </label>
+      </details>
+      {!readOnly && (
+        <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              if (used > 0 && !confirm) {
+                setConfirm(true);
+                return;
+              }
+              onChange(removeClassDef(model, def.name));
+            }}
+            onBlur={() => setConfirm(false)}
+          >
+            {confirm ? `Delete, and remove it from ${used} element${used === 1 ? '' : 's'}?` : 'Delete class'}
+          </button>
       )}
     </div>
   );

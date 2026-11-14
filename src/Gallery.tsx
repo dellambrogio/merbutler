@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
 import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryExample, type GalleryType } from './gallery';
 import { parse } from './parse';
 import { renderMermaid, type RenderResult } from './render';
 import { structuredKind } from './StructuredEditor';
+import { loadSettings } from './settings';
 
 /**
  * What the app does with an example: edit it on the canvas, show Mermaid's preview of a type the
@@ -197,7 +198,15 @@ export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
   }
 
   return (
-    <div className={`gallery${open ? ' open' : ''}`} role="dialog" aria-label="Gallery" aria-hidden={!open} inert={!open}>
+    <div
+      className={`gallery${open ? ' open' : ''}`}
+      role="dialog"
+      aria-label="Gallery"
+      aria-hidden={!open}
+      inert={!open}
+      // Read when the gallery renders, so a later settings panel takes effect on the next opening.
+      style={{ '--gallery-preview-scale': loadSettings().galleryPreviewScale } as CSSProperties}
+    >
       <div className="gallery-head">
         {type ? (
           <button className="gallery-back" onClick={() => show(null)} title="Back to all diagram types (Esc)">

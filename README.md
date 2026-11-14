@@ -264,6 +264,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
 | `src/App.tsx` | Split view and sync logic |
+| `src/settings.ts` | App settings with defaults and ranges, stored per browser (no settings panel yet) |
 | `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples, the page's examples, and the gallery panel |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline and table tests, with `.mmd` fixtures |
 

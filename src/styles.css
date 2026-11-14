@@ -252,7 +252,9 @@ button.danger { color: var(--danger); }
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
   margin: 22px 0 10px; font-weight: 600;
 }
-.gallery-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+/* Preview sizes scale with the `galleryPreviewScale` setting (settings.ts); min() keeps a card inside a narrow window. */
+.gallery { --gallery-preview-scale: 1; }
+.gallery-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(calc(200px * var(--gallery-preview-scale)), 100%), 1fr)); gap: 14px; }
 .gallery-tile {
   display: flex; flex-direction: column; padding: 0; text-align: left; overflow: hidden;
   border-radius: 10px; background: var(--panel); min-width: 0;
@@ -260,7 +262,7 @@ button.danger { color: var(--danger); }
 .gallery-tile:hover, .gallery-tile:focus-visible { border-color: var(--accent); box-shadow: 0 4px 14px rgb(0 0 0 / 0.12); outline: none; }
 /* Mermaid draws for a light background, in both color schemes. */
 .gallery-tile-preview {
-  display: flex; align-items: center; justify-content: center; height: 140px; padding: 10px;
+  display: flex; align-items: center; justify-content: center; height: calc(140px * var(--gallery-preview-scale)); padding: 10px;
   background: #fff; border-bottom: 1px solid var(--border); overflow: hidden; pointer-events: none;
 }
 .gallery-tile-foot { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-width: 0; }
@@ -279,8 +281,8 @@ button.danger { color: var(--danger); }
 .gallery-toc a:hover { border-color: var(--accent); }
 .gallery-section { scroll-margin-top: 8px; }
 .gallery-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 20px 0 10px; }
-.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-.gallery-grid .gallery-preview { height: 240px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(calc(340px * var(--gallery-preview-scale)), 100%), 1fr)); gap: 16px; }
+.gallery-grid .gallery-preview { height: calc(240px * var(--gallery-preview-scale)); }
 .gallery-card {
   display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 10px;
   border-radius: 8px; background: var(--panel); min-width: 0;

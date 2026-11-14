@@ -5,6 +5,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- The Syntax panel is closed by default; open it from its header under the code. The app remembers it open.
+
 ## 0.1.0 — 2026-11-14
 
 The first release.

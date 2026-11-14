@@ -567,7 +567,7 @@ export function App(): JSX.Element {
               </button>
             </div>
           </PanelSection>
-          <PanelSection id="syntax" title="Syntax">
+          <PanelSection id="syntax" title="Syntax" defaultOpen={false}>
             <SyntaxPanel code={code} cursor={settings.syntaxFollowCursor ? cursorTokens : null} />
           </PanelSection>
           <PanelSection id="io" title="Save & open">

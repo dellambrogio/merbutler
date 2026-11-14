@@ -4,6 +4,8 @@ import { parse } from '../core/parse';
 import { renderMermaid, type RenderResult } from '../preview/render';
 import { structuredKind } from '../structured/StructuredEditor';
 import { loadSettings } from '../core/settings';
+import { docForGallery } from '../syntax/syntaxDocs';
+import { SyntaxReference } from '../syntax/SyntaxReference';
 
 /**
  * What the app does with an example: edit it on the canvas, show Mermaid's preview of a type the
@@ -391,6 +393,7 @@ function TypePage({ type, passes, onOpen }: { type: GalleryType; passes: (ex: Ga
           {support ? ` · ${SUPPORT_HINT[support]}` : ''}
         </span>
       </div>
+      <GallerySyntax typeId={type.id} />
       {count === 0 && <p className="muted gallery-empty">No example of this type matches. Clear the search or the filters.</p>}
       {type.sections.length > 1 && shown.length > 1 && (
         <nav className="gallery-toc" aria-label="Sections">
@@ -415,6 +418,39 @@ function TypePage({ type, passes, onOpen }: { type: GalleryType; passes: (ex: Ga
         </section>
       ))}
     </>
+  );
+}
+
+const SYNTAX_OPEN_KEY = 'merbutler:gallerySyntaxOpen';
+
+/** The type's syntax reference, folded; whether it is open is remembered for every type. */
+function GallerySyntax({ typeId }: { typeId: string }): JSX.Element | null {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SYNTAX_OPEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const doc = docForGallery(typeId);
+  if (!doc) return null;
+  return (
+    <details
+      className="gallery-syntax"
+      open={open}
+      onToggle={(e) => {
+        const next = e.currentTarget.open;
+        setOpen(next);
+        try {
+          localStorage.setItem(SYNTAX_OPEN_KEY, next ? '1' : '0');
+        } catch {
+          // Storage is a convenience only.
+        }
+      }}
+    >
+      <summary>Syntax reference</summary>
+      {open && <SyntaxReference doc={doc} showCommon={false} />}
+    </details>
   );
 }
 

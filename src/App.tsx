@@ -10,6 +10,7 @@ import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
 import { About } from './about/About';
+import { SyntaxPanel } from './syntax/SyntaxPanel';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
 import type { DiagramType } from './core/diagramTypes';
 import type { FlowModel } from './core/model';
@@ -97,6 +98,11 @@ export function App(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  /** The tokens at the code editor's cursor (or its selection), for the Syntax panel. */
+  const [cursorTokens, setCursorTokens] = useState<string[]>([]);
+  const onCursor = useCallback((tokens: string[]): void => {
+    setCursorTokens((prev) => (prev.length === tokens.length && prev.every((t, i) => t === tokens[i]) ? prev : tokens));
+  }, []);
   const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   // ---- Diagrams saved in this browser (core/library.ts) ----
@@ -537,7 +543,7 @@ export function App(): JSX.Element {
       <main className="panes">
         <div className="pane side-pane">
           <PanelSection id="code" title="Code" grow>
-            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} />
+            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} onCursor={onCursor} />
             {error && (
               <div className="error" role="alert">
                 <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
@@ -562,6 +568,9 @@ export function App(): JSX.Element {
                 A+
               </button>
             </div>
+          </PanelSection>
+          <PanelSection id="syntax" title="Syntax">
+            <SyntaxPanel code={code} cursor={cursorTokens} />
           </PanelSection>
           <PanelSection id="io" title="Save & open">
             <DiagramLibrary diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />

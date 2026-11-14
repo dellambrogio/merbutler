@@ -19,6 +19,7 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } 
 import { lintGutter, lintKeymap, setDiagnostics } from '@codemirror/lint';
 import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
 import { extractMermaid } from '../core/clipboard';
+import { cursorTokens, syntaxHover } from '../syntax/syntaxHover';
 
 /**
  * The text size, as part of the editor's theme. CodeMirror measures line heights itself: a size set
@@ -123,9 +124,11 @@ interface CodeEditorProps {
   completionData: CompletionData;
   /** Font size in px. */
   fontSize: number;
+  /** The tokens at the cursor, or the selected text, for the syntax reference. Called when they may have changed. */
+  onCursor?: (tokens: string[]) => void;
 }
 
-export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize }: CodeEditorProps): JSX.Element {
+export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize, onCursor }: CodeEditorProps): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -134,6 +137,8 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
   historyRef.current = { onUndo, onRedo };
   const completionRef = useRef(completionData);
   completionRef.current = completionData;
+  const onCursorRef = useRef(onCursor);
+  onCursorRef.current = onCursor;
 
   useEffect(() => {
     if (!host.current) return;
@@ -154,6 +159,7 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
         EditorView.lineWrapping,
         mermaidSyntax(),
         mermaidCompletion(() => completionRef.current),
+        syntaxHover(),
         lintGutter(),
         // Tab indents (Escape, then Tab, leaves the editor, as CodeMirror documents).
         keymap.of([indentWithTab]),
@@ -169,6 +175,7 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
           },
         }),
         EditorView.updateListener.of((update) => {
+          if (update.selectionSet || update.docChanged) onCursorRef.current?.(cursorTokens(update.state));
           const external = update.transactions.some((t) => t.annotation(External));
           if (!update.docChanged || external) return;
           const typing = update.transactions.every((t) => !t.docChanged || t.isUserEvent('input.type') || t.isUserEvent('delete'));

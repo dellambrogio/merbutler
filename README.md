@@ -69,6 +69,9 @@ flowchart LR
   grammar), each with how the app edits it. Search the titles and code (`/`), or filter by Canvas, Outline, Table or
   Preview. A tile opens the type's page with all its examples, next to a list of all types (the open one in color, the others greyed out; ↑ ↓ move through it); the Flowchart page also has one example per feature
   of the flowchart syntax. Click an example to open it; Esc goes back, then closes.
+- 📖 **Syntax reference**: a cheat sheet for every diagram type, in the Syntax panel under the code and on each
+  gallery type page. Put the cursor on a keyword or arrow (`-->`, `participant`, `||--o{`), or select it, and the
+  panel marks what it means; hovering over it in the code shows the same in a tooltip. Works offline.
 - 🔗 **Links**: the URL after `#` holds the diagram (compressed) and the gallery view, and follows your edits.
   Copy the address to share exactly what you see; opening it restores it. The URL wins over the autosaved code.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.

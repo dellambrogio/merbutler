@@ -855,3 +855,32 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .about-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .about-credits { font-size: 12px; }
 .about-thanks { font-size: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* Syntax reference (src/syntax): the side panel, the gallery's type pages, and editor tooltips. */
+.syntax-panel { display: flex; flex-direction: column; min-height: 0; max-height: 38vh; }
+.syntax-bar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.syntax-bar select { min-width: 0; max-width: 60%; font-size: 12px; }
+.syntax-at { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.syntax-at code { color: var(--hl-operator); }
+.syntax-panel .syntax-reference { overflow: auto; padding: 0 8px 8px; }
+.syntax-none { padding: 8px 10px; margin: 0; font-size: 12px; }
+.syntax-reference { font-size: 12px; }
+.syntax-intro { margin: 8px 0 4px; color: var(--muted); }
+.syntax-reference code { font-family: ui-monospace, monospace; font-size: 11px; padding: 0 3px; border-radius: 3px; background: var(--selection-match); }
+.syntax-section h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.syntax-section dl { margin: 0; }
+.syntax-entry { padding: 4px 6px; border-radius: 4px; border-left: 2px solid transparent; }
+.syntax-entry + .syntax-entry { margin-top: 2px; }
+.syntax-entry.match { background: var(--active-line); border-left-color: var(--accent); }
+.syntax-entry dt pre { margin: 0; font-family: ui-monospace, monospace; font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--hl-keyword); }
+.syntax-entry dd { margin: 2px 0 0; line-height: 1.4; }
+.gallery-syntax { margin: 0 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+.gallery-syntax summary { padding: 6px 10px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.gallery-syntax .syntax-reference { padding: 0 12px 10px; columns: 2 360px; column-gap: 24px; }
+.gallery-syntax .syntax-intro { column-span: all; }
+.gallery-syntax .syntax-section { break-inside: avoid-column; }
+.cm-tooltip .cm-syntax-tooltip { max-width: 380px; padding: 6px 8px; font-family: system-ui, sans-serif; font-size: 12px; }
+.cm-syntax-entry + .cm-syntax-entry { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+.cm-syntax-entry pre { margin: 0 0 2px; font-family: ui-monospace, monospace; white-space: pre-wrap; color: var(--hl-keyword); }
+.cm-syntax-entry code { font-family: ui-monospace, monospace; padding: 0 3px; border-radius: 3px; background: var(--selection-match); }
+.cm-syntax-more { margin-top: 6px; color: var(--muted); }

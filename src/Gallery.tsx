@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type JSX, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { GALLERY, type GalleryExample, type GalleryGroup } from './gallery';
 import { parse } from './parse';
 import { renderMermaid, type RenderResult } from './render';
@@ -36,89 +36,85 @@ const PARTS = [...new Set(GALLERY.map((g) => g.part))];
 const groupKey = (g: GalleryGroup): string => `${g.part}/${g.title}`;
 
 const GROUP_KEY = 'merbutler:galleryGroup';
-const HEIGHT_KEY = 'merbutler:galleryHeight';
-const MIN_HEIGHT = 220;
-const DEFAULT_HEIGHT = 340;
 
-function load(key: string): string | null {
+function loadGroup(): string {
   try {
-    return localStorage.getItem(key);
+    const saved = localStorage.getItem(GROUP_KEY);
+    if (GALLERY.some((g) => groupKey(g) === saved)) return saved!;
   } catch {
-    return null;
+    // Storage is a convenience only.
   }
+  return groupKey(GALLERY[0]);
 }
 
-function save(key: string, value: string): void {
+function saveGroup(key: string): void {
   try {
-    localStorage.setItem(key, value);
+    localStorage.setItem(GROUP_KEY, key);
   } catch {
     // Storage is a convenience only.
   }
 }
 
-/** A short summary of a group's support, for its button: how many examples the canvas edits. */
-function groupSummary(group: GalleryGroup): { editable: number; total: number; kind: Status['kind'] | 'mixed' | null } {
+/** How the app edits a group's examples, once their statuses are known: one kind, or mixed. */
+function groupKind(group: GalleryGroup): Status['kind'] | 'mixed' | null {
   const known = group.examples.map((ex) => statuses.get(ex.id)).filter((s): s is Status => s !== undefined);
-  const editable = known.filter((s) => s.kind === 'editable').length;
+  if (known.length < group.examples.length) return null;
   const kinds = new Set(known.map((s) => s.kind));
-  const kind = known.length < group.examples.length ? null : kinds.size === 1 ? [...kinds][0] : 'mixed';
-  return { editable, total: group.examples.length, kind };
+  return kinds.size === 1 ? [...kinds][0] : 'mixed';
 }
 
+const KIND_TEXT: Record<Status['kind'] | 'mixed', string> = {
+  editable: 'Editable on the canvas',
+  preview: 'Preview, outline or table',
+  'read-only': 'Read-only',
+  mixed: 'Mixed support',
+};
+
 interface GalleryProps {
-  /** The drawer is always mounted, so it can slide in and out and keep its previews. */
+  /** The gallery is always mounted, so it can slide in and out and keep its previews. */
   open: boolean;
   onOpen: (code: string) => void;
   onClose: () => void;
-  /** The height the drawer takes at the bottom (0 when closed), so the panes can make room. */
-  onSpace: (px: number) => void;
 }
 
 /**
- * The gallery: a drawer that slides up from the bottom. A row of group buttons (left to right);
- * the chosen group's examples are shown below them as a row of previews drawn by Mermaid.
+ * The gallery, over the whole editor: on the left a list of groups, each with a preview of its
+ * first example (scrolls top to bottom); on the right, larger, the chosen group's examples as a
+ * grid. Previews are drawn by Mermaid, the chosen group's first.
  */
-export function Gallery({ open, onOpen, onClose, onSpace }: GalleryProps): JSX.Element {
+export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
   // Bumped when a preview or status arrives, to re-render with the module-level caches.
   const [, setVersion] = useState(0);
-  const [active, setActive] = useState<string>(() => {
-    const saved = load(GROUP_KEY);
-    return GALLERY.some((g) => groupKey(g) === saved) ? saved! : groupKey(GALLERY[0]);
-  });
-  const [height, setHeight] = useState<number>(() => Math.max(MIN_HEIGHT, Number(load(HEIGHT_KEY)) || DEFAULT_HEIGHT));
+  const [active, setActive] = useState<string>(loadGroup);
   const group = GALLERY.find((g) => groupKey(g) === active) ?? GALLERY[0];
-  const tabs = useRef<HTMLDivElement>(null);
-  const row = useRef<HTMLDivElement>(null);
+  /** The chosen group, for the render loop (it reads it between renders). */
+  const activeGroup = useRef(group);
+  activeGroup.current = group;
+  const list = useRef<HTMLDivElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
 
-  // Statuses for the group buttons, once (they are fast).
+  // One loop renders what is missing, one preview at a time: the chosen group's examples
+  // first, then the first example of each group for the list.
   useEffect(() => {
     if (!open) return;
     let alive = true;
+    const bump = (): void => {
+      if (alive) setVersion((v) => v + 1);
+    };
     void (async () => {
       for (const ex of GALLERY.flatMap((g) => g.examples)) await statusOf(ex);
-      if (alive) setVersion((v) => v + 1);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [open]);
-
-  // Previews of the chosen group only, left to right.
-  useEffect(() => {
-    if (!open) return;
-    let alive = true;
-    void (async () => {
-      for (const ex of group.examples) {
-        if (!alive) return;
-        await statusOf(ex);
-        await renderPreview(ex);
-        if (alive) setVersion((v) => v + 1);
+      bump();
+      while (alive) {
+        const next = activeGroup.current.examples.find((ex) => !previews.has(ex.id)) ?? GALLERY.map((g) => g.examples[0]).find((ex) => ex && !previews.has(ex.id));
+        if (!next) return;
+        await renderPreview(next);
+        bump();
       }
     })();
     return () => {
       alive = false;
     };
-  }, [open, group]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,126 +125,110 @@ export function Gallery({ open, onOpen, onClose, onSpace }: GalleryProps): JSX.E
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  // The chosen group's button stays in view; a new group starts at its first example. Only these
-  // two rows scroll (scrollIntoView would also scroll the page while the drawer slides in).
+  // A new group starts at its top; the chosen group stays in view in the list.
   useEffect(() => {
+    if (grid.current) grid.current.scrollTop = 0;
     const frame = requestAnimationFrame(() => {
-      const bar = tabs.current;
-      const tab = bar?.querySelector<HTMLElement>('[aria-selected="true"]');
-      if (bar && tab) {
-        const barBox = bar.getBoundingClientRect();
-        const box = tab.getBoundingClientRect();
-        if (box.left < barBox.left + 16) bar.scrollLeft -= barBox.left + 16 - box.left;
-        else if (box.right > barBox.right - 16) bar.scrollLeft += box.right - (barBox.right - 16);
-      }
+      const box = list.current;
+      const item = box?.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!box || !item) return;
+      const outer = box.getBoundingClientRect();
+      const r = item.getBoundingClientRect();
+      if (r.top < outer.top) box.scrollTop -= outer.top - r.top + 8;
+      else if (r.bottom > outer.bottom) box.scrollTop += r.bottom - outer.bottom + 8;
     });
-    if (row.current) row.current.scrollLeft = 0;
     return () => cancelAnimationFrame(frame);
   }, [active, open]);
 
-  // The panes make room for the open drawer, so it does not cover the diagram.
-  useEffect(() => {
-    onSpace(open ? height : 0);
-  }, [open, height, onSpace]);
-
   const choose = (key: string): void => {
     setActive(key);
-    save(GROUP_KEY, key);
+    saveGroup(key);
   };
 
-  /** Arrow keys move between group buttons, as in a tab list. */
-  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
-    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+  /** Up and down arrows move through the groups, as in a list box. */
+  const onListKey = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
+    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
     if (step === 0 && e.key !== 'Home' && e.key !== 'End') return;
     e.preventDefault();
     const index = GALLERY.findIndex((g) => groupKey(g) === active);
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? GALLERY.length - 1 : (index + step + GALLERY.length) % GALLERY.length;
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? GALLERY.length - 1 : Math.min(GALLERY.length - 1, Math.max(0, index + step));
     choose(groupKey(GALLERY[next]));
-    requestAnimationFrame(() => tabs.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus());
-  };
-
-  /** A vertical wheel scrolls the row of previews sideways. */
-  const onRowWheel = (e: ReactWheelEvent<HTMLDivElement>): void => {
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || !row.current) return;
-    row.current.scrollLeft += e.deltaY;
-  };
-
-  /** Drag the top edge to change the height. */
-  const onResizeStart = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = height;
-    const parent = (e.currentTarget.parentElement?.parentElement as HTMLElement | null)?.clientHeight ?? 800;
-    const onMove = (ev: PointerEvent): void => setHeight(Math.min(parent - 40, Math.max(MIN_HEIGHT, startHeight + startY - ev.clientY)));
-    const onUp = (ev: PointerEvent): void => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      save(HEIGHT_KEY, String(Math.min(parent - 40, Math.max(MIN_HEIGHT, startHeight + startY - ev.clientY))));
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    requestAnimationFrame(() => list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus());
   };
 
   const all = GALLERY.flatMap((g) => g.examples);
   const known = all.filter((ex) => statuses.has(ex.id));
   const editable = known.filter((ex) => statuses.get(ex.id)?.kind === 'editable').length;
+  const kind = groupKind(group);
 
   return (
-    <div
-      className={`gallery-drawer${open ? ' open' : ''}`}
-      style={{ height }}
-      role="dialog"
-      aria-label="Gallery"
-      aria-hidden={!open}
-      // A closed drawer takes no focus and no clicks.
-      inert={!open}
-    >
-      <div className="gallery-resize" onPointerDown={onResizeStart} title="Drag to resize" aria-hidden="true" />
+    <div className={`gallery${open ? ' open' : ''}`} role="dialog" aria-label="Gallery" aria-hidden={!open} inert={!open}>
       <div className="gallery-head">
         <strong>Gallery</strong>
         <span className="muted gallery-summary">
-          {known.length === all.length ? `${all.length} examples, ${editable} editable on the canvas.` : 'Examples drawn by Mermaid.'} Click one to open
-          it; Ctrl+Z in the code goes back.
+          {known.length === all.length ? `${all.length} examples in ${GALLERY.length} groups, ${editable} editable on the canvas.` : 'Examples drawn by Mermaid.'} Click
+          one to open it; Ctrl+Z in the code goes back.
         </span>
         <span className="spacer" />
-        <button onClick={onClose} aria-label="Close the gallery" title="Close (Esc)">
-          ▾ Close
+        <button onClick={onClose} title="Close (Esc)">
+          Close
         </button>
       </div>
-      <div className="gallery-tabs" role="tablist" aria-label="Groups" ref={tabs} onKeyDown={onTabKey}>
-        {PARTS.map((part, pi) => (
-          <Fragment key={part}>
-            {pi > 0 && <span className="gallery-tabs-divider" aria-hidden="true" />}
-            <span className="gallery-tabs-part">{part}</span>
-            {GALLERY.filter((g) => g.part === part).map((g) => {
-              const key = groupKey(g);
-              const selected = key === active;
-              const summary = groupSummary(g);
-              return (
-                <button
-                  key={key}
-                  role="tab"
-                  aria-selected={selected}
-                  aria-controls="gallery-row"
-                  tabIndex={selected ? 0 : -1}
-                  className={`gallery-tab${selected ? ' selected' : ''}`}
-                  onClick={() => choose(key)}
-                  title={`${g.examples.length} example${g.examples.length === 1 ? '' : 's'}${summary.kind ? `, ${summary.editable} editable on the canvas` : ''}`}
-                >
-                  {/* Always there, so the buttons keep their width when the statuses arrive. */}
-                  <span className={`gallery-dot ${summary.kind ?? 'unknown'}`} aria-hidden="true" />
-                  {g.title}
-                  <span className="gallery-count">{g.examples.length}</span>
-                </button>
-              );
-            })}
-          </Fragment>
-        ))}
-      </div>
-      <div className="gallery-row" id="gallery-row" role="tabpanel" aria-label={group.title} ref={row} onWheel={onRowWheel}>
-        {group.examples.map((ex) => (
-          <Card key={ex.id} example={ex} onOpen={onOpen} />
-        ))}
+      <div className="gallery-split">
+        <div className="gallery-groups" role="listbox" aria-label="Groups" ref={list} onKeyDown={onListKey}>
+          {PARTS.map((part) => (
+            <Fragment key={part}>
+              <div className="gallery-groups-part" role="presentation">
+                {part}
+              </div>
+              {GALLERY.filter((g) => g.part === part).map((g) => {
+                const key = groupKey(g);
+                const selected = key === active;
+                const first = g.examples[0];
+                const preview = first ? previews.get(first.id) : undefined;
+                const gk = groupKind(g);
+                return (
+                  <button
+                    key={key}
+                    role="option"
+                    aria-selected={selected}
+                    tabIndex={selected ? 0 : -1}
+                    className={`gallery-group${selected ? ' selected' : ''}`}
+                    onClick={() => choose(key)}
+                  >
+                    <span className="gallery-group-head">
+                      <span className={`gallery-dot dot-${gk ?? 'unknown'}`} title={gk ? KIND_TEXT[gk] : undefined} aria-hidden="true" />
+                      <span className="gallery-group-title">{g.title}</span>
+                      <span className="gallery-count">{g.examples.length}</span>
+                    </span>
+                    <span className="gallery-thumb" aria-hidden="true">
+                      {preview && 'svg' in preview ? (
+                        // Mermaid renders with securityLevel 'strict', and the examples are fixed text in this app.
+                        <span className="gallery-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
+                      ) : (
+                        <span className="muted">{preview ? 'No preview' : '…'}</span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
+        <div className="gallery-main" ref={grid}>
+          <div className="gallery-main-head">
+            <h2>{group.title}</h2>
+            <span className="muted">
+              {group.examples.length} example{group.examples.length === 1 ? '' : 's'}
+              {kind ? ` · ${KIND_TEXT[kind]}` : ''}
+            </span>
+          </div>
+          <div className="gallery-grid" role="list" aria-label={`${group.title} examples`}>
+            {group.examples.map((ex) => (
+              <Card key={ex.id} example={ex} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

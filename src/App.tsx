@@ -68,8 +68,6 @@ export function App(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const closeGallery = useCallback(() => setGalleryOpen(false), []);
-  /** Room at the bottom of the panes for the open gallery. */
-  const [gallerySpace, setGallerySpace] = useState(0);
   const [fontSize, setFontSize] = useState(loadFontSize);
   const changeFont = useCallback((step: 1 | -1 | 0): void => {
     setFontSize((size) => {
@@ -226,7 +224,7 @@ export function App(): JSX.Element {
         <span className="muted">Mermaid diagram editor</span>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
-        <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type (slides up from the bottom)">
+        <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
           Gallery
         </button>
         <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
@@ -237,7 +235,7 @@ export function App(): JSX.Element {
         <button onClick={() => void navigator.clipboard.writeText(code)}>Copy</button>
         <input ref={fileInput} type="file" accept=".mmd,.md,.txt" hidden onChange={(e) => void onOpenFile(e)} />
       </header>
-      <main className="panes" style={{ paddingBottom: gallerySpace }}>
+      <main className="panes">
         <section className="pane code-pane">
           <div className="code-toolbar">
             <span className="muted">Mermaid</span>
@@ -278,8 +276,15 @@ export function App(): JSX.Element {
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>
           )}
         </section>
-        {/* Always mounted, so it slides in and out. Opening an example keeps it open, to try the next one. */}
-        <Gallery open={galleryOpen} onOpen={replaceFromPaste} onClose={closeGallery} onSpace={setGallerySpace} />
+        {/* Always mounted, so it slides in and out and keeps its previews. */}
+        <Gallery
+          open={galleryOpen}
+          onOpen={(text) => {
+            replaceFromPaste(text);
+            setGalleryOpen(false);
+          }}
+          onClose={closeGallery}
+        />
       </main>
     </div>
   );

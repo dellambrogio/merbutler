@@ -71,6 +71,8 @@ export function LabelEdgeView({
     : edgePath(data?.curve, { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   return (
     <>
+      {/* A wide accent band under a selected edge: it shows the selection and keeps the edge's own color. */}
+      {selected && <path className="edge-selection-halo" d={path} style={{ strokeWidth: (Number(style?.strokeWidth) || 1.5) + 8 }} />}
       <BaseEdge id={id} path={path} markerStart={markerStart} markerEnd={markerEnd} style={style} />
       {data && data.label !== '' && (
         <EdgeLabelRenderer>

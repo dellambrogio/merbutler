@@ -178,7 +178,8 @@ button.danger { color: var(--danger); }
   position: absolute; pointer-events: all; padding: 2px 4px; border-radius: 3px;
   background: var(--edge-label-bg, var(--bg)); color: var(--text); font-size: 12px; line-height: 16px; text-align: center;
 }
-.edge-label.selected { outline: 1px solid var(--accent); }
+.edge-label.selected { outline: 2px solid var(--accent); outline-offset: 1px; box-shadow: 0 0 0 5px var(--selection); }
+.edge-selection-halo { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 /* Edges use zIndex 1 to draw above subgraph boxes. Labels must draw above the edges. */
 .react-flow__edgelabel-renderer { z-index: 3; }
 .subgraph-node {

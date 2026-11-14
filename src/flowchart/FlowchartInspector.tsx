@@ -14,13 +14,11 @@ import {
   type FlowEdge,
   type FlowNode,
   type FlowSubgraph,
-  type Shape,
-  SHAPES,
 } from '../core/model';
 import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
+import { ShapePicker } from '../canvas/ShapePicker';
 import { CurvePicker, EndPicker, LengthPicker, StrokePicker } from '../canvas/styleControls';
 import { checkClick } from './parseFlowchart';
-import { SHAPE_GROUPS, SHAPE_INFO } from './shapes';
 
 /** The rest of a node's `click` statement. Checked with Mermaid before it is applied. */
 function ClickField({ id, value, onCommit }: { id: string; value: string; onCommit: (click: string | undefined) => void }): JSX.Element {
@@ -141,23 +139,7 @@ export function FlowNodeInspector({ model, node, onChange, onDelete }: Inspector
       {node.asset ? (
         <AssetFields id={node.id} asset={node.asset} onChange={(asset) => onChange(updateNode(model, node.id, { asset }))} />
       ) : (
-        <label>
-          Shape
-          <select
-            value={node.shape}
-            onChange={(e) => onChange(updateNode(model, node.id, { shape: e.target.value as Shape }))}
-          >
-            {SHAPE_GROUPS.map((group) => (
-              <optgroup key={group} label={group}>
-                {SHAPES.filter((s) => SHAPE_INFO[s].group === group).map((s) => (
-                  <option key={s} value={s}>
-                    {SHAPE_INFO[s].title}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
+        <ShapePicker value={node.shape} onChange={(shape) => onChange(updateNode(model, node.id, { shape }))} />
       )}
       <ParentSelect
         model={model}

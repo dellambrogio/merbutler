@@ -285,7 +285,7 @@ const OUTLINES: Record<Shape, (box: Box) => JSX.Element> = {
   ),
 };
 
-function ShapeOutline({ shape, width, height }: { shape: Shape; width: number; height: number }): JSX.Element {
+export function ShapeOutline({ shape, width, height }: { shape: Shape; width: number; height: number }): JSX.Element {
   const sw = 1.5;
   const l = sw / 2;
   const t = sw / 2;

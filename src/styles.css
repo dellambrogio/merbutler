@@ -579,3 +579,33 @@ button.danger { color: var(--danger); }
 .curve-option.selected { border-color: var(--accent); background: var(--selection); color: var(--accent); }
 .curve-name { font-size: 10px; line-height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .length-option { display: inline-flex; align-items: center; gap: 2px; }
+
+/* Shape picker (ShapePicker.tsx): the canvas's own outlines as previews. */
+.shape-icon { flex: none; overflow: visible; }
+.shape-icon :is(rect, ellipse, polygon, path, line, circle) { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
+.shape-icon .nofill { fill: none; }
+.shape-icon .solid { fill: var(--node-stroke); }
+.shape-icon .thick { stroke-width: 3.5; }
+.shape-icon .ghost { fill: transparent; stroke: none; }
+.shape-picker { display: flex; flex-direction: column; gap: 3px; }
+.shape-picker-button { display: flex; align-items: center; gap: 8px; padding: 3px 8px; text-align: left; }
+.shape-picker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shape-picker-arrow { color: var(--muted); }
+.shape-picker-popup {
+  position: fixed; z-index: 40; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; padding: 6px;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+.shape-picker-search { width: 100%; box-sizing: border-box; font-size: 12px; flex: none; }
+.shape-picker-list { max-height: 340px; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.shape-picker-heading { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 6px 0 4px; }
+.shape-picker-group:first-child .shape-picker-heading { margin-top: 0; }
+.shape-picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.shape-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; min-width: 0;
+  border-radius: 6px; background: var(--panel);
+}
+.shape-tile.selected { border-color: var(--accent); background: var(--selection); }
+.shape-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.shape-tile-name { font-size: 10px; line-height: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.shape-picker-empty { font-size: 12px; margin: 4px; }

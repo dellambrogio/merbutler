@@ -2,6 +2,8 @@
 
 **A visual editor for Mermaid diagrams.** Edit the code or the canvas, and the other side follows.
 
+**Try it: [dellambrogio.github.io/merbutler](https://dellambrogio.github.io/merbutler/)**
+
 Flowcharts, swimlanes, state diagrams and use case diagrams are edited on a canvas. Trees (mindmaps, treemaps, kanban boards, …) get an
 outline editor, and data diagrams (pie, gantt, sequence messages, …) a table, next to Mermaid's own drawing. Every
 other Mermaid diagram type opens as a preview.
@@ -73,7 +75,10 @@ flowchart LR
 
 ## Quick start
 
-You need [Node.js](https://nodejs.org/) and [just](https://github.com/casey/just).
+To use it, open [dellambrogio.github.io/merbutler](https://dellambrogio.github.io/merbutler/): nothing to install.
+It is deployed by `.github/workflows/pages.yml` on every push to `main`.
+
+To run it locally, you need [Node.js](https://nodejs.org/) and [just](https://github.com/casey/just).
 
 ```sh
 just install

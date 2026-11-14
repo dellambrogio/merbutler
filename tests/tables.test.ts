@@ -20,7 +20,6 @@ const SECTIONS: Record<string, string> = {
   'requirement-diagram': 'Requirement diagram',
   'c4-diagram': 'C4 diagram',
   'architecture-diagram': 'Architecture diagram',
-  'use-case-diagram': 'Use case diagram',
   'block-diagram': 'Block diagram',
 };
 const cases = MERMAID_EXAMPLES.filter((s) => s.id in SECTIONS).flatMap((s) => s.examples.map((e) => [SECTIONS[s.id], e.title, e.code] as const));
@@ -107,7 +106,7 @@ describe('table editors', () => {
     expect(TABLE_SPECS['Entity relationship diagram'].write(['A', '||--o{', 'B', 'two words'])).toBe('A ||--o{ B : "two words"');
     expect(row('C4 diagram', 'Rel(SystemAA, SystemC, "Sends e-mails", "SMTP")')).toEqual(['Rel', 'SystemAA', 'SystemC', 'Sends e-mails', 'SMTP']);
     expect(row('Architecture diagram', 'api:B --> T:db')).toEqual(['api', 'B', '-->', 'T', 'db']);
-    expect(row('Use case diagram', 'Developer -- "collaborates with" --> Reviewer')).toEqual(['Developer', 'collaborates with', 'Reviewer']);
+    expect(row('Block diagram', 'a -- "goes to" --> b')).toEqual(['a', 'goes to', '-->', 'b']);
     expect(row('Requirement diagram', 'brake_controller - satisfies -> brake_response')).toEqual(['brake_controller', 'satisfies', 'brake_response']);
   });
 });

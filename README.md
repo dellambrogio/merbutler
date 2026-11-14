@@ -2,7 +2,7 @@
 
 **A visual editor for Mermaid diagrams.** Edit the code or the canvas, and the other side follows.
 
-Flowcharts, swimlanes and state diagrams are edited on a canvas. Trees (mindmaps, treemaps, kanban boards, …) get an
+Flowcharts, swimlanes, state diagrams and use case diagrams are edited on a canvas. Trees (mindmaps, treemaps, kanban boards, …) get an
 outline editor, and data diagrams (pie, gantt, sequence messages, …) a table, next to Mermaid's own drawing. Every
 other Mermaid diagram type opens as a preview.
 
@@ -54,7 +54,8 @@ flowchart LR
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
   and HTML in labels never runs.
-- 🗂️ **Every Mermaid diagram type**: the canvas edits flowcharts, swimlanes (`swimlane-beta`) and state diagrams;
+- 🗂️ **Every Mermaid diagram type**: the canvas edits flowcharts, swimlanes (`swimlane-beta`), state diagrams and
+  use case diagrams;
   outline and table editors cover the others; the rest open as Mermaid's own drawing, with pan and zoom.
 - 🖼️ **Gallery**: one example per feature of the Mermaid flowchart syntax, and all 81 examples of Mermaid's
   "All Diagram Examples" page, drawn by Mermaid, with a badge that says how the app edits each. Click one to open it.
@@ -140,9 +141,10 @@ just dev        # open the URL that Vite prints
 |---|---|
 | Flowchart, swimlane (`swimlane-beta`) | **Canvas.** Swimlanes are drawn as lanes (rows for `LR`, columns for `TB`), laid out with one ELK partition per lane. **+ Lane** adds one |
 | State diagram (`stateDiagram-v2`) | **Canvas.** States, `[*]` start and end (**+ Start**, **+ End**, per composite state), choice, fork and join, composite states (**+ Composite**) with their own direction, concurrency regions (inspector → **+ Concurrent region**), notes (**+ Note**), transition labels, `classDef`/`class`/`style`. Comments are kept, at the end. What the canvas cannot keep (a floating note) opens as a preview that says why |
+| Use case diagram (`usecase-beta`) | **Canvas.** Actors (**+ Actor**: stick figure, hollow, awesome or icon, business, stereotype), use cases (**+ Use case**: ellipse or rectangle), system boundaries (**+ Boundary**, rect or package), notes (**+ Note**), and relationships: associations with every arrow (`-->`, `--`, `<--`, `--o`, `o--`, `--x`, `x--`) and labels, `..>:include`, `..>:extend`, `--|>` generalization (only between the kinds Mermaid accepts). Edge ids, edge animation and JSON nodes open as a preview |
 | Mindmap, ishikawa, treeView, treemap, kanban, venn | **Outline editor** next to the preview: add, indent (Tab), outdent (Shift+Tab), move (Alt+↑/↓), delete; typed fields per type (mindmap shape and icon, treemap value, tree view annotation, kanban card data) |
 | Pie, sankey, packet, radar, XY chart, quadrant, timeline, user journey, gantt, git graph | **Table editor** next to the preview: one row per data line (sections as headings). Other lines (title, axes, settings) stay in the code |
-| Sequence, class, ER, requirement, C4, architecture, use case, block | **Table of relations** next to the preview (messages, relations, relationships, edges). Participants, classes, entities and blocks are edited in the code |
+| Sequence, class, ER, requirement, C4, architecture, block | **Table of relations** next to the preview (messages, relations, relationships, edges). Participants, classes, entities and blocks are edited in the code |
 | Event modeling, Wardley map, Cynefin, railroad (IR, EBNF, ABNF, PEG) | **Preview** only: edit them in the code |
 
 The outline and table editors write only the lines they change (the outline rewrites the tree's indentation).
@@ -224,8 +226,10 @@ deleting those parts. Today every example in the Gallery is editable, and none l
 - State diagrams: a canvas edit writes each state in its composite state and each transition in the innermost
   composite that holds both ends, and moves comments to the end. A state with quotes or line breaks in its label is
   written as `id : text` lines.
-- `src/parse.ts` and `src/stateDiagram.ts` use Mermaid internals (`mermaidAPI.getDiagramFromText`, the flowchart
-  and state DBs). The `mermaid` version is pinned. Run `just test` after you update it.
+- Use case diagrams: a canvas edit writes actors, boundaries with their members, use cases, relationships and notes
+  in that order, `class` statements instead of `:::`, and moves comments to the end.
+- `src/parse.ts`, `src/stateDiagram.ts` and `src/usecaseDiagram.ts` use Mermaid internals
+  (`mermaidAPI.getDiagramFromText`, the flowchart, state and use case DBs). The `mermaid` version is pinned. Run `just test` after you update it.
 
 ## Project layout
 
@@ -241,6 +245,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/parse.ts` | Mermaid text → model, or the type to preview |
 | `src/serialize.ts` | Model → Mermaid text |
 | `src/stateDiagram.ts` | State diagrams: Mermaid's state DB → model, and model → `stateDiagram-v2` |
+| `src/usecaseDiagram.ts` | Use case diagrams: Mermaid's use case DB → model, and model → `usecase-beta` |
 | `src/diagramTypes.ts` | Every Mermaid diagram type: ids, header keywords, body keywords, support |
 | `src/Preview.tsx`, `src/render.ts` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
 | `src/outline.ts`, `src/OutlineEditor.tsx` | Indentation trees and the outline editor |
@@ -255,7 +260,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
 | `src/App.tsx` | Split view and sync logic |
 | `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples, the page's examples, and the gallery panel |
-| `tests/` | Round-trip, layout, label, clipboard, swimlane, state, outline and table tests, with `.mmd` fixtures |
+| `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline and table tests, with `.mmd` fixtures |
 
 ## License
 

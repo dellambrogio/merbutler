@@ -145,16 +145,6 @@ export const TABLE_SPECS: Record<string, TableSpec> = {
     },
     newRow: ['a', 'R', '-->', 'L', 'b'],
   },
-  'Use case diagram': {
-    ...relationSpec('Links', 'Actors, use cases and system boundaries are edited in the code.'),
-    columns: [{ name: 'From' }, { name: 'Label' }, { name: 'To' }],
-    read: (line) => {
-      const m = SIMPLE_EDGE.exec(line);
-      return m && m[3] === '-->' ? [m[1], m[2] ?? '', m[4]] : null;
-    },
-    write: ([from, label, to]) => `${from.trim()} ${label.trim() ? `-- ${quote(label.trim())} ` : ''}--> ${to.trim()}`,
-    newRow: ['Actor', '', 'UseCase'],
-  },
   'Block diagram': {
     ...relationSpec('Edges', 'Blocks, columns and spaces are edited in the code.'),
     columns: [{ name: 'From' }, { name: 'Label' }, { name: 'Arrow', placeholder: '-->' }, { name: 'To' }],

@@ -94,7 +94,29 @@ export interface FlowNode {
   note?: { position: 'left of' | 'right of'; of: string };
   /** State diagrams: description lines after the label (`id : text`). */
   descriptions?: string[];
+  /** Use case diagrams: an actor or a use case, with its settings. */
+  usecase?: UseCaseNode;
 }
+
+/** Use case diagrams: what a node is (see usecaseDiagram.ts). */
+export interface UseCaseNode {
+  kind: 'actor' | 'usecase';
+  /** Actors: `normal` (default), `hollow`, `awesome`. Ignored when `icon` is set. */
+  actorType?: 'hollow' | 'awesome';
+  /** Actors: an icon instead of the figure. */
+  icon?: string;
+  business?: boolean;
+  /** `<<text>>` after the name. */
+  stereotype?: string;
+  /** Use cases: a rectangle (`id[Label]`) instead of an ellipse. */
+  rect?: boolean;
+}
+
+/**
+ * Use case relationships, by how they are written: associations with their arrow (`-->`, `--`,
+ * `<--`, `--o`, `--x`, `o--`, `x--`), `..>:include`, `..>:extend`, and `--|>` generalization.
+ */
+export type UseCaseRelation = '-->' | '--' | '<--' | '--o' | '--x' | 'o--' | 'x--' | 'include' | 'extend' | 'generalization';
 
 export type StateKind = 'start' | 'end' | 'choice' | 'fork' | 'join' | 'note';
 
@@ -118,6 +140,8 @@ export interface FlowSubgraph {
   endComments?: string[];
   /** State diagrams: a concurrency region of a composite state (separated by `--`). It has no label of its own. */
   region?: boolean;
+  /** Use case diagrams: a system boundary drawn as a package (`@{ type: package }`). */
+  package?: boolean;
 }
 
 export interface FlowEdge {
@@ -148,6 +172,8 @@ export interface FlowEdge {
   comments?: string[];
   /** State diagrams: the dotted line from a note to its state. Drawn, never written. */
   noteLink?: boolean;
+  /** Use case diagrams: the relationship and how its arrow is written. */
+  usecase?: { relation: UseCaseRelation };
 }
 
 export interface FlowModel {
@@ -155,7 +181,7 @@ export interface FlowModel {
    * `swimlane`: a `swimlane-beta` diagram. The same syntax as a flowchart; its top-level subgraphs
    * are lanes. `state`: a `stateDiagram-v2` (see stateDiagram.ts). Missing for a flowchart.
    */
-  kind?: 'swimlane' | 'state';
+  kind?: 'swimlane' | 'state' | 'usecase';
   /**
    * Text before the `flowchart` line: front matter, `%%{init}%%` directives, comments.
    * Kept as it is. Missing when there is none.
@@ -310,7 +336,7 @@ export function updateNode(
       if (n.id !== id) return n;
       const node = withoutEmpty({ ...n, ...patch }, model.classDefs);
       // State diagrams: plain text labels; an empty label is the id. Start and end have none.
-      if (model.kind === 'state') return { ...node, label: node.state === 'start' || node.state === 'end' ? '' : node.label.trim() || id };
+      if (model.kind === 'state' || model.kind === 'usecase') return { ...node, label: node.state === 'start' || node.state === 'end' ? '' : node.label.trim() || id };
       if (node.asset) {
         // An icon or image needs no label, and its label is always Markdown (`label:` in `@{}`).
         node.label = fromEditText(relabel(n, node), node.markdown);

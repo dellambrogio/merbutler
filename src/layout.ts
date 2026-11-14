@@ -527,7 +527,8 @@ export function canvasFrom(
       source: edge.source,
       target: edge.target,
       data: {
-        label: edge.label,
+        // Use case include and extend: shown as Mermaid labels them.
+        label: edge.usecase?.relation === 'include' || edge.usecase?.relation === 'extend' ? `«${edge.usecase.relation}»` : edge.label,
         markdown: edge.markdown,
         ...lookField(look),
         ...(curve ? { curve } : {}),

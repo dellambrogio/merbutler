@@ -47,7 +47,7 @@ export const DIAGRAM_TYPES: readonly DiagramType[] = [
   { ids: ['radar'], name: 'Radar chart', keywords: ['radar-beta'], words: ['title', 'axis', 'curve', 'max', 'min', 'showLegend', 'ticks', 'graticule'], support: 'preview' },
   { ids: ['treemap'], name: 'Treemap', keywords: ['treemap-beta', 'treemap'], words: ['classDef'], support: 'preview' },
   { ids: ['treeView'], name: 'TreeView', keywords: ['treeView-beta'], words: [], support: 'preview' },
-  { ids: ['usecase'], name: 'Use case diagram', keywords: ['usecase-beta'], words: ['actor', 'usecase', 'systemBoundary', 'end'], support: 'preview' },
+  { ids: ['usecase'], name: 'Use case diagram', keywords: ['usecase-beta'], words: ['actor', 'systemBoundary', 'end', 'note', 'for', 'direction', 'classDef', 'class', 'style', 'include', 'extend'], support: 'canvas' },
   { ids: ['ishikawa'], name: 'Ishikawa diagram', keywords: ['ishikawa-beta', 'ishikawa'], words: [], support: 'preview' },
   { ids: ['venn'], name: 'Venn diagram', keywords: ['venn-beta'], words: ['title', 'set', 'union', 'text', 'style'], support: 'preview' },
   { ids: ['eventmodeling'], name: 'Event modeling', keywords: ['eventmodeling'], words: ['tf', 'rf', 'data'], support: 'preview' },

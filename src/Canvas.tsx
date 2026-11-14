@@ -58,6 +58,7 @@ import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
 import { checkClick } from './parse';
 import { addNote, addPseudoState, canTransition, noteLink, setStateKind, STATE_KINDS } from './stateDiagram';
+import { addUseCaseNode, addUseCaseNote, allowedRelations, canRelate, forwardRelation, setRelation, setUseCaseNode, USECASE_RELATIONS } from './usecaseDiagram';
 import { diagramTheme, GRADIENT_ID, HAND_DRAWN_ID, themeVars, type DiagramTheme } from './themes';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -457,6 +458,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
 
   const onConnect = (c: Connection): void => {
     if (stateDiagram && !canTransition(model, c.source, c.target)) return;
+    if (usecaseDiagram && !canRelate(model, c.source, c.target)) return;
     pendingSelect.current = nextEdgeId(model);
     onChange(connect(model, c.source, c.target));
   };
@@ -490,6 +492,18 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   const targetParent = (): string | null => subgraph?.id ?? node?.parent ?? null;
 
   const stateDiagram = model.kind === 'state';
+  const usecaseDiagram = model.kind === 'usecase';
+  /** Use case diagrams: actors go at the top level (or in the selected boundary), use cases into the selected boundary. */
+  const onAddUseCase = (kind: 'actor' | 'usecase'): void => {
+    const id = nextNodeId(model);
+    pendingSelect.current = id;
+    const added = addUseCaseNode(model, kind, targetParent(), id);
+    onChange(kind === 'actor' && targetParent() ? setParent(added, id, targetParent()) : added);
+  };
+  const onAddBoundary = (): void => {
+    pendingSelect.current = nextSubgraphId(model);
+    onChange(addSubgraph(model, 'System', null));
+  };
   const onAddNode = (): void => {
     pendingSelect.current = nextNodeId(model);
     onChange(stateDiagram ? addNode(model, 'New state', 'round', targetParent()) : addNode(model, 'New node', 'rect', targetParent()));
@@ -520,9 +534,27 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
   return (
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`}>
       <div className="toolbar">
+        {usecaseDiagram && (
+          <>
+            <button onClick={() => onAddUseCase('actor')} disabled={readOnly}>
+              + Actor
+            </button>
+            <button onClick={() => onAddUseCase('usecase')} disabled={readOnly} title="Goes into the selected system boundary">
+              + Use case
+            </button>
+            <button onClick={onAddBoundary} disabled={readOnly}>
+              + Boundary
+            </button>
+            <button onClick={() => node?.usecase && onChange(addUseCaseNote(model, node.id))} disabled={readOnly || !node?.usecase} title="A note for the selected actor or use case">
+              + Note
+            </button>
+          </>
+        )}
+        {!usecaseDiagram && (
         <button onClick={onAddNode} disabled={readOnly}>
           {stateDiagram ? '+ State' : '+ Node'}
         </button>
+        )}
         {stateDiagram && (
           <>
             <button onClick={() => onAddPseudo('start')} disabled={readOnly} title="[*] start of the selected composite state, or of the diagram">
@@ -541,9 +573,11 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
             + Lane
           </button>
         )}
-        <button onClick={onAddSubgraph} disabled={readOnly}>
-          {stateDiagram ? '+ Composite' : '+ Subgraph'}
-        </button>
+        {!usecaseDiagram && (
+          <button onClick={onAddSubgraph} disabled={readOnly}>
+            {stateDiagram ? '+ Composite' : '+ Subgraph'}
+          </button>
+        )}
         <label title={swimlane ? 'LR: lanes are rows, the flow goes down through them. TB: lanes are columns.' : undefined}>
           {swimlane ? 'Lanes' : 'Direction'}{' '}
           <select
@@ -565,8 +599,11 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
       {!readOnly && stateDiagram && node && <StateNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
       {!readOnly && stateDiagram && subgraph && <StateSubgraphInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
       {!readOnly && stateDiagram && edge && <StateEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && usecaseDiagram && node && <UseCaseNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && usecaseDiagram && subgraph && <UseCaseBoundaryInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && usecaseDiagram && edge && <UseCaseEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
 
-      {!readOnly && !stateDiagram && node && (
+      {!readOnly && !stateDiagram && !usecaseDiagram && node && (
         <div className="inspector">
           <div className="inspector-title">Node {node.id}</div>
           <label>
@@ -628,7 +665,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         </div>
       )}
 
-      {!readOnly && !stateDiagram && subgraph && (
+      {!readOnly && !stateDiagram && !usecaseDiagram && subgraph && (
         <div className="inspector">
           <div className="inspector-title">
             {isLane(subgraph.id) ? 'Lane' : 'Subgraph'} {subgraph.id}
@@ -693,7 +730,7 @@ export function Canvas({ model, readOnly, onChange }: CanvasProps): JSX.Element 
         </div>
       )}
 
-      {!readOnly && !stateDiagram && edge && (
+      {!readOnly && !stateDiagram && !usecaseDiagram && edge && (
         <div className="inspector">
           <div className="inspector-title">
             Edge {edge.ref ? `${edge.ref}: ` : ''}
@@ -987,6 +1024,141 @@ function StateEdgeInspector({ model, edge, onChange, onDelete }: StateInspectorP
       </label>
       <button className="danger" onClick={onDelete}>
         Delete transition
+      </button>
+    </div>
+  );
+}
+
+/** Use case diagrams: an actor, a use case, or a note. */
+function UseCaseNodeInspector({ model, node, onChange, onDelete }: StateInspectorProps & { node: FlowNode }): JSX.Element {
+  const uc = node.usecase;
+  if (!uc) {
+    return (
+      <div className="inspector">
+        <div className="inspector-title">Note for {node.note?.of}</div>
+        <label>
+          Text
+          <LabelInput key={`${node.id}:${node.label}`} value={node.label} onCommit={(label) => onChange(updateNode(model, node.id, { label }))} />
+        </label>
+        <button className="danger" onClick={onDelete}>
+          Delete note
+        </button>
+      </div>
+    );
+  }
+  const set = (patch: Partial<NonNullable<FlowNode['usecase']>>): void => onChange(setUseCaseNode(model, node.id, patch));
+  return (
+    <div className="inspector">
+      <div className="inspector-title">
+        {uc.kind === 'actor' ? 'Actor' : 'Use case'} {node.id}
+      </div>
+      <label>
+        Label
+        <LabelInput key={`${node.id}:${node.label}`} value={node.label} onCommit={(label) => onChange(updateNode(model, node.id, { label }))} />
+      </label>
+      {uc.kind === 'actor' && (
+        <label>
+          Figure
+          <select value={uc.icon ? 'icon' : (uc.actorType ?? 'normal')} onChange={(e) => set({ actorType: e.target.value === 'normal' || e.target.value === 'icon' ? undefined : (e.target.value as 'hollow' | 'awesome'), icon: e.target.value === 'icon' ? uc.icon || 'fa:user' : undefined })}>
+            <option value="normal">Stick figure</option>
+            <option value="hollow">Hollow</option>
+            <option value="awesome">Awesome (icon font)</option>
+            <option value="icon">Icon</option>
+          </select>
+        </label>
+      )}
+      {uc.kind === 'actor' && uc.icon !== undefined && (
+        <label>
+          Icon
+          <TextField key={`${node.id}:icon:${uc.icon}`} value={uc.icon} placeholder="fa:user" onCommit={(icon) => set({ icon: icon.trim() || 'fa:user' })} />
+        </label>
+      )}
+      {uc.kind === 'usecase' && (
+        <label className="checkbox">
+          <input type="checkbox" checked={uc.rect === true} onChange={(e) => set({ rect: e.target.checked || undefined })} />
+          Rectangle (id[Label])
+        </label>
+      )}
+      {!(uc.kind === 'usecase' && uc.rect) && !(uc.kind === 'actor' && (uc.icon || uc.actorType === 'awesome')) && (
+        <label className="checkbox" title="business: true">
+          <input type="checkbox" checked={uc.business === true} onChange={(e) => set({ business: e.target.checked || undefined })} />
+          Business
+        </label>
+      )}
+      <label>
+        Stereotype
+        <TextField key={`${node.id}:st:${uc.stereotype ?? ''}`} value={uc.stereotype ?? ''} placeholder="written as <<text>>" onCommit={(stereotype) => set({ stereotype: stereotype.trim() || undefined })} />
+      </label>
+      <ParentSelect model={model} value={node.parent} exclude={new Set()} onSelect={(parent) => onChange(setParent(model, node.id, parent))} />
+      <StyleFields id={node.id} item={node} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateNode(model, node.id, patch))} />
+      <button className="danger" onClick={onDelete}>
+        Delete {uc.kind === 'actor' ? 'actor' : 'use case'}
+      </button>
+    </div>
+  );
+}
+
+/** Use case diagrams: a system boundary. */
+function UseCaseBoundaryInspector({ model, subgraph, onChange, onDelete }: StateInspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
+  return (
+    <div className="inspector">
+      <div className="inspector-title">System boundary {subgraph.id}</div>
+      <label>
+        Label
+        <LabelInput key={`${subgraph.id}:${subgraph.label}`} value={subgraph.label} onCommit={(label) => onChange(updateSubgraph(model, subgraph.id, { label }))} />
+      </label>
+      <label className="checkbox" title="@{ type: package }">
+        <input
+          type="checkbox"
+          checked={subgraph.package === true}
+          onChange={(e) => onChange({ ...model, subgraphs: model.subgraphs.map((s) => (s.id === subgraph.id ? (e.target.checked ? { ...s, package: true } : (({ package: _p, ...rest }) => rest)(s)) : s)) })}
+        />
+        Package
+      </label>
+      <StyleFields id={subgraph.id} item={subgraph} model={model} styleTitle="Written as: style id …" onChange={(patch) => onChange(updateSubgraph(model, subgraph.id, patch))} />
+      <button className="danger" onClick={onDelete} title="Its actors and use cases move out of it">
+        Delete boundary (keep contents)
+      </button>
+    </div>
+  );
+}
+
+/** Use case diagrams: a relationship. */
+function UseCaseEdgeInspector({ model, edge, onChange, onDelete }: StateInspectorProps & { edge: FlowEdge }): JSX.Element {
+  if (edge.noteLink) {
+    return (
+      <div className="inspector">
+        <div className="inspector-title">Note link</div>
+        <div className="muted inspector-note">Select the note to change or delete it.</div>
+      </div>
+    );
+  }
+  const relation = edge.usecase?.relation ?? '-->';
+  const allowed = allowedRelations(model, edge);
+  const labelled = relation !== 'include' && relation !== 'extend' && relation !== 'generalization';
+  return (
+    <div className="inspector">
+      <div className="inspector-title">
+        {edge.source} → {edge.target}
+      </div>
+      <label>
+        Relation
+        <select value={forwardRelation(relation)} onChange={(e) => onChange(setRelation(model, edge.id, e.target.value as (typeof USECASE_RELATIONS)[number]['relation']))}>
+          {USECASE_RELATIONS.filter((r) => allowed.includes(r.relation)).map((r) => (
+            <option key={r.relation} value={r.relation}>
+              {r.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      {labelled && (
+        <label>
+          Label
+          <LabelInput key={`${edge.id}:${edge.label}`} value={edge.label} onCommit={(label) => onChange(updateEdge(model, edge.id, { label }))} />
+        </label>
+      )}
+      <button className="danger" onClick={onDelete}>
+        Delete relationship
       </button>
     </div>
   );

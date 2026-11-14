@@ -10,6 +10,7 @@ import { canonicalOrder, normalizeNode, sortClasses, type Direction, type EdgeEn
 import { SHAPE_FROM_AT_NAME, SHAPE_FROM_BRACKETS } from './shapes';
 import { diagramType, HEADER_LINE, type DiagramType } from './diagramTypes';
 import { stateModel } from './stateDiagram';
+import { usecaseModel } from './usecaseDiagram';
 
 /**
  * `ok`: a diagram the canvas edits. Otherwise an error; `preview` is set when Mermaid accepts the
@@ -423,9 +424,10 @@ export async function parse(text: string): Promise<ParseResult> {
     if (type.support !== 'canvas') {
       return { ok: false, error: `The canvas does not edit this type yet (${type.name}).`, preview: type };
     }
-    if (type.name === 'State diagram') {
+    const adapter = type.name === 'State diagram' ? stateModel : type.name === 'Use case diagram' ? usecaseModel : null;
+    if (adapter) {
       try {
-        return { ok: true, model: stateModel(diagram.db, text) };
+        return { ok: true, model: adapter(diagram.db, text) };
       } catch (err) {
         // Mermaid accepts it: show its drawing, and say why the canvas cannot edit it.
         if (err instanceof UnsupportedError) return { ok: false, error: err.message, preview: type };

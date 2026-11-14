@@ -3,6 +3,7 @@
  * (at each level nodes first, then subgraph blocks), then all edges.
  */
 import { serializeState } from './stateDiagram';
+import { serializeUsecase } from './usecaseDiagram';
 import {
   buildTree,
   keepsAtSyntax,
@@ -146,6 +147,7 @@ function treeLines(items: TreeItem[], depth: number, out: string[]): void {
 
 export function serialize(model: FlowModel): string {
   if (model.kind === 'state') return serializeState(model);
+  if (model.kind === 'usecase') return serializeUsecase(model);
   const lines = model.preamble ? [model.preamble] : [];
   lines.push(`${model.kind === 'swimlane' ? 'swimlane-beta' : 'flowchart'} ${model.direction}`);
   treeLines(buildTree(model), 1, lines);

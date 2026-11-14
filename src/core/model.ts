@@ -1,6 +1,7 @@
 import { fromEditText, toEditText } from './labels';
 import { frontMatterOf, getString, readConfig, readYamlMaps } from './config';
 import { SHAPE_INFO, SHAPES, type Shape } from '../flowchart/shapes';
+import type { Positions } from './positions';
 
 export { SHAPES, type Shape };
 
@@ -202,6 +203,16 @@ export interface FlowModel {
   nodes: FlowNode[];
   subgraphs: FlowSubgraph[];
   edges: FlowEdge[];
+  /**
+   * Free layout: where the user placed each element (see positions.ts), kept in a
+   * `%% merbutler-layout` comment. Missing when Mermaid's layout places everything.
+   */
+  positions?: Positions;
+  /**
+   * The free layout is off: Mermaid's layout places everything, and `positions` are kept (as
+   * `%% merbutler-layout off …`) so turning it on again puts every element back where the user left it.
+   */
+  positionsOff?: boolean;
 }
 
 /**

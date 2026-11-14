@@ -9,6 +9,7 @@ import { ensureInitialized, UnsupportedError, withMermaid } from './mermaid';
 import { flowchartModel } from '../flowchart/parseFlowchart';
 import { stateModel } from '../state/stateDiagram';
 import { usecaseModel } from '../usecase/usecaseDiagram';
+import { extractPositions } from './positions';
 
 export { decodeEntities, ensureInitialized, preambleOf, scan, statements, UnsupportedError, withMermaid, type CodeItem } from './mermaid';
 export { checkClick } from '../flowchart/parseFlowchart';
@@ -27,7 +28,9 @@ const ADAPTERS: Record<string, (db: unknown, text: string, diagramId: string) =>
   'Use case diagram': (db, text) => usecaseModel(db, text),
 };
 
-export async function parse(text: string): Promise<ParseResult> {
+export async function parse(code: string): Promise<ParseResult> {
+  // The free layout comment is Merbutler's own: the adapters never see it.
+  const { text, positions, off } = extractPositions(code);
   try {
     await ensureInitialized();
     const diagram = await withMermaid(() => mermaid.mermaidAPI.getDiagramFromText(text));
@@ -35,7 +38,8 @@ export async function parse(text: string): Promise<ParseResult> {
     const adapter = type.support === 'canvas' ? ADAPTERS[type.name] : undefined;
     if (!adapter) return { ok: false, error: `The canvas does not edit this type yet (${type.name}).`, preview: type };
     try {
-      return { ok: true, model: adapter(diagram.db, text, diagram.type) };
+      const model = adapter(diagram.db, text, diagram.type);
+      return { ok: true, model: positions ? { ...model, positions, ...(off ? { positionsOff: true } : {}) } : model };
     } catch (err) {
       // Mermaid accepts it but the canvas cannot keep something. Flowcharts keep the canvas read-only
       // (the last diagram stays); other types show Mermaid's drawing and say why.

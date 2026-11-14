@@ -3,9 +3,10 @@ import type { FlowModel } from './model';
 import { serializeFlowchart } from '../flowchart/serializeFlowchart';
 import { serializeState } from '../state/stateDiagram';
 import { serializeUsecase } from '../usecase/usecaseDiagram';
+import { withPositionLines } from './positions';
 
 export function serialize(model: FlowModel): string {
-  if (model.kind === 'state') return serializeState(model);
-  if (model.kind === 'usecase') return serializeUsecase(model);
-  return serializeFlowchart(model);
+  const text = model.kind === 'state' ? serializeState(model) : model.kind === 'usecase' ? serializeUsecase(model) : serializeFlowchart(model);
+  // A free layout's positions go in a comment at the end.
+  return withPositionLines(text, model);
 }

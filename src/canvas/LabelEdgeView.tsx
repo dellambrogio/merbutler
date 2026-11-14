@@ -1,8 +1,9 @@
 import type { JSX } from 'react';
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, useInternalNode, type EdgeProps, type InternalNode } from '@xyflow/react';
 import { curvePath } from './curves';
 import { LabelText } from './LabelText';
-import type { LabelEdge } from './layout';
+import { clipRoute, outlineOf, type Outline } from './clip';
+import type { CanvasNode, EdgeRoute, LabelEdge, ShapeNode } from './layout';
 import { textStyle } from '../flowchart/styling';
 
 type PathParams = Parameters<typeof getBezierPath>[0];
@@ -45,6 +46,17 @@ function midpoint(points: Point[]): Point {
   return points[points.length - 1];
 }
 
+/** An end of a floating edge: its outline (the shape's, else its box) and center, where it is now. */
+function floatingEnd(node: InternalNode<CanvasNode> | undefined): { outline: Outline; center: Point } | null {
+  if (!node) return null;
+  const { x, y } = node.internals.positionAbsolute;
+  const box = { x, y, width: node.measured.width ?? node.width ?? 0, height: node.measured.height ?? node.height ?? 0 };
+  const data = node.type === 'shape' ? (node.data as ShapeNode['data']) : null;
+  const shape = data && !data.asset ? outlineOf(data.shape, box) : null;
+  const rect: Outline = { kind: 'polygon', points: [{ x, y }, { x: x + box.width, y }, { x: x + box.width, y: y + box.height }, { x, y: y + box.height }] };
+  return { outline: shape ?? rect, center: { x: x + box.width / 2, y: y + box.height / 2 } };
+}
+
 /**
  * An edge whose label is HTML, not SVG text, so it can show line breaks, bold and italic.
  * It follows the edge's curve, and shows its step number (`id@{ step: n }`).
@@ -62,9 +74,15 @@ export function LabelEdgeView({
   style,
   selected,
   data,
+  source,
+  target,
 }: EdgeProps<LabelEdge>): JSX.Element {
+  // Free layout: a straight line between the outlines, wherever the ends are now (also while they are dragged).
+  const from = floatingEnd(useInternalNode<CanvasNode>(source));
+  const to = floatingEnd(useInternalNode<CanvasNode>(target));
+  const floating: EdgeRoute | undefined = data?.floating && from && to ? { points: clipRoute([from.center, to.center], from, to) } : undefined;
   // With ELK the edge follows the route the layout found, as in Mermaid. Else the canvas draws its own curve.
-  const route = data?.route;
+  const route = floating ?? data?.route;
   const routeLabel = route ? (route.label ?? midpoint(route.points)) : null;
   const [path, labelX, labelY] = route && routeLabel
     ? [routePath(route.points, data?.curve), routeLabel.x, routeLabel.y]

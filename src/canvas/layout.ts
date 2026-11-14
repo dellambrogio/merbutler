@@ -75,6 +75,8 @@ export interface LabelEdgeData extends Record<string, unknown> {
   step?: number;
   /** The layout's route. Missing for dagre, and after a node of the edge was dragged. */
   route?: EdgeRoute;
+  /** Free layout: a straight line between the outlines of the ends, that follows them as they move. */
+  floating?: boolean;
 }
 
 export type LabelEdge = Edge<LabelEdgeData, 'label'>;
@@ -188,7 +190,7 @@ export function nodeSize(
   return SHAPE_INFO[shape].size(textSize(label, markdown, text), direction === 'TB' || direction === 'BT');
 }
 
-function union(boxes: Box[]): Box {
+export function union(boxes: Box[]): Box {
   const x1 = Math.min(...boxes.map((b) => b.x));
   const y1 = Math.min(...boxes.map((b) => b.y));
   const x2 = Math.max(...boxes.map((b) => b.x + b.width));
@@ -277,7 +279,7 @@ export function collapsedSize(subgraph: FlowSubgraph, text: TextSettings = DEFAU
 }
 
 /** Box around the contents, with room for the title. */
-function padBox(inner: Box, subgraph: FlowSubgraph, text: TextSettings): Box {
+export function padBox(inner: Box, subgraph: FlowSubgraph, text: TextSettings): Box {
   const top = titleSpace(subgraph, text);
   const box = {
     x: inner.x - SUBGRAPH_PADDING.side,

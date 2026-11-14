@@ -16,7 +16,8 @@ import {
 } from '@xyflow/react';
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
-import type { CanvasNode } from './layout';
+import type { Box, CanvasNode } from './layout';
+import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { layoutCanvas } from './layoutEngine';
 import {
   DIRECTIONS,
@@ -35,6 +36,7 @@ import {
   quickAddLink,
   removeElements,
   setParent,
+  subgraphWithDescendants,
   toggleClassOn,
   updateEdge,
   updateNode,
@@ -128,15 +130,15 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const theme = useMemo(() => diagramTheme(model), [model]);
   const titleAnchor = useMemo(() => titlePosition(nodes), [nodes]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  /** Node ids and direction at the last fit. A change means nodes were added or removed, or the layout turned. */
-  const lastFitKey = useRef('');
+  /** Node ids, direction and free layout at the last fit. */
+  const lastFitKey = useRef<{ ids: string; direction: string; free: boolean; moved: boolean } | null>(null);
   /** Id of an element that the next layout must select (for example a new node). */
   const pendingSelect = useRef<string | null>(null);
   /** True while the user drags a new edge. All handles are shown then, so the user can see the targets. */
   const [connecting, setConnecting] = useState(false);
 
-  /** Direction and node ids of the layout shown. */
-  const layoutKey = useRef('');
+  /** Node ids, direction and free layout of the layout shown, and whether it moved elements that were already there. */
+  const layoutKey = useRef({ ids: '', direction: '', free: false, moved: false });
   /** Counts layouts, so a slow (ELK) layout that finishes after a newer one is dropped. */
   const layoutRun = useRef(0);
 
@@ -144,12 +146,19 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     const run = ++layoutRun.current;
     const laid = await layoutCanvas(model);
     if (run !== layoutRun.current) return;
+    const free = isFreeLayout(model);
     // The fit key belongs to this layout: the layout is async, so model.direction can be newer than the nodes shown.
-    layoutKey.current = `${model.direction}|${laid.nodes.map((n) => n.id).sort().join(',')}`;
+    const before = new Map(nodesRef.current.map((n) => [n.id, n.position]));
+    const moved = laid.nodes.some((n) => {
+      const p = before.get(n.id);
+      return p !== undefined && (Math.abs(p.x - n.position.x) > 2 || Math.abs(p.y - n.position.y) > 2);
+    });
+    layoutKey.current = { ids: laid.nodes.map((n) => n.id).sort().join(','), direction: model.direction, free, moved };
     const select = pendingSelect.current;
     pendingSelect.current = null;
     // Mermaid has no positions: an element can be dragged only to move it into another subgraph.
-    laid.nodes = laid.nodes.map((n) => ({ ...n, draggable: canMove(model, n.id) }));
+    // In a free layout everything can be dragged, and stays where it is dropped.
+    laid.nodes = laid.nodes.map((n) => ({ ...n, draggable: free || canMove(model, n.id) }));
     if (select) {
       setNodes(laid.nodes.map((n) => ({ ...n, selected: n.id === select })));
       setEdges(laid.edges);
@@ -166,8 +175,16 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   useEffect(() => {
     if (nodes.length === 0) return;
     const key = layoutKey.current;
-    if (key === lastFitKey.current) return;
-    const first = lastFitKey.current === '';
+    const last = lastFitKey.current;
+    // Fit when nodes were added or removed, when Mermaid's layout turned, or when switching the free
+    // layout moved things (back to Mermaid's layout, or back to the user's positions). A new direction
+    // in a free layout moves nothing.
+    const turned = last !== null && ((!key.free && !last.free && last.direction !== key.direction) || (last.free !== key.free && key.moved));
+    if (last !== null && last.ids === key.ids && !turned) {
+      lastFitKey.current = key;
+      return;
+    }
+    const first = last === null;
     lastFitKey.current = key;
     // Animate later fits, so the view change is easy to follow.
     requestAnimationFrame(() => void fitView({ padding: 0.2, duration: first ? 0 : 250 }));
@@ -177,6 +194,9 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   /** The current nodes, for event handlers that must not wait for a render. */
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+  /** Whether the layout is free, for the change handlers. */
+  const freeRef = useRef(false);
+  freeRef.current = isFreeLayout(model);
 
   const onNodesChange = useCallback((changes: NodeChange<CanvasNode>[]): void => {
     // A dragged node (with everything inside it) leaves the layout's edge routes; its edges draw their own curve again.
@@ -192,9 +212,13 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           }
         }
       }
+      // In a free layout they become straight lines, as they will be after the drop.
+      const free = freeRef.current;
       setEdges((edges) =>
         edges.map((e) =>
-          e.data?.route && (dragged.has(e.source) || dragged.has(e.target)) ? { ...e, data: { ...e.data, route: undefined } } : e,
+          e.data && (e.data.route || (free && !e.data.floating && e.source !== e.target)) && (dragged.has(e.source) || dragged.has(e.target))
+            ? { ...e, data: { ...e.data, route: undefined, ...(free && e.source !== e.target ? { floating: true } : {}) } }
+            : e,
         ),
       );
     }
@@ -240,15 +264,61 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     // Highlight only a real move.
     setDropInto(moved.some((id) => parentOf(id) !== target) ? target : null);
   };
+  /** Absolute boxes of the elements on the canvas, where they are now. */
+  const canvasBoxes = (): Map<string, Box> => {
+    const boxes = new Map<string, Box>();
+    for (const n of nodesRef.current) {
+      const internal = getInternalNode(n.id);
+      if (!internal) continue;
+      const { x, y } = internal.internals.positionAbsolute;
+      boxes.set(n.id, { x, y, width: internal.measured.width ?? n.width ?? 0, height: internal.measured.height ?? n.height ?? 0 });
+    }
+    return boxes;
+  };
+  /**
+   * The free layout positions of what the canvas shows: every element with nothing shown inside it.
+   * Elements hidden in a collapsed subgraph keep theirs, and move with the subgraph.
+   */
+  const placedPositions = (next: FlowModel, boxes: Map<string, Box>): Positions => {
+    const old = next.positions ?? {};
+    const positions: Positions = {};
+    for (const [id, p] of Object.entries(old)) if (!boxes.has(id)) positions[id] = p;
+    for (const s of next.subgraphs) {
+      const before = old[s.id];
+      const now = boxes.get(s.id);
+      if (s.view !== 'collapsed' || !before || !now || (before.x === now.x && before.y === now.y)) continue;
+      const inside = subgraphWithDescendants(next, s.id);
+      for (const item of [...next.nodes, ...next.subgraphs]) {
+        const p = positions[item.id];
+        if (p && item.parent !== null && inside.has(item.parent)) positions[item.id] = { x: Math.round(p.x + now.x - before.x), y: Math.round(p.y + now.y - before.y) };
+      }
+    }
+    const parents = new Set(nodesRef.current.flatMap((n) => (n.parentId ? [n.parentId] : [])));
+    for (const [id, b] of boxes) if (!parents.has(id)) positions[id] = { x: Math.round(b.x), y: Math.round(b.y) };
+    return positions;
+  };
   const onNodeDragStop: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
     setDropInto(null);
     const moved = movedRoots(dragged);
     const target = dropTargetAt(e, moved);
     let next = model;
     for (const id of moved) if (parentOf(id) !== target) next = setParent(next, id, target);
+    if (isFreeLayout(model)) {
+      // Keep where everything is; the code follows the drawing (direction and statement order).
+      const boxes = canvasBoxes();
+      const centers = new Map<string, Point>([...boxes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }]));
+      onChange(arrangeByPositions(next, placedPositions(next, boxes), centers));
+      return;
+    }
     if (next !== model) onChange(next);
     else void relayout();
   };
+  /**
+   * Free layout on: everything where the user left it (the first time, where Mermaid's layout put it).
+   * Off: Mermaid's layout again; the positions are kept for the next time.
+   */
+  const free = isFreeLayout(model);
+  const toggleFree = (): void => onChange(toggleFreeLayout(model, () => placedPositions(model, canvasBoxes())));
   const shownNodes = useMemo(
     () => (dropInto ? nodes.map((n) => (n.id === dropInto ? { ...n, className: 'drop-target' } : n)) : nodes),
     [nodes, dropInto],
@@ -610,6 +680,22 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           onChoose={(direction) => onChange({ ...model, direction })}
         />
         <DockItem icon={DockIcons.layout} label="Layout" hint="How Mermaid places and aligns the nodes" active={layoutOpen} onClick={() => setPanelOpen('layout', (o) => !o)} />
+        {!swimlane && (
+          <DockItem
+            icon={DockIcons.free}
+            label={free ? 'Free layout: on' : 'Free layout'}
+            hint={
+              free
+                ? 'Nodes stay where you drop them, kept in a %% comment. Click to let Mermaid place them again; your positions are kept'
+                : model.positions
+                  ? 'Puts the nodes back where you placed them'
+                  : 'Place nodes anywhere; the code keeps their positions in a %% comment and follows the drawing'
+            }
+            active={free}
+            disabled={readOnly}
+            onClick={toggleFree}
+          />
+        )}
         <DockItem
           icon={DockIcons.classes}
           label="Classes"

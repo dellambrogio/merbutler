@@ -6,6 +6,11 @@ these notes. New changes go under **Unreleased** until the next version gets its
 ## Unreleased
 
 - The Syntax panel is closed by default; open it from its header under the code. The app remembers it open.
+- Free layout (dock → Free layout): place nodes anywhere on the canvas. Positions are kept in a
+  `%% merbutler-layout` comment that Mermaid ignores, and each move sets the direction and the order of the code
+  from the drawing, so other renderers lay it out close to it. What has not moved keeps Mermaid's drawing, so
+  turning it on does not shift the canvas. Turning it off keeps the positions (`%% merbutler-layout off …`), so
+  turning it on again puts every node back where it was placed. Not for swimlanes.
 
 ## 0.1.0 — 2026-11-14
 

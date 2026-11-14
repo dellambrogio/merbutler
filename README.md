@@ -56,6 +56,8 @@ flowchart LR
 - 🧩 **Subgraphs**: nested, with their own direction, and edges to or from a whole subgraph.
 - 🎨 **Styling without syntax**: color swatches and pickers for nodes and edges, and a panel to create, edit and apply
   style classes (`classDef`).
+- ✋ **Free layout**: place nodes anywhere. The positions are kept in a `%%` comment that Mermaid ignores, and the
+  code follows the drawing (direction and statement order), so other renderers come close to it.
 - 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
 - 💾 **Saved diagrams**: keep many named diagrams in your browser; the open one saves itself as you edit.
@@ -120,6 +122,17 @@ just dev        # open the URL that Vite prints
   With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
   shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
   drag), or to the top level when you drop it outside its subgraph. A drop that changes nothing puts it back.
+- **Free layout** (dock → **Free layout**) lets you place nodes anywhere, and they stay where you drop them. The
+  positions go in a comment at the end of the code, `%% merbutler-layout a=120,40 b=300,40`, that Mermaid ignores:
+  Merbutler shows your arrangement again when it opens the code, and every other Mermaid renderer lays the diagram
+  out as usual. So that their layout comes close to yours, each drop also updates the code: the direction becomes
+  the one most arrows point to, and nodes, subgraphs and edges are written in reading order (rank by rank along
+  the direction). Turning it on changes nothing on the screen: what you have not moved keeps Mermaid's drawing, and
+  the edges of a moved element become straight lines. A subgraph whose contents moved is drawn around them; drop a
+  node inside or outside it to move it in or out. Elements without a position yet (new ones, or ones typed in the code)
+  go next to a linked element. Turning it off shows Mermaid's layout again and keeps your positions in the code
+  (`%% merbutler-layout off …`): turning it on puts every node back where you left it. Delete the line to forget
+  them. Not for swimlanes, whose lanes are bands.
 
 ## Code editor
 
@@ -189,7 +202,8 @@ window does not see them.
 | Colors and text style | Select a node, subgraph or edge → inspector → **Own style**: swatches or any color for fill, border (or line) and text, border width and style, bold, italic. Written as `style id …` / `linkStyle n …`; **Reset** removes it, **Advanced** shows it as text |
 | Style classes | Toolbar → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
-| Direction | Toolbar select |
+| Direction | Toolbar select. In a free layout, moving nodes sets it from the drawing |
+| Free layout | Dock → **Free layout**: drag nodes and subgraphs anywhere; their positions are kept in the code. Click again for Mermaid's layout, and once more to put your nodes back |
 | Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
 
 ## Every diagram type
@@ -264,6 +278,8 @@ deleting those parts. Today every example in the Gallery is editable, and none l
 - Without an ELK route (dagre), edges use handles on fixed sides (for example right → left
   in LR), so an edge that goes against the flow direction can cross the nodes or subgraphs between its ends.
 - The canvas places nodes like Mermaid's engine, but not pixel for pixel: node sizes are estimated from the text.
+- A free layout is Merbutler's own: other renderers ignore the positions and lay the diagram out themselves, from the
+  direction and statement order. Two edges between the same nodes are drawn on the same straight line.
 - A subgraph without an id (`subgraph Some title`) gets the id Mermaid gives it (for example `subGraph3`)
   after the first canvas edit.
 - Labels are trimmed. An empty node label becomes the node id.
@@ -297,7 +313,7 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 
 | Folder | Purpose |
 |---|---|
-| `src/core/` | Shared by every type: the graph model and its edits (`model.ts`), Mermaid setup and text helpers (`mermaid.ts`), parse and serialize by type (`parse.ts`, `serialize.ts`), the list of diagram types (`diagramTypes.ts`), labels, config, settings, the URL state, clipboard |
+| `src/core/` | Shared by every type: the graph model and its edits (`model.ts`), Mermaid setup and text helpers (`mermaid.ts`), parse and serialize by type (`parse.ts`, `serialize.ts`), free layout positions (`positions.ts`), the list of diagram types (`diagramTypes.ts`), labels, config, settings, the URL state, clipboard |
 | `src/flowchart/` | Flowcharts and swimlanes: Mermaid's flowchart DB → model (`parseFlowchart.ts`), model → code (`serializeFlowchart.ts`), shapes, styling, themes, icons, and the flowchart inspector |
 | `src/state/` | State diagrams: adapter, writer and edits (`stateDiagram.ts`), inspector |
 | `src/usecase/` | Use case diagrams: adapter, writer and edits (`usecaseDiagram.ts`), inspector |

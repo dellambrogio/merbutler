@@ -262,6 +262,11 @@ export const DockIcons = {
       <path d="M11.5 6h9M11.5 12h9M11.5 18h6" />
     </Svg>
   ),
+  free: (
+    <Svg>
+      <path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />
+    </Svg>
+  ),
   layout: (
     <Svg>
       <rect x="9" y="3" width="6" height="4.5" rx="1" />

@@ -11,10 +11,12 @@ import {
   layoutContext,
   layoutModel,
   nodeSize,
+  padBox,
   SUBGRAPH_PADDING,
   textSize,
   titleSpace,
   titleWidth,
+  union,
   type Box,
   type CanvasNode,
   type EdgeRoute,
@@ -23,6 +25,7 @@ import {
 } from './layout';
 import { cyclicEntryNodes, diagramElkConfig, elkLayoutOptions, resolvedElk } from './elkConfig';
 import { diagramLayout, laneFlow, lanesOf, type Direction, type FlowModel, type FlowSubgraph } from '../core/model';
+import { isFreeLayout, withoutPositions } from '../core/positions';
 
 /** ELK is large (about 1.5 MB), so it loads on the first ELK layout, as its own chunk. */
 let elkInstance: Promise<{ layout: (graph: ElkNode) => Promise<ElkNode> }> | null = null;
@@ -35,6 +38,8 @@ const ELK_DIRECTION: Record<Direction, string> = { TB: 'DOWN', BT: 'UP', LR: 'RI
 
 /** Lays out the model with the engine its code asks for. */
 export async function layoutCanvas(model: FlowModel): Promise<{ nodes: CanvasNode[]; edges: LabelEdge[] }> {
+  // A free layout keeps Mermaid's drawing of what the user did not move: it needs that layout too.
+  if (isFreeLayout(model)) return freeLayout(model, await layoutCanvas(withoutPositions(model)));
   if (diagramLayout(model) === 'dagre') return layoutModel(model);
   const ctx = layoutContext(model);
   const { boxes, routes } = await elkLayout(ctx);
@@ -230,6 +235,135 @@ export async function elkLayout(ctx: LayoutContext): Promise<{ boxes: Map<string
   collectEdges(laid, 0, 0);
   if (model.kind === 'swimlane') laneBoxes(ctx, lanes, rows, laid, boxes);
   return { boxes, routes };
+}
+
+/** Space between a new element and the one it is placed next to, in a free layout. */
+const FREE_GAP = 60;
+
+/** Absolute boxes of laid-out canvas nodes (React Flow child positions are relative to the parent). */
+function absoluteBoxes(nodes: CanvasNode[]): Map<string, Box> {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const boxes = new Map<string, Box>();
+  const boxOf = (n: CanvasNode): Box => {
+    const known = boxes.get(n.id);
+    if (known) return known;
+    const parent = n.parentId ? byId.get(n.parentId) : undefined;
+    const origin = parent ? boxOf(parent) : { x: 0, y: 0 };
+    const box = { x: origin.x + n.position.x, y: origin.y + n.position.y, width: n.width ?? 0, height: n.height ?? 0 };
+    boxes.set(n.id, box);
+    return box;
+  };
+  nodes.forEach(boxOf);
+  return boxes;
+}
+
+/**
+ * Free layout: each node (and each subgraph with nothing shown inside) where the user put it, and
+ * each subgraph with contents drawn around them. An element without a position yet (added since,
+ * or typed in the code) goes next to an element it is linked to, else after its siblings, in the
+ * diagram's direction, where it overlaps nothing.
+ *
+ * What the user has not moved stays as Mermaid's layout (`auto`) draws it: a subgraph whose
+ * contents are all where that layout put them keeps its box, and an edge between two such
+ * elements keeps its route. So turning the free layout on changes nothing on the screen. The
+ * other edges are straight lines that follow their ends.
+ */
+export function freeLayout(full: FlowModel, auto?: { nodes: CanvasNode[]; edges: LabelEdge[] }): { nodes: CanvasNode[]; edges: LabelEdge[] } {
+  const ctx = layoutContext(full);
+  const { model } = ctx;
+  const positions = full.positions ?? {};
+  const direction = model.direction;
+  const subgraphOf = new Map(model.subgraphs.map((s) => [s.id, s]));
+  const hasChildren = (id: string): boolean => (ctx.childrenOf.get(id) ?? []).length > 0;
+
+  const sizeOf = (id: string): { width: number; height: number } => {
+    const node = model.nodes.find((n) => n.id === id);
+    if (node) return node.asset ? assetNodeSize(node.label, node.markdown, node.asset, ctx.text) : nodeSize(node.label, node.shape, node.markdown, direction, ctx.text);
+    const sub = subgraphOf.get(id) as FlowSubgraph;
+    if (sub.view === 'collapsed') return collapsedSize(sub, ctx.text);
+    return { width: Math.max(EMPTY_SUBGRAPH.width, titleWidth(sub, ctx.text)), height: EMPTY_SUBGRAPH.height };
+  };
+
+  const leaves = [...model.nodes.map((n) => n.id), ...model.subgraphs.filter((s) => !hasChildren(s.id)).map((s) => s.id)];
+  const boxes = new Map<string, Box>();
+  for (const id of leaves) {
+    const p = positions[id];
+    if (p) boxes.set(id, { ...p, ...sizeOf(id) });
+  }
+
+  const overlaps = (a: Box): boolean =>
+    [...boxes.values()].some((b) => a.x < b.x + b.width + 20 && b.x < a.x + a.width + 20 && a.y < b.y + b.height + 20 && b.y < a.y + a.height + 20);
+  const vertical = direction === 'TB' || direction === 'BT';
+  const sign = direction === 'BT' || direction === 'RL' ? -1 : 1;
+  /** The box of `size` past `anchor` along the flow (`side` 1) or before it (-1), centered across it. */
+  const beside = (anchor: Box, size: { width: number; height: number }, side: number): Box => {
+    const step = sign * side;
+    if (vertical) {
+      const y = step > 0 ? anchor.y + anchor.height + FREE_GAP : anchor.y - FREE_GAP - size.height;
+      return { x: anchor.x + (anchor.width - size.width) / 2, y, ...size };
+    }
+    const x = step > 0 ? anchor.x + anchor.width + FREE_GAP : anchor.x - FREE_GAP - size.width;
+    return { x, y: anchor.y + (anchor.height - size.height) / 2, ...size };
+  };
+  /** Moves a box across the flow until it overlaps nothing. */
+  const free = (box: Box): Box => {
+    let b = box;
+    for (let i = 0; i < 200 && overlaps(b); i++) b = vertical ? { ...b, x: b.x + b.width / 2 + 10 } : { ...b, y: b.y + b.height / 2 + 10 };
+    return b;
+  };
+  for (const id of leaves) {
+    if (boxes.has(id)) continue;
+    const size = sizeOf(id);
+    const link = model.edges.find((e) => (e.source === id && boxes.has(e.target)) || (e.target === id && boxes.has(e.source)));
+    let box: Box;
+    if (link) {
+      box = link.source === id ? beside(boxes.get(link.target)!, size, -1) : beside(boxes.get(link.source)!, size, 1);
+    } else {
+      const parent = ctx.parentOf.get(id) ?? null;
+      const siblings = (ctx.childrenOf.get(parent) ?? []).flatMap((s) => boxes.get(s) ?? []);
+      const placed = siblings.length > 0 ? siblings : [...boxes.values()];
+      box = placed.length > 0 ? beside(union(placed), size, 1) : { x: 0, y: 0, ...size };
+    }
+    boxes.set(id, free(box));
+  }
+
+  // Where Mermaid's layout put each element, to tell what the user moved.
+  const autoBoxes = auto ? absoluteBoxes(auto.nodes) : new Map<string, Box>();
+  const unmoved = new Map<string, boolean>();
+  const isUnmoved = (id: string): boolean => {
+    const known = unmoved.get(id);
+    if (known !== undefined) return known;
+    const children = ctx.childrenOf.get(id) ?? [];
+    const a = autoBoxes.get(id);
+    const b = boxes.get(id);
+    const result =
+      children.length > 0
+        ? children.every(isUnmoved) && a !== undefined
+        : a !== undefined && b !== undefined && Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1 && Math.abs(a.width - b.width) <= 1 && Math.abs(a.height - b.height) <= 1;
+    unmoved.set(id, result);
+    return result;
+  };
+
+  // Subgraphs with contents: as Mermaid drew them if nothing inside moved, else around their contents, innermost first.
+  const around = (id: string): Box => {
+    const known = boxes.get(id);
+    if (known) return known;
+    const inner = union((ctx.childrenOf.get(id) ?? []).map(around));
+    const box = isUnmoved(id) ? (autoBoxes.get(id) as Box) : padBox(inner, subgraphOf.get(id) as FlowSubgraph, ctx.text);
+    boxes.set(id, box);
+    return box;
+  };
+  for (const s of model.subgraphs) around(s.id);
+
+  const laid = canvasFrom(ctx, boxes);
+  const autoEdges = new Map((auto?.edges ?? []).map((e) => [e.id, e]));
+  laid.edges = laid.edges.map((e) => {
+    const kept = autoEdges.get(e.id);
+    if (kept && isUnmoved(e.source) && isUnmoved(e.target)) return kept;
+    // A loop on one element keeps the canvas's own curve: a straight line would have no length.
+    return e.source === e.target || !e.data ? e : { ...e, data: { ...e.data, floating: true } };
+  });
+  return laid;
 }
 
 const laneSpacer = (id: string): string => `__lane__${id}`;

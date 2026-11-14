@@ -62,6 +62,8 @@ flowchart LR
   grammar), each with how the app edits it. Search the titles and code (`/`), or filter by Canvas, Outline, Table or
   Preview. A tile opens the type's page with all its examples; the Flowchart page also has one example per feature
   of the flowchart syntax. Click an example to open it; Esc goes back, then closes.
+- 🔗 **Links**: the URL after `#` holds the diagram (compressed) and the gallery view, and follows your edits.
+  Copy the address to share exactly what you see; opening it restores it. The URL wins over the autosaved code.
 - 💾 **Autosave**: the code is kept in localStorage between sessions.
 
 ## Quick start
@@ -264,6 +266,7 @@ Built with React, [React Flow](https://reactflow.dev/), [CodeMirror](https://cod
 | `src/LabelEdgeView.tsx`, `src/EdgeMarkers.tsx` | Edges with HTML labels, circle and cross end markers |
 | `src/CodeEditor.tsx`, `src/mermaidEditor.ts` | CodeMirror panel: highlighting, completion, error marks |
 | `src/App.tsx` | Split view and sync logic |
+| `src/urlState.ts` | The app's state in the URL hash: code (deflate, base64url) and gallery view |
 | `src/settings.ts` | App settings with defaults and ranges, stored per browser (no settings panel yet) |
 | `src/gallery.ts`, `src/Gallery.tsx` | Syntax examples, the page's examples, and the gallery panel |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline and table tests, with `.mmd` fixtures |

@@ -3,7 +3,9 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './Canvas';
 import { extractMermaid } from './clipboard';
 import { CodeEditor } from './CodeEditor';
-import { Gallery } from './Gallery';
+import { Gallery, loadView } from './Gallery';
+import { GALLERY_TYPES } from './gallery';
+import { readHash, writeHash, type UrlState } from './urlState';
 import { Preview } from './Preview';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './StructuredEditor';
 import type { DiagramType } from './diagramTypes';
@@ -68,6 +70,8 @@ export function App(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const closeGallery = useCallback(() => setGalleryOpen(false), []);
+  /** The gallery's type page (null: the overview). */
+  const [galleryView, setGalleryView] = useState<string | null>(loadView);
   const [fontSize, setFontSize] = useState(loadFontSize);
   const changeFont = useCallback((step: 1 | -1 | 0): void => {
     setFontSize((size) => {
@@ -189,11 +193,66 @@ export function App(): JSX.Element {
     return () => document.removeEventListener('paste', onPaste);
   }, [replaceFromPaste]);
 
+  // ---- State in the URL after `#` (urlState.ts): code and gallery view ----
+  /** The hash this app wrote last, so its own updates are not read back as a new link. */
+  const writtenHash = useRef<string | null>(null);
+  /** False until the URL has been read: no hash is written before, so an opened link is not overwritten. */
+  const [urlRead, setUrlRead] = useState(false);
+  const codeRef = useRef(code);
+  codeRef.current = code;
+
+  /** Applies a state from the URL. Returns true if it brought code. */
+  const applyUrl = useCallback(
+    (state: UrlState): boolean => {
+      setGalleryOpen(state.gallery !== null);
+      if (state.gallery !== null) setGalleryView(GALLERY_TYPES.some((t) => t.id === state.gallery) ? state.gallery : null);
+      if (state.code === undefined || state.code === codeRef.current) return false;
+      clearTimeout(timer.current);
+      setCode(state.code);
+      void runParse(state.code);
+      return true;
+    },
+    [runParse],
+  );
+
+  // On start: the URL's state wins over the code saved in this browser.
   useEffect(() => {
-    void runParse(code);
-    // Parse the initial code once.
+    void (async () => {
+      const brought = applyUrl(await readHash(window.location.hash));
+      if (!brought) void runParse(codeRef.current);
+      setUrlRead(true);
+    })();
+    // Once, on start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A link pasted into the address bar, or Back/Forward to another hash.
+  useEffect(() => {
+    const onHash = (): void => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash === writtenHash.current) return;
+      void readHash(hash).then(applyUrl);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [applyUrl]);
+
+  // Keep the URL up to date, shortly after changes. It replaces the history entry: typing does not fill Back.
+  useEffect(() => {
+    if (!urlRead) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      void writeHash({ code, gallery: galleryOpen ? (galleryView ?? '') : null }).then((hash) => {
+        if (!alive || hash === window.location.hash.replace(/^#/, '')) return;
+        writtenHash.current = hash;
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${hash}`);
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [code, galleryOpen, galleryView, urlRead]);
 
   useEffect(() => saveCode(code), [code]);
 
@@ -279,6 +338,8 @@ export function App(): JSX.Element {
         {/* Always mounted, so it slides in and out and keeps its previews. */}
         <Gallery
           open={galleryOpen}
+          view={galleryView}
+          onView={setGalleryView}
           onOpen={(text) => {
             replaceFromPaste(text);
             setGalleryOpen(false);

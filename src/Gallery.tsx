@@ -66,7 +66,8 @@ const SUPPORT_HINT: Record<Support, string> = {
 
 const VIEW_KEY = 'merbutler:galleryView';
 
-function loadView(): string | null {
+/** The type page the gallery showed last (null: the overview). */
+export function loadView(): string | null {
   try {
     const saved = localStorage.getItem(VIEW_KEY);
     return GALLERY_TYPES.some((t) => t.id === saved) ? saved : null;
@@ -75,7 +76,7 @@ function loadView(): string | null {
   }
 }
 
-function saveView(id: string | null): void {
+export function saveView(id: string | null): void {
   try {
     if (id) localStorage.setItem(VIEW_KEY, id);
     else localStorage.removeItem(VIEW_KEY);
@@ -94,6 +95,9 @@ function matches(example: GalleryExample, type: GalleryType, words: string[]): b
 interface GalleryProps {
   /** The gallery is always mounted, so it can fade in and out and keep its previews. */
   open: boolean;
+  /** The type page shown, or null for the overview. */
+  view: string | null;
+  onView: (id: string | null) => void;
   onOpen: (code: string) => void;
   onClose: () => void;
 }
@@ -103,10 +107,9 @@ interface GalleryProps {
  * with a preview and how the app edits it; a search box and filter chips narrow it. A tile opens
  * the type's page with all its examples. Previews are drawn by Mermaid.
  */
-export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
+export function Gallery({ open, view: typeId, onView, onOpen, onClose }: GalleryProps): JSX.Element {
   // Bumped when a preview or status arrives, to re-render with the module-level caches.
   const [, setVersion] = useState(0);
-  const [typeId, setTypeId] = useState<string | null>(loadView);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<ReadonlySet<Support>>(new Set());
   const body = useRef<HTMLDivElement>(null);
@@ -160,7 +163,7 @@ export function Gallery({ open, onOpen, onClose }: GalleryProps): JSX.Element {
   }, [open]);
 
   const show = (id: string | null): void => {
-    setTypeId(id);
+    onView(id);
     saveView(id);
     if (body.current) body.current.scrollTop = 0;
   };

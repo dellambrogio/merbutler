@@ -60,7 +60,7 @@ flowchart LR
 - 🖼️ **Gallery**: examples of every Mermaid diagram type, drawn by Mermaid. The overview shows one tile per type,
   grouped into families (graphs and flows, trees and boards, charts and data, time and process, strategy and
   grammar), each with how the app edits it. Search the titles and code (`/`), or filter by Canvas, Outline, Table or
-  Preview. A tile opens the type's page with all its examples; the Flowchart page also has one example per feature
+  Preview. A tile opens the type's page with all its examples, next to a list of all types (the open one in color, the others greyed out; ↑ ↓ move through it); the Flowchart page also has one example per feature
   of the flowchart syntax. Click an example to open it; Esc goes back, then closes.
 - 🔗 **Links**: the URL after `#` holds the diagram (compressed) and the gallery view, and follows your edits.
   Copy the address to share exactly what you see; opening it restores it. The URL wins over the autosaved code.

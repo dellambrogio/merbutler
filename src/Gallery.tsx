@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryExample, type GalleryType } from './gallery';
 import { parse } from './parse';
 import { renderMermaid, type RenderResult } from './render';
@@ -241,29 +241,32 @@ export function Gallery({ open, view: typeId, onView, onOpen, onClose }: Gallery
           Close
         </button>
       </div>
-      <div className="gallery-body" ref={body}>
-        {type ? (
-          <TypePage type={type} passes={passes} onOpen={onOpen} />
-        ) : (
-          <>
-            {shownTypes.length === 0 && <p className="muted gallery-empty">No example matches. Clear the search or the filters.</p>}
-            {FAMILIES.map((family) => {
-              const types = shownTypes.filter((t) => t.family === family);
-              if (types.length === 0) return null;
-              return (
-                <section key={family} className="gallery-family" aria-label={family}>
-                  <h2>{family}</h2>
-                  <div className="gallery-tiles">
-                    {types.map((t) => (
-                      <Tile key={t.id} type={t} example={tileExample(t, passes)} count={typeExamples(t).filter((ex) => passes(ex, t)).length} onOpen={() => show(t.id)} />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </>
-        )}
-      </div>
+      {type ? (
+        <div className="gallery-page">
+          <TypeList current={type} shown={shownTypes} onShow={show} />
+          <div className="gallery-body" ref={body}>
+            <TypePage type={type} passes={passes} onOpen={onOpen} />
+          </div>
+        </div>
+      ) : (
+        <div className="gallery-body" ref={body}>
+          {shownTypes.length === 0 && <p className="muted gallery-empty">No example matches. Clear the search or the filters.</p>}
+          {FAMILIES.map((family) => {
+            const types = shownTypes.filter((t) => t.family === family);
+            if (types.length === 0) return null;
+            return (
+              <section key={family} className="gallery-family" aria-label={family}>
+                <h2>{family}</h2>
+                <div className="gallery-tiles">
+                  {types.map((t) => (
+                    <Tile key={t.id} type={t} example={tileExample(t, passes)} count={typeExamples(t).filter((ex) => passes(ex, t)).length} onOpen={() => show(t.id)} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -303,6 +306,66 @@ function Tile({ type, example, count, onOpen }: { type: GalleryType; example: Ga
 }
 
 /** One type's page: its examples, by section when it has several (flowcharts). */
+/**
+ * The list of all types, by family, next to a type's page: the open type in color, the others
+ * greyed out until hovered. Types without a match for the search or filters are fainter.
+ */
+function TypeList({ current, shown, onShow }: { current: GalleryType; shown: GalleryType[]; onShow: (id: string) => void }): JSX.Element {
+  const list = useRef<HTMLElement>(null);
+
+  // The open type stays in view.
+  useEffect(() => {
+    const box = list.current;
+    const item = box?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!box || !item) return;
+    const outer = box.getBoundingClientRect();
+    const r = item.getBoundingClientRect();
+    if (r.top < outer.top) box.scrollTop -= outer.top - r.top + 8;
+    else if (r.bottom > outer.bottom) box.scrollTop += r.bottom - outer.bottom + 8;
+  }, [current]);
+
+  /** Up and down arrows open the previous or next type. */
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLElement>): void => {
+    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    const index = GALLERY_TYPES.indexOf(current);
+    const next = GALLERY_TYPES[Math.min(GALLERY_TYPES.length - 1, Math.max(0, index + step))];
+    onShow(next.id);
+    requestAnimationFrame(() => list.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus());
+  };
+
+  return (
+    <nav className="gallery-type-list" aria-label="Diagram types" ref={list} onKeyDown={onKeyDown}>
+      {FAMILIES.map((family) => (
+        <div key={family} className="gallery-type-list-family">
+          <div className="gallery-type-list-heading">{family}</div>
+          {GALLERY_TYPES.filter((t) => t.family === family).map((t) => {
+            const open = t === current;
+            const support = typeSupport(t);
+            return (
+              <button
+                key={t.id}
+                className={`gallery-type-item${open ? ' current' : ''}${shown.includes(t) ? '' : ' no-match'}`}
+                aria-current={open ? 'page' : undefined}
+                tabIndex={open ? 0 : -1}
+                onClick={() => onShow(t.id)}
+                title={support ? SUPPORT_HINT[support] : undefined}
+              >
+                <span className={`gallery-type-item-dot chip-${(support ?? 'none').toLowerCase()}`}>
+                  <span className="gallery-dot" aria-hidden="true" />
+                </span>
+                <span className="gallery-type-item-title">{t.title}</span>
+                <span className="gallery-count">{typeExamples(t).length}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
 function TypePage({ type, passes, onOpen }: { type: GalleryType; passes: (ex: GalleryExample, t: GalleryType) => boolean; onOpen: (code: string) => void }): JSX.Element {
   const support = typeSupport(type);
   const total = typeExamples(type).length;

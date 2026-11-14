@@ -555,6 +555,44 @@ export function connect(model: FlowModel, source: string, target: string): FlowM
   return { ...model, edges: [...model.edges, edge] };
 }
 
+/**
+ * Where a node added from a side of another goes. `after`: the side edges leave from (the node
+ * links to the new one). `before`: the side edges arrive at (the new one links to the node).
+ * `beside`: a side across the flow (the new node shares the node's first predecessor, or else its
+ * first successor, so the layout puts it next to the node).
+ */
+export type QuickAdd = 'after' | 'before' | 'beside';
+
+/** Stands for the node not added yet, in `quickAddLink`. */
+export const NEW_NODE = '\u0000new';
+
+/** The edge that `addLinkedNode` adds, with `NEW_NODE` for the new node. */
+export function quickAddLink(model: FlowModel, id: string, kind: QuickAdd): { source: string; target: string } {
+  if (kind === 'after') return { source: id, target: NEW_NODE };
+  if (kind === 'before') return { source: NEW_NODE, target: id };
+  const from = model.edges.find((e) => e.target === id && !e.noteLink && e.source !== id);
+  if (from) return { source: from.source, target: NEW_NODE };
+  const to = model.edges.find((e) => e.source === id && !e.noteLink && e.target !== id);
+  if (to) return { source: NEW_NODE, target: to.target };
+  return { source: id, target: NEW_NODE };
+}
+
+/** Which sides of a node have no edge: no edge leaves it (`after`), or none arrives (`before`). */
+export function openSides(model: FlowModel, id: string): { after: boolean; before: boolean } {
+  const edges = model.edges.filter((e) => !e.noteLink);
+  return { after: !edges.some((e) => e.source === id), before: !edges.some((e) => e.target === id) };
+}
+
+/** Adds a node next to another, in the same subgraph, and the edge `quickAddLink` gives. */
+export function addLinkedNode(model: FlowModel, id: string, kind: QuickAdd, label = 'New node', shape: Shape = 'rect'): { model: FlowModel; id: string } {
+  const parent = model.nodes.find((n) => n.id === id)?.parent ?? null;
+  const newId = nextNodeId(model);
+  const link = quickAddLink(model, id, kind);
+  const withNode = addNode(model, label, shape, parent);
+  const end = (x: string): string => (x === NEW_NODE ? newId : x);
+  return { model: connect(withNode, end(link.source), end(link.target)), id: newId };
+}
+
 /** Swaps an edge's source and target. Its label, stroke and markers stay. */
 export function reverseEdge(model: FlowModel, id: string): FlowModel {
   return { ...model, edges: model.edges.map((e) => (e.id === id ? { ...e, source: e.target, target: e.source } : e)) };

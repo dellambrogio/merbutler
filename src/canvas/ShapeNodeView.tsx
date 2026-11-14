@@ -1,15 +1,32 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent } from 'react';
-import { Handle, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { ShapeNode } from './layout';
 import { toEditText } from '../core/labels';
 import { LabelText } from './LabelText';
-import type { Shape } from '../core/model';
+import type { QuickAdd, Shape } from '../core/model';
 import { SHAPE_INFO, SLANT } from '../flowchart/shapes';
 import { boxVars, textStyle } from '../flowchart/styling';
 import { AssetView } from './AssetView';
 
 /** Lets a node rename itself without passing callbacks through node data. */
 export const RenameContext = createContext<(id: string, label: string) => void>(() => {});
+
+/**
+ * Adding a linked node from a side of a node (the + that shows near a side). `sides` says which
+ * kinds a node offers; null: none (read-only, or a type or node that does not take them).
+ */
+export interface QuickAddActions {
+  sides: (id: string) => Record<QuickAdd, boolean> | null;
+  add: (id: string, kind: QuickAdd) => void;
+}
+export const QuickAddContext = createContext<QuickAddActions | null>(null);
+
+const SIDES: readonly Position[] = [Position.Top, Position.Right, Position.Bottom, Position.Left];
+const QUICK_ADD_HINT: Record<QuickAdd, string> = {
+  after: 'Add a node after this one',
+  before: 'Add a node before this one',
+  beside: 'Add a node beside this one (same predecessor)',
+};
 
 /** A request to open the label editor of one node or subgraph (from the context menu). `n` makes each request new. */
 export const EditRequestContext = createContext<{ id: string; n: number } | null>(null);
@@ -296,6 +313,8 @@ export function ShapeOutline({ shape, width, height }: { shape: Shape; width: nu
 
 export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<ShapeNode>): JSX.Element {
   const rename = useContext(RenameContext);
+  const quickAdd = useContext(QuickAddContext);
+  const quickSides = quickAdd?.sides(id) ?? null;
   const [draft, setDraft] = useState<string | null>(null);
   /** True while the input is open. The blur that follows Enter/Escape must not commit again. */
   const editing = useRef(false);
@@ -372,6 +391,30 @@ export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<S
         </span>
       )}
       <Handle type="source" position={data.sourcePosition} />
+      {quickAdd &&
+        quickSides &&
+        draft === null &&
+        SIDES.map((side) => {
+          const kind: QuickAdd = side === data.sourcePosition ? 'after' : side === data.targetPosition ? 'before' : 'beside';
+          if (!quickSides[kind]) return null;
+          return (
+            // A strip along the side, half inside the node: the + shows while the pointer is near the side.
+            <div key={side} className={`quick-add-zone side-${side}`} onDoubleClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="quick-add nodrag"
+                title={QUICK_ADD_HINT[kind]}
+                aria-label={QUICK_ADD_HINT[kind]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  quickAdd.add(id, kind);
+                }}
+              >
+                +
+              </button>
+            </div>
+          );
+        })}
     </div>
   );
 }

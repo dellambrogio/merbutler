@@ -23,6 +23,7 @@ import {
   addNode,
   addSubgraph,
   addClassDef,
+  addLinkedNode,
   connect,
   diagramTitle,
   groupInSubgraph,
@@ -30,6 +31,8 @@ import {
   nextEdgeId,
   nextNodeId,
   nextSubgraphId,
+  openSides,
+  quickAddLink,
   removeElements,
   setParent,
   toggleClassOn,
@@ -37,8 +40,9 @@ import {
   updateNode,
   updateSubgraph,
   type FlowModel,
+  type QuickAdd,
 } from '../core/model';
-import { EditRequestContext, RenameContext, ShapeNodeView } from './ShapeNodeView';
+import { EditRequestContext, QuickAddContext, RenameContext, ShapeNodeView, type QuickAddActions } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
 import { CLASS_DRAG_TYPE, ClassPanel, ClassStrip, PalettePanel, classDragAdds, type Selection } from './ClassPanel';
 import { DEFAULT_DOCK_POSITION, DIRECTION_NAMES, Dock, DockIcons, DockItem, DockMenu, DockSeparator } from './Dock';
@@ -439,6 +443,39 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   };
   const openedMenu = menu ? menuFor(model, menu.target, readOnly, menuActions) : null;
 
+  /**
+   * The + near a side of a node: a new node linked to it, selected, with its label editor open.
+   * Flowcharts, swimlanes and state diagrams; a state diagram keeps its transition rules.
+   */
+  const quickAdd = useMemo((): QuickAddActions | null => {
+    if (readOnly || model.kind === 'usecase') return null;
+    const isState = model.kind === 'state';
+    const allowed = (id: string, kind: QuickAdd): boolean => {
+      if (!isState) return true;
+      const link = quickAddLink(model, id, kind);
+      return canTransition(model, link.source, link.target);
+    };
+    return {
+      sides: (id) => {
+        const n = model.nodes.find((x) => x.id === id);
+        if (!n || n.note || n.state === 'note') return null;
+        const open = openSides(model, id);
+        return {
+          after: open.after && allowed(id, 'after'),
+          before: open.before && allowed(id, 'before'),
+          // A sibling of a start, an end, a fork or a choice would not mean much.
+          beside: !n.state && allowed(id, 'beside'),
+        };
+      },
+      add: (id, kind) => {
+        const added = addLinkedNode(model, id, kind, isState ? 'New state' : 'New node', isState ? 'round' : 'rect');
+        pendingSelect.current = added.id;
+        onChange(added.model);
+        setEditRequest((r) => ({ id: added.id, n: (r?.n ?? 0) + 1 }));
+      },
+    };
+  }, [model, readOnly, onChange]);
+
   useEffect(() => {
     if (!focusEdgeLabel.current || !edge) return;
     focusEdgeLabel.current = false;
@@ -628,6 +665,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         <CollapseContext.Provider value={readOnly ? null : toggleCollapsed}>
           <RenameContext.Provider value={rename}>
           <EditRequestContext.Provider value={editRequest}>
+          <QuickAddContext.Provider value={quickAdd}>
             <ReactFlow
               proOptions={{ hideAttribution: true }}
               nodes={shownNodes}
@@ -683,6 +721,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
                 </ViewportPortal>
               )}
             </ReactFlow>
+          </QuickAddContext.Provider>
           </EditRequestContext.Provider>
           </RenameContext.Provider>
         </CollapseContext.Provider>

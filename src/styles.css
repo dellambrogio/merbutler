@@ -954,3 +954,21 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
   .settings .settings-description { grid-column: 1; }
 }
 
+/* The + near a free side of a node (ShapeNodeView.tsx): adds a linked node. The strip straddles the
+   side and only takes the pointer while the node is hovered, so it never covers other elements. */
+.quick-add-zone { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.react-flow__node:hover .quick-add-zone { pointer-events: auto; }
+.quick-add-zone.side-right { left: calc(100% - 12px); top: 0; width: 44px; height: 100%; justify-content: flex-end; }
+.quick-add-zone.side-left { right: calc(100% - 12px); top: 0; width: 44px; height: 100%; justify-content: flex-start; }
+.quick-add-zone.side-bottom { top: calc(100% - 12px); left: 0; height: 44px; width: 100%; align-items: flex-end; }
+.quick-add-zone.side-top { bottom: calc(100% - 12px); left: 0; height: 44px; width: 100%; align-items: flex-start; }
+.quick-add {
+  width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1.5px solid var(--accent);
+  background: var(--bg); color: var(--accent); font-size: 16px; font-weight: 600; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(0.8); transition: opacity 0.1s, transform 0.1s; cursor: pointer;
+}
+.quick-add-zone:hover .quick-add, .quick-add:focus-visible { opacity: 1; transform: scale(1); }
+.quick-add:hover { background: var(--accent); color: #fff; }
+.react-flow__node .react-flow__handle { z-index: 2; }
+.canvas.connecting .quick-add-zone, .canvas.read-only .quick-add-zone { display: none; }

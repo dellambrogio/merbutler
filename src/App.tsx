@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type JSX } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas';
+import { Splitter } from './Splitter';
 import { extractMermaid } from './core/clipboard';
 import { CodeEditor } from './editor/CodeEditor';
 import { Gallery, loadView } from './gallery/Gallery';
@@ -75,6 +76,9 @@ export function App(): JSX.Element {
   const [fontSize, setFontSize] = useState(loadFontSize);
   /** The canvas panels: which are open, where they were dragged. Kept in the URL. */
   const [panels, setPanels] = useState<PanelLayout>(NO_PANELS);
+  /** Widths in percent of the code editor and of an outline or table editor (null: default). Kept in the URL. */
+  const [split, setSplit] = useState<number | null>(null);
+  const [editorSplit, setEditorSplit] = useState<number | null>(null);
   const changeFont = useCallback((step: 1 | -1 | 0): void => {
     setFontSize((size) => {
       const next = step === 0 ? DEFAULT_FONT_SIZE : stepFontSize(size, step);
@@ -208,6 +212,8 @@ export function App(): JSX.Element {
     (state: UrlState): boolean => {
       setGalleryOpen(state.gallery !== null);
       setPanels(state.panels ?? NO_PANELS);
+      setSplit(state.split ?? null);
+      setEditorSplit(state.editorSplit ?? null);
       if (state.gallery !== null) setGalleryView(GALLERY_TYPES.some((t) => t.id === state.gallery) ? state.gallery : null);
       if (state.code === undefined || state.code === codeRef.current) return false;
       clearTimeout(timer.current);
@@ -245,7 +251,7 @@ export function App(): JSX.Element {
     if (!urlRead) return;
     let alive = true;
     const t = setTimeout(() => {
-      void writeHash({ code, gallery: galleryOpen ? (galleryView ?? '') : null, panels }).then((hash) => {
+      void writeHash({ code, gallery: galleryOpen ? (galleryView ?? '') : null, panels, split: split ?? undefined, editorSplit: editorSplit ?? undefined }).then((hash) => {
         if (!alive || hash === window.location.hash.replace(/^#/, '')) return;
         writtenHash.current = hash;
         window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${hash}`);
@@ -255,7 +261,7 @@ export function App(): JSX.Element {
       alive = false;
       clearTimeout(t);
     };
-  }, [code, galleryOpen, galleryView, panels, urlRead]);
+  }, [code, galleryOpen, galleryView, panels, split, editorSplit, urlRead]);
 
   useEffect(() => saveCode(code), [code]);
 
@@ -327,6 +333,7 @@ export function App(): JSX.Element {
               <div className="structured-preview">
                 <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} editor={structuredKind(preview.type.name) ?? undefined} />
               </div>
+              <Splitter value={editorSplit} onChange={setEditorSplit} minFirst={200} minSecond={240} label="Editor width" />
             </div>
           ) : preview ? (
             <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} />
@@ -338,6 +345,7 @@ export function App(): JSX.Element {
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>
           )}
         </section>
+        <Splitter value={split} onChange={setSplit} minFirst={220} minSecond={320} label="Code editor width" />
         {/* Always mounted, so it slides in and out and keeps its previews. */}
         <Gallery
           open={galleryOpen}

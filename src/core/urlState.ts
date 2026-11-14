@@ -10,6 +10,8 @@
  * - `open`: the canvas panels that can be closed and are open, `.`-separated (`open=classes`).
  * - `move`: canvas panels the user dragged, as `name_x_y` in pixels, `.`-separated
  *   (`move=toolbar_40_0.inspector_-120_30`). A panel left out is in its own place.
+ * - `split`: the width of the code editor, in percent of the window (`split=35.5`).
+ * - `editorsplit`: the width of an outline or table editor, in percent of the area next to the code.
  *
  * Unknown keys are ignored, so later versions can add more.
  */
@@ -21,6 +23,10 @@ export interface UrlState {
   gallery: string | null;
   /** The canvas panels; missing when all are closed and in their own place. */
   panels?: PanelLayout;
+  /** Code editor width in percent; missing: the default. */
+  split?: number;
+  /** Outline or table editor width in percent; missing: the default. */
+  editorSplit?: number;
 }
 
 /** An offset in pixels from a panel's own place. */
@@ -51,6 +57,15 @@ function writePanels(panels: PanelLayout | undefined): string[] {
     .map(([n, at]) => `${n}_${Math.round(at.x)}_${Math.round(at.y)}`);
   if (moved.length > 0) params.push(`move=${moved.join('.')}`);
   return params;
+}
+
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/** A width in percent, between 5 and 95; anything else is left out. */
+function readPercent(text: string | null): number | undefined {
+  if (text === null || !/^\d{1,2}(\.\d)?$/.test(text)) return undefined;
+  const n = Number(text);
+  return n >= 5 && n <= 95 ? n : undefined;
 }
 
 function readPanels(params: URLSearchParams): PanelLayout | undefined {
@@ -92,6 +107,8 @@ export async function writeHash(state: UrlState): Promise<string> {
   const params: string[] = [];
   if (state.gallery !== null) params.push(`gallery=${encodeURIComponent(state.gallery)}`);
   params.push(...writePanels(state.panels));
+  if (state.split !== undefined) params.push(`split=${round1(state.split)}`);
+  if (state.editorSplit !== undefined) params.push(`editorsplit=${round1(state.editorSplit)}`);
   if (state.code !== undefined) {
     const bytes = new TextEncoder().encode(state.code);
     params.push(canCompress() ? `code=${toBase64Url(await pipe(bytes, new CompressionStream('deflate-raw')))}` : `text=${toBase64Url(bytes)}`);
@@ -105,6 +122,10 @@ export async function readHash(hash: string): Promise<UrlState> {
   const state: UrlState = { gallery: params.has('gallery') ? params.get('gallery') ?? '' : null };
   const panels = readPanels(params);
   if (panels) state.panels = panels;
+  const split = readPercent(params.get('split'));
+  if (split !== undefined) state.split = split;
+  const editorSplit = readPercent(params.get('editorsplit'));
+  if (editorSplit !== undefined) state.editorSplit = editorSplit;
   try {
     const code = params.get('code');
     const text = params.get('text');

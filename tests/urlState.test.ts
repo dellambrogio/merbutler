@@ -37,4 +37,11 @@ describe('state in the URL hash', () => {
     expect(await writeHash({ gallery: null, panels: { open: [], at: { toolbar: { x: 0, y: 0.2 } } } })).toBe('');
     expect(await readHash('#move=toolbar_x_1.inspector_3_-4&open=Bad.classes')).toEqual({ gallery: null, panels: { open: ['classes'], at: { inspector: { x: 3, y: -4 } } } });
   });
+
+  test('pane widths round-trip, and odd values are left out', async () => {
+    const hash = await writeHash({ gallery: null, split: 35.54, editorSplit: 30 });
+    expect(hash).toBe('split=35.5&editorsplit=30');
+    expect(await readHash(hash)).toEqual({ gallery: null, split: 35.5, editorSplit: 30 });
+    expect(await readHash('#split=2&editorsplit=abc')).toEqual({ gallery: null });
+  });
 });

@@ -95,7 +95,7 @@ button.danger { color: var(--danger); }
 .notice { color: var(--danger); font-size: 12px; }
 .spacer { flex: 1; }
 
-.panes { flex: 1; display: grid; grid-template-columns: minmax(280px, 2fr) 3fr; min-height: 0; }
+.panes { flex: 1; display: grid; grid-template-columns: var(--split, minmax(280px, 2fr)) 3fr; min-height: 0; }
 .pane { position: relative; min-height: 0; min-width: 0; }
 .code-pane { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
 .code-editor { flex: 1; min-height: 0; overflow: auto; }
@@ -209,8 +209,19 @@ button.danger { color: var(--danger); }
 
 @media (max-width: 760px) {
   .panes { grid-template-columns: 1fr; grid-template-rows: 2fr 3fr; }
+  .panes > .splitter { display: none; }
   .code-pane { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* The bar between two columns that resizes them (Splitter.tsx), centered on the column border. */
+.splitter {
+  position: absolute; top: 0; bottom: 0; z-index: 8; width: 9px; margin-left: -5px;
+  cursor: col-resize; touch-action: none; background: transparent; transition: background 120ms;
+}
+.splitter::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 3px; background: transparent; transition: background 120ms; }
+.splitter:hover::after, .splitter.dragging::after, .splitter:focus-visible::after { background: var(--accent); }
+.splitter:focus-visible { outline: none; }
+html.splitting, html.splitting * { cursor: col-resize !important; user-select: none !important; }
 
 /* Gallery: over the whole editor. Groups with a preview on the left, the chosen group's examples on the right. */
 .panes { position: relative; overflow: hidden; }
@@ -398,7 +409,7 @@ button.danger { color: var(--danger); }
 .inspector-note { font-size: 12px; }
 
 /* Structured editors (outline, tables) next to the preview. */
-.structured-layout { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(260px, 380px) 1fr; }
+.structured-layout { position: absolute; inset: 0; display: grid; grid-template-columns: var(--split, minmax(260px, 380px)) 1fr; }
 .structured-preview { position: relative; min-width: 0; }
 .structured-panel {
   display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); background: var(--panel);
@@ -418,6 +429,7 @@ button.danger { color: var(--danger); }
 .structured-hint { font-size: 11px; padding: 6px 8px; border-top: 1px solid var(--border); }
 @media (max-width: 900px) {
   .structured-layout { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 45%) 1fr; }
+  .structured-layout > .splitter { display: none; }
   .structured-panel { border-right: none; border-bottom: 1px solid var(--border); }
 }
 .table-scroll { flex: 1; min-height: 80px; overflow: auto; }

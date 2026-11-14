@@ -9,6 +9,8 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 
 export default defineConfig({
   plugins: [react()],
+  // Relative asset paths: the build works at any path, such as GitHub Pages' /merbutler/.
+  base: './',
   // Shown in the About dialog (src/about/About.tsx).
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

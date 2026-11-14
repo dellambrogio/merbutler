@@ -18,7 +18,7 @@ import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
-import { layoutCanvas } from './layoutEngine';
+import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
   DIRECTIONS,
   addNode,
@@ -148,10 +148,14 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     if (run !== layoutRun.current) return;
     const free = isFreeLayout(model);
     // The fit key belongs to this layout: the layout is async, so model.direction can be newer than the nodes shown.
-    const before = new Map(nodesRef.current.map((n) => [n.id, n.position]));
+    // Whether nodes that were shown moved (absolute positions: a subgraph drawn around a dropped node
+    // moves its contents' relative positions, not the nodes). A drop leaves them where they are.
+    const before = absoluteBoxes(nodesRef.current);
+    const after = absoluteBoxes(laid.nodes);
     const moved = laid.nodes.some((n) => {
       const p = before.get(n.id);
-      return p !== undefined && (Math.abs(p.x - n.position.x) > 2 || Math.abs(p.y - n.position.y) > 2);
+      const q = after.get(n.id);
+      return n.type === 'shape' && p !== undefined && q !== undefined && (Math.abs(p.x - q.x) > 2 || Math.abs(p.y - q.y) > 2);
     });
     layoutKey.current = { ids: laid.nodes.map((n) => n.id).sort().join(','), direction: model.direction, free, moved };
     const select = pendingSelect.current;
@@ -176,10 +180,12 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     if (nodes.length === 0) return;
     const key = layoutKey.current;
     const last = lastFitKey.current;
-    // Fit when nodes were added or removed, when Mermaid's layout turned, or when switching the free
-    // layout moved things (back to Mermaid's layout, or back to the user's positions). A new direction
-    // in a free layout moves nothing.
-    const turned = last !== null && ((!key.free && !last.free && last.direction !== key.direction) || (last.free !== key.free && key.moved));
+    // Each layout is looked at once: later node changes (a drag, a selection) do not fit again.
+    if (key === last) return;
+    // Fit when nodes were added or removed, when Mermaid's layout turned, when switching the free
+    // layout moved things (back to Mermaid's layout, or back to the user's positions), or when the
+    // positions changed in the code. A new direction in a free layout, or a drop, moves nothing.
+    const turned = last !== null && ((!key.free && !last.free && last.direction !== key.direction) || (last.free !== key.free && key.moved) || (key.free && last.free && key.moved));
     if (last !== null && last.ids === key.ids && !turned) {
       lastFitKey.current = key;
       return;

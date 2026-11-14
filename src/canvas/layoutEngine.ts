@@ -241,7 +241,7 @@ export async function elkLayout(ctx: LayoutContext): Promise<{ boxes: Map<string
 const FREE_GAP = 60;
 
 /** Absolute boxes of laid-out canvas nodes (React Flow child positions are relative to the parent). */
-function absoluteBoxes(nodes: CanvasNode[]): Map<string, Box> {
+export function absoluteBoxes(nodes: CanvasNode[]): Map<string, Box> {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const boxes = new Map<string, Box>();
   const boxOf = (n: CanvasNode): Box => {

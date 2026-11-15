@@ -5,6 +5,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-15
+
 - Code from layout (dock, with the free layout on): nodes lined up in a row or a column go into an invisible
   subgraph (`row1`, `col1`, class `layoutAlign`) with the direction of the line, and neighbors not linked yet get
   an invisible link (`~~~`), so Mermaid's own layout keeps them lined up, with dagre and with ELK. Again after

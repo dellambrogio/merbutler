@@ -768,7 +768,7 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .diagram-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .saved-state { font-size: 12px; }
 
-/* Saved diagrams (DiagramLibrary.tsx), in the Save & open panel. */
+/* Saved diagrams (sidebar/DiagramLibrary.tsx), in the Save & open panel. */
 .library { display: flex; flex-direction: column; min-height: 0; max-height: 45vh; font-size: 12px; }
 .library-head { display: flex; align-items: center; gap: 6px; padding: 6px 10px; }
 .library-head button { padding: 1px 8px; font-size: 12px; }
@@ -894,6 +894,13 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 /* The version in the header (App.tsx) and the release notes in the About dialog (about/releaseNotes.ts). */
 .app-header .app-version { padding: 0 6px; border: 1px solid var(--border); border-radius: 9px; background: none; font-size: 11px; line-height: 16px; color: var(--muted); cursor: pointer; }
 .app-header .app-version:hover { color: var(--text); border-color: var(--accent); }
+/* Undo and redo in the header: one joined pair of line icons. */
+.history-buttons { display: inline-flex; margin-left: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.history-buttons button { display: flex; align-items: center; justify-content: center; width: 28px; height: 22px; padding: 0; border: none; border-radius: 0; background: none; color: var(--text); }
+.history-buttons button + button { border-left: 1px solid var(--border); }
+.history-buttons button:hover:not(:disabled) { background: var(--selection); color: var(--accent); }
+.history-buttons button:disabled { opacity: 0.35; }
+.history-buttons svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .about-notes { margin: 12px 0; border-top: 1px solid var(--border); padding-top: 8px; font-size: 13px; }
 .about-notes details + details { margin-top: 4px; }
 .about-notes summary { cursor: pointer; font-weight: 600; padding: 2px 0; }

@@ -314,16 +314,17 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | Folder | Purpose |
 |---|---|
 | `src/core/` | Shared by every type: the graph model and its edits (`model.ts`), Mermaid setup and text helpers (`mermaid.ts`), parse and serialize by type (`parse.ts`, `serialize.ts`), free layout positions (`positions.ts`), the list of diagram types (`diagramTypes.ts`), labels, config, settings, the URL state, clipboard |
-| `src/flowchart/` | Flowcharts and swimlanes: Mermaid's flowchart DB → model (`parseFlowchart.ts`), model → code (`serializeFlowchart.ts`), shapes, styling, themes, icons, and the flowchart inspector |
-| `src/state/` | State diagrams: adapter, writer and edits (`stateDiagram.ts`), inspector |
-| `src/usecase/` | Use case diagrams: adapter, writer and edits (`usecaseDiagram.ts`), inspector |
-| `src/canvas/` | The canvas for every graph type: layout (dagre, ELK, lanes), node and edge views, dock, context menu, shared inspector fields |
+| `src/flowchart/` | Flowcharts and swimlanes: Mermaid's flowchart DB → model (`parseFlowchart.ts`), model → code (`serializeFlowchart.ts`), shapes, styling, themes, icons |
+| `src/state/` | State diagrams: adapter, writer and edits (`stateDiagram.ts`) |
+| `src/usecase/` | Use case diagrams: adapter, writer and edits (`usecaseDiagram.ts`) |
+| `src/canvas/` | The canvas for every graph type: layout (dagre, ELK, lanes), node and edge views, dock, context menu, class drag and drop, shared panel fields |
 | `src/structured/` | Outline and table editors next to the preview (trees, data, relations) |
 | `src/preview/` | Mermaid's own drawing, with pan and zoom; one Mermaid call at a time |
-| `src/editor/` | The CodeMirror code panel: highlighting, completion, error marks |
+| `src/editor/` | CodeMirror extensions for the code panel: highlighting, completion, error marks |
+| `src/syntax/` | The syntax reference of every type, and finding the entry at the cursor |
 | `src/gallery/` | Example diagrams of every type, and the gallery catalog |
-| `src/library/` | The drawer of diagrams saved in this browser (storage and list edits in `src/core/library.ts`) |
-| `src/about/` | The About dialog (versions come from `package.json` through `vite.config.ts`) |
+| `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`), Syntax (`SyntaxPanel.tsx`), Save & open (`DiagramLibrary.tsx`, storage in `src/core/library.ts`), and their collapsible frame (`PanelSection.tsx`) |
+| `src/panels/` | The floating panels, on one frame (`Panel.tsx`): node, edge, selection (`inspectors/` by diagram type), Diagram, Style classes, Palettes, and the About and Settings windows (versions come from `package.json` through `vite.config.ts`); moving and resizing (`draggablePanels.ts`) |
 | `src/App.tsx` | Split view and sync logic |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 

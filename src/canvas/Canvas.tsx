@@ -696,7 +696,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           ))}
         <DockSeparator />
         <DockItem
-          icon={DockIcons.direction(model.direction)}
+          icon={DockIcons.diagram}
           label="Diagram"
           hint={`${swimlane ? 'Lanes' : DIRECTION_NAMES[model.direction]} (${model.direction}), and how Mermaid places the nodes`}
           badge={model.direction}

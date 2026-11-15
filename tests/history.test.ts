@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_HISTORY, record, redo, undo, undoKey } from '../src/core/history';
-import { diffText } from '../src/editor/CodeEditor';
+import { diffText } from '../src/sidebar/CodeEditor';
 
 describe('history', () => {
   it('undoes and redoes steps in order', () => {

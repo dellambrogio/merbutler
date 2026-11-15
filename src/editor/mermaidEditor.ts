@@ -1,7 +1,7 @@
 /**
  * Code panel support for Mermaid: syntax highlighting, indentation, `%%` comments, autocompletion
  * and error marks. Flowcharts get a full mode; the other diagram types get a generic mode with
- * their keywords. CodeMirror extensions, used by CodeEditor.tsx.
+ * their keywords. CodeMirror extensions, used by sidebar/CodeEditor.tsx.
  */
 import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting, type StringStream } from '@codemirror/language';

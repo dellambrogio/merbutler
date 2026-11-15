@@ -17,7 +17,7 @@ import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentO
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { lintGutter, lintKeymap, setDiagnostics } from '@codemirror/lint';
-import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from './mermaidEditor';
+import { errorDiagnostic, mermaidCompletion, mermaidSyntax, type CompletionData } from '../editor/mermaidEditor';
 import { extractMermaid } from '../core/clipboard';
 import { cursorTokens, syntaxHover } from '../syntax/syntaxHover';
 

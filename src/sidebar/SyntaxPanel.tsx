@@ -1,8 +1,8 @@
 import { useMemo, useState, type JSX } from 'react';
 import { saveSettings } from '../core/settings';
-import { docForCode, findEntries } from './lookup';
-import { SYNTAX_DOCS } from './syntaxDocs';
-import { SyntaxReference } from './SyntaxReference';
+import { docForCode, findEntries } from '../syntax/lookup';
+import { SYNTAX_DOCS } from '../syntax/syntaxDocs';
+import { SyntaxReference } from '../syntax/SyntaxReference';
 
 const FOLLOW = '';
 

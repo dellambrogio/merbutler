@@ -18,10 +18,11 @@ these notes. New changes go under **Unreleased** until the next version gets its
   and Settings keep their size, and can be dragged anywhere in the window (a double click puts them back in the
   middle).
 - A wider Palettes panel shows the palettes in more columns, as many as fit at 200px or more, filling the panel.
+- Undo and redo in the header are a pair of arrow icons instead of two small text arrows.
 - About and Settings no longer dim the app or block it: keep editing while they are open. The ✕, or Esc while one
   has the focus, closes it.
-- A **Diagram** panel (dock → Diagram) replaces the dock's Direction menu and Layout panel: the direction and the
-  layout options in one place. Links that opened the Layout panel open it.
+- A **Diagram** panel (dock → Diagram, a small flowchart with the direction on its corner) replaces the dock's
+  Direction menu and Layout panel: the direction and the layout options in one place. Links that opened the Layout panel open it.
 
 ## 0.1.0 — 2026-11-14
 

@@ -3,7 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas';
 import { Splitter } from './Splitter';
 import { extractMermaid } from './core/clipboard';
-import { CodeEditor } from './editor/CodeEditor';
+import { CodeEditor } from './sidebar/CodeEditor';
 import { PanelSection } from './sidebar/PanelSection';
 import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
@@ -14,7 +14,7 @@ import { APP_VERSION } from './version';
 import { SettingsPanel } from './panels/SettingsPanel';
 import { applyTheme } from './settings/theme';
 import { DEFAULT_SETTINGS, getSettings, saveSettings, useSettings } from './core/settings';
-import { SyntaxPanel } from './syntax/SyntaxPanel';
+import { SyntaxPanel } from './sidebar/SyntaxPanel';
 import { hasStructuredEditor, StructuredEditor, structuredKind } from './structured/StructuredEditor';
 import type { DiagramType } from './core/diagramTypes';
 import type { FlowModel } from './core/model';
@@ -32,7 +32,7 @@ import {
   updateDiagram,
   type SavedDiagram,
 } from './core/library';
-import { DiagramLibrary } from './library/DiagramLibrary';
+import { DiagramLibrary } from './sidebar/DiagramLibrary';
 import { EMPTY_HISTORY, record, redo as redoStep, undo as undoStep, undoKey, type History } from './core/history';
 
 const STORAGE_KEY = 'merbutler:code';
@@ -518,12 +518,20 @@ export function App(): JSX.Element {
             saved
           </span>
         )}
-        <button onClick={onUndo} disabled={history.past.length === 0} title="Undo (Ctrl+Z)" aria-label="Undo">
-          ↶
-        </button>
-        <button onClick={onRedo} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z or Ctrl+Y)" aria-label="Redo">
-          ↷
-        </button>
+        <span className="history-buttons" role="group" aria-label="History">
+          <button onClick={onUndo} disabled={history.past.length === 0} title="Undo (Ctrl+Z)" aria-label="Undo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+            </svg>
+          </button>
+          <button onClick={onRedo} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z or Ctrl+Y)" aria-label="Redo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 14 5-5-5-5" />
+              <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+            </svg>
+          </button>
+        </span>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
         <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">

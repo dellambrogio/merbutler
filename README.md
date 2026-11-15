@@ -60,7 +60,7 @@ flowchart LR
   code follows the drawing (direction and statement order), so other renderers come close to it.
 - 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
-- 💾 **Saved diagrams**: keep many named diagrams in your browser; the open one saves itself as you edit.
+- 💾 **Saved diagrams**: keep many named diagrams in folders in your browser, in the **Explorer**; the open one saves itself as you edit.
 - 📋 **Smart paste**: strips Markdown code fences, so you can paste a chat answer as it is.
 - 🛡️ **Safe by design**: unsupported syntax makes the canvas read-only instead of losing your code,
   and HTML in labels never runs.
@@ -156,7 +156,7 @@ just dev        # open the URL that Vite prints
   on the canvas. One history covers the code, the canvas and the outline and table editors: an edit on the canvas
   is undone from the code panel too.
 - Typing is one step until a pause of a second. A color dragged in a picker is one step.
-- Pasting, opening a `.mmd` file, an example or a link can be undone. Opening a saved diagram starts its own history.
+- Pasting, an example or a link can be undone. Opening a saved diagram starts its own history.
 - Inspector fields keep the browser's own undo while you type in them.
 
 ## Saved diagrams
@@ -164,13 +164,17 @@ just dev        # open the URL that Vite prints
 Diagrams are kept in this browser's local storage: nothing goes to a server, and another browser or a private
 window does not see them.
 
-- The left column stacks panels you open and close with their triangle: **Code** on top, and **Save & open** below.
-- **Save & open** lists the diagrams in **Local storage**: open, rename, copy or delete them, find one by name or
-  content, or start a **+ New** one. Below it, **Open .mmd** / **Save .mmd** read and write files on disk.
-- **Save** (or **Ctrl+S**) keeps the open code under its front matter `title`, its file name, or "Untitled".
+- The left column stacks panels you open and close with a click on their title: **Explorer** on top, **Code**, and
+  **Syntax**. Drag the edge between two panels to give one more height.
+- **Explorer** shows the saved diagrams as a tree of folders and files, folders first, by name. Click a diagram to
+  open it, a folder to open or close it. Drag a diagram or a folder onto a folder to move it there, or onto the empty
+  part of the tree for the top level. The buttons on a row (on hover) add a diagram or a folder in it, rename (**F2**),
+  duplicate, download as a `.mmd` file, and delete (**Del**). The ones at the top add a diagram or a folder at the top
+  level, open a `.mmd` file from disk (saved as a new diagram, named after the file), and find a diagram by name or
+  content. Names are unique within a folder. Deleting a folder deletes the diagrams in it, after asking.
+- **Save** (or **Ctrl+S**) keeps the open code under its front matter `title`, or "Untitled".
 - The open saved diagram saves itself as you edit (also when you leave the page). The header shows its name and **saved**.
-- Pasting, opening a `.mmd` file, an example from the gallery, or a link with other code starts a new, unsaved
-  diagram, so it never overwrites a saved one. Opening a saved diagram over unsaved work asks first.
+- Pasting, an example from the gallery, or a link with other code starts a new, unsaved diagram, so it never overwrites a saved one. Opening a saved diagram over unsaved work asks first.
 - A deleted diagram cannot be restored. Deleting the open one keeps its code in the editor, unsaved.
 - Two tabs see each other's list. If both edit the same diagram, the last change wins.
 
@@ -323,7 +327,7 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/editor/` | CodeMirror extensions for the code panel: highlighting, completion, error marks |
 | `src/syntax/` | The syntax reference of every type, and finding the entry at the cursor |
 | `src/gallery/` | Example diagrams of every type, and the gallery catalog |
-| `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`), Syntax (`SyntaxPanel.tsx`), Save & open (`DiagramLibrary.tsx`, storage in `src/core/library.ts`), and their collapsible frame (`PanelSection.tsx`) |
+| `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`), Syntax (`SyntaxPanel.tsx`), Explorer (`Explorer.tsx`, storage and folders in `src/core/library.ts`), and their collapsible frame (`PanelSection.tsx`) |
 | `src/panels/` | The floating panels, on one frame (`Panel.tsx`): node, edge, selection (`inspectors/` by diagram type), Diagram, Style classes, Palettes, and the About and Settings windows (versions come from `package.json` through `vite.config.ts`); moving and resizing (`draggablePanels.ts`) |
 | `src/App.tsx` | Split view and sync logic |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |

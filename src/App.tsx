@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Canvas } from './canvas/Canvas';
 import { Splitter } from './Splitter';
@@ -22,17 +22,29 @@ import { parse } from './core/parse';
 import { serialize } from './core/serialize';
 import {
   createDiagram,
+  createFolder,
   deleteDiagram,
+  deleteFolder,
   duplicateDiagram,
+  FOLDERS_KEY,
+  folderOf,
+  isInside,
+  LIST_KEY,
   loadDiagrams,
+  loadFolders,
   loadOpenId,
+  moveDiagram,
+  moveFolder,
+  renameFolder,
   storeDiagrams,
+  storeFolders,
   storeOpenId,
   suggestName,
   updateDiagram,
+  type Library,
   type SavedDiagram,
 } from './core/library';
-import { DiagramLibrary } from './sidebar/DiagramLibrary';
+import { Explorer } from './sidebar/Explorer';
 import { EMPTY_HISTORY, record, redo as redoStep, undo as undoStep, undoKey, type History } from './core/history';
 
 const STORAGE_KEY = 'merbutler:code';
@@ -87,7 +99,6 @@ export function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   /** A diagram type the canvas does not edit: the code Mermaid last accepted, drawn by Mermaid. */
   const [preview, setPreview] = useState<{ code: string; type: DiagramType; reason?: string } | null>(null);
-  const [fileName, setFileName] = useState('diagram.mmd');
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -118,6 +129,20 @@ export function App(): JSX.Element {
     if (!ok) setNotice('This browser did not save the diagram: its storage is full or blocked.');
     return ok;
   }, []);
+  /** The folders of the Explorer, also the empty ones. */
+  const [folders, setFolders] = useState<string[]>(loadFolders);
+  const foldersRef = useRef(folders);
+  /** Stores a change to the folders, and to the diagrams in them. */
+  const commitLibrary = useCallback(
+    (lib: Library): boolean => {
+      foldersRef.current = lib.folders;
+      setFolders(lib.folders);
+      const ok = storeFolders(lib.folders);
+      if (!ok) setNotice('This browser did not save the folders: its storage is full or blocked.');
+      return commitDiagrams(lib.diagrams) && ok;
+    },
+    [commitDiagrams],
+  );
   /** Saves the open diagram now, without waiting for the autosave delay. */
   const flushOpen = useCallback((): void => {
     const id = openIdRef.current;
@@ -142,10 +167,13 @@ export function App(): JSX.Element {
   // Another tab changed the list.
   useEffect(() => {
     const onStorage = (e: StorageEvent): void => {
-      if (e.key !== null && e.key !== 'merbutler:diagrams') return;
+      if (e.key !== null && e.key !== LIST_KEY && e.key !== FOLDERS_KEY) return;
       const list = loadDiagrams();
       diagramsRef.current = list;
       setDiagrams(list);
+      const folderList = loadFolders();
+      foldersRef.current = folderList;
+      setFolders(folderList);
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -206,7 +234,6 @@ export function App(): JSX.Element {
 
   const parseSeq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   const runParse = useCallback(async (text: string): Promise<void> => {
     const seq = ++parseSeq.current;
@@ -435,14 +462,13 @@ export function App(): JSX.Element {
   /** Saves the code in the editor as a new diagram, and makes it the open one. */
   const saveCurrent = useCallback((): void => {
     if (openIdRef.current !== null) return;
-    const base = fileName === 'diagram.mmd' ? 'Untitled' : fileName.replace(/\.[^.]+$/, '');
-    const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, codeRef.current, base), codeRef.current);
+    const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, codeRef.current), codeRef.current);
     if (commitDiagrams(list)) setOpenId(diagram.id);
-  }, [commitDiagrams, setOpenId, fileName]);
+  }, [commitDiagrams, setOpenId]);
 
   const library = {
-    onNew: (): void => {
-      const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, NEW_DIAGRAM), NEW_DIAGRAM);
+    onNew: (folder: string): void => {
+      const { list, diagram } = createDiagram(diagramsRef.current, suggestName(diagramsRef.current, NEW_DIAGRAM, 'Untitled', folder), NEW_DIAGRAM, Date.now(), folder);
       if (!commitDiagrams(list)) return;
       setOpenId(diagram.id);
       showCode(diagram.code);
@@ -463,6 +489,29 @@ export function App(): JSX.Element {
       if (id === openIdRef.current) setOpenId(null);
       commitDiagrams(deleteDiagram(diagramsRef.current, id));
     },
+    onMove: (id: string, folder: string): void => void commitDiagrams(moveDiagram(diagramsRef.current, id, folder)),
+    /** A file from disk becomes a saved diagram at the top level, named after the file; returns its id. */
+    onImport: (fileName: string, code: string): string | null => {
+      const name = fileName.replace(/\.[^.]+$/, '') || 'Untitled';
+      const { list, diagram } = createDiagram(diagramsRef.current, name.replace(/\//g, '-'), code);
+      return commitDiagrams(list) ? diagram.id : null;
+    },
+    onNewFolder: (parent: string): string => {
+      const made = createFolder({ diagrams: diagramsRef.current, folders: foldersRef.current }, parent);
+      commitLibrary(made);
+      return made.path;
+    },
+    onRenameFolder: (path: string, name: string): void => void commitLibrary(renameFolder({ diagrams: diagramsRef.current, folders: foldersRef.current }, path, name)),
+    onMoveFolder: (path: string, into: string): void => {
+      const moved = moveFolder({ diagrams: diagramsRef.current, folders: foldersRef.current }, path, into);
+      if (moved) commitLibrary(moved);
+    },
+    onDeleteFolder: (path: string): void => {
+      // An open diagram in it stays in the editor, unsaved.
+      const open = diagramsRef.current.find((d) => d.id === openIdRef.current);
+      if (open && isInside(folderOf(open), path)) setOpenId(null);
+      commitLibrary(deleteFolder({ diagrams: diagramsRef.current, folders: foldersRef.current }, path));
+    },
   };
   const openDiagram = openId ? diagrams.find((d) => d.id === openId) : undefined;
   /** Unsaved code that opening a diagram would lose: not the starting sample, and not saved under any name. */
@@ -479,28 +528,6 @@ export function App(): JSX.Element {
     return () => window.removeEventListener('keydown', onKey);
   }, [saveCurrent]);
 
-  const onOpenFile = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setFileName(file.name);
-    const text = await file.text();
-    clearTimeout(timer.current);
-    // A file is a new, unsaved diagram until it is saved here.
-    setOpenId(null);
-    recordChange(text, null);
-    setCode(text);
-    void runParse(text);
-  };
-
-  const onSaveFile = (): void => {
-    const url = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="app">
@@ -510,7 +537,7 @@ export function App(): JSX.Element {
         <button className="app-version" onClick={() => setAboutOpen(true)} title="About this version and its release notes">
           v{APP_VERSION}
         </button>
-        <span className="diagram-name" title={openDiagram ? 'Saved in local storage' : 'Not saved: see Save & open'}>
+        <span className="diagram-name" title={openDiagram ? `Saved in local storage${openDiagram.folder ? `, in ${openDiagram.folder}` : ''}` : 'Not saved: see Explorer'}>
           {openDiagram ? openDiagram.name : 'Unsaved diagram'}
         </span>
         {openDiagram && (
@@ -548,6 +575,9 @@ export function App(): JSX.Element {
       <SettingsPanel open={settingsOpen} onClose={closeSettings} />
       <main className="panes">
         <div className="pane side-pane">
+          <PanelSection id="explorer" title="Explorer" resizeEdge="bottom">
+            <Explorer diagrams={diagrams} folders={folders} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />
+          </PanelSection>
           <PanelSection id="code" title="Code" grow>
             <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} lineWrap={settings.editorLineWrap} syntaxTooltips={settings.syntaxTooltips} onCursor={settings.syntaxFollowCursor ? onCursor : undefined} />
             {error && (
@@ -577,20 +607,6 @@ export function App(): JSX.Element {
           </PanelSection>
           <PanelSection id="syntax" title="Syntax" defaultOpen={false}>
             <SyntaxPanel code={code} cursor={settings.syntaxFollowCursor ? cursorTokens : null} />
-          </PanelSection>
-          <PanelSection id="io" title="Save & open">
-            <DiagramLibrary diagrams={diagrams} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />
-            <div className="io-group">
-              <span className="io-label">File</span>
-              <button onClick={() => fileInput.current?.click()} title="Open a Mermaid file from disk">
-                Open .mmd
-              </button>
-              <button onClick={onSaveFile} title={`Download the code as ${fileName}`}>
-                Save .mmd
-              </button>
-              <span className="muted io-file" title="The name used by Save .mmd">{fileName}</span>
-              <input ref={fileInput} type="file" accept=".mmd,.md,.txt" hidden onChange={(e) => void onOpenFile(e)} />
-            </div>
           </PanelSection>
         </div>
         <section className="pane canvas-pane">

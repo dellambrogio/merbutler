@@ -5,6 +5,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+## 0.2.0 — 2026-11-15
+
 - The Syntax panel is closed by default; open it from its header under the code. The app remembers it open.
 - Free layout (dock → Free layout): place nodes anywhere on the canvas. Positions are kept in a
   `%% merbutler-layout` comment that Mermaid ignores, and each move sets the direction and the order of the code
@@ -18,6 +20,14 @@ these notes. New changes go under **Unreleased** until the next version gets its
   and Settings keep their size, and can be dragged anywhere in the window (a double click puts them back in the
   middle).
 - A wider Palettes panel shows the palettes in more columns, as many as fit at 200px or more, filling the panel.
+- **Explorer** replaces Save & open, at the top of the sidebar: the saved diagrams as a tree of folders and files.
+  Create, rename and delete folders; drag diagrams and folders into folders; names are unique within a folder.
+  Diagrams saved before are at the top level.
+- Open a `.mmd` file from the Explorer's toolbar: it is saved as a new diagram, named after the file. Download a
+  diagram as a `.mmd` file from its row. The Open .mmd / Save .mmd row is gone.
+- Sidebar sections: larger titles, a click anywhere on the title bar opens or closes the section, and the sections
+  under Code can be made taller or shorter by dragging their top edge (or with the arrow keys on it); Code takes the
+  rest. The height is kept in this browser; a double click on the edge gives a section back its own height.
 - Undo and redo in the header are a pair of arrow icons instead of two small text arrows.
 - About and Settings no longer dim the app or block it: keep editing while they are open. The ✕, or Esc while one
   has the focus, closes it.

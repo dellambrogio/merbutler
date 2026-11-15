@@ -112,7 +112,7 @@ export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
     <div className="style-fields">
       <ClassSelect model={model} classes={item.classes} onChange={(classes) => onChange({ classes })} />
       <OwnStyleSection heading="Own style" title={styleTitle} styles={item.styles ?? []} onReset={(item.styles?.length ?? 0) > 0 ? () => onChange({ styles: [] }) : undefined}>
-        <AppearanceFields key={`${id}:${styles}`} styles={item.styles} kind={kind} onChange={(next) => onChange({ styles: next })} />
+        <AppearanceFields key={`${id}:${styles}`} styles={item.styles} kind={kind} sameSwatches onChange={(next) => onChange({ styles: next })} />
         <details className="style-advanced">
           <summary>Advanced: style as text</summary>
           <label title={styleTitle}>

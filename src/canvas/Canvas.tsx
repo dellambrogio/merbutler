@@ -17,6 +17,7 @@ import {
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
+import { alignGroups } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
@@ -328,6 +329,12 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
    */
   const free = isFreeLayout(model);
   const toggleFree = (): void => onChange(toggleFreeLayout(model, () => placedPositions(model, canvasBoxes())));
+  /** Free layout: invisible subgraphs around the rows and columns lined up on the canvas, so Mermaid's layout lines them up too. */
+  const codeFromLayout = (): void => {
+    const centers = new Map<string, Point>([...canvasBoxes()].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }]));
+    const next = alignGroups(model, centers);
+    if (next !== model) onChange(next);
+  };
   const shownNodes = useMemo(
     () => (dropInto ? nodes.map((n) => (n.id === dropInto ? { ...n, className: 'drop-target' } : n)) : nodes),
     [nodes, dropInto],
@@ -717,6 +724,15 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
             active={free}
             disabled={readOnly}
             onClick={toggleFree}
+          />
+        )}
+        {free && !stateDiagram && !usecaseDiagram && (
+          <DockItem
+            icon={DockIcons.align}
+            label="Code from layout"
+            hint="Puts the rows and columns you lined up into invisible subgraphs with a direction, so Mermaid lines them up too. Again after moving nodes: the groups follow the drawing"
+            disabled={readOnly}
+            onClick={codeFromLayout}
           />
         )}
         <DockItem

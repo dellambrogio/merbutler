@@ -178,6 +178,17 @@ export const DockIcons = {
       <path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />
     </Svg>
   ),
+  /** Code from layout: boxes lined up in a row and a column. */
+  align: (
+    <Svg>
+      <rect x="3" y="3.5" width="5" height="5" rx="1" />
+      <rect x="10" y="3.5" width="5" height="5" rx="1" />
+      <rect x="17" y="3.5" width="4" height="5" rx="1" />
+      <rect x="3" y="11" width="5" height="4" rx="1" />
+      <rect x="3" y="17.5" width="5" height="3.5" rx="1" />
+      <path d="M1.5 1.5h21M1.5 1.5v21" strokeDasharray="2 2" opacity="0.6" />
+    </Svg>
+  ),
   /** The Diagram panel: a small flowchart, one box linked to two. */
   diagram: (
     <Svg>

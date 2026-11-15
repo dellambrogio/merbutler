@@ -5,6 +5,13 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- Code from layout (dock, with the free layout on): nodes lined up in a row or a column go into an invisible
+  subgraph (class `layoutAlign`) with `direction LR` or `TB`, so Mermaid's own layout keeps them lined up. Again
+  after moving nodes, the groups are made anew from the drawing. Mermaid ignores a subgraph's direction when its
+  nodes link to nodes outside it; the group still keeps them together.
+- Own style: the Fill and Text rows offer the same color swatches as the Border row. The Classes panel keeps pale
+  fills and deep text colors.
+- A new diagram starts left to right (`flowchart LR`) instead of top to bottom.
 - In a short window, Code keeps at least a few lines: Explorer and Gallery shrink and scroll inside first.
 
 ## 0.3.0 — 2026-11-15

@@ -127,7 +127,14 @@ function LineSample({ width, dash }: { width: string; dash?: string }): JSX.Elem
  * Appearance of a node, subgraph or class (`fill`, `stroke`, `stroke-width`, `stroke-dasharray`,
  * `color`, bold, italic), or of an edge (`stroke`, `stroke-width`, label `color`).
  */
-export function AppearanceFields({ styles, kind, onChange }: { styles: readonly string[] | undefined; kind: 'box' | 'edge'; onChange: (styles: string[]) => void }): JSX.Element {
+export function AppearanceFields({ styles, kind, sameSwatches = false, onChange }: {
+  styles: readonly string[] | undefined;
+  kind: 'box' | 'edge';
+  /** Every color row offers the border's swatches (the own style), instead of a set per row (classes). */
+  sameSwatches?: boolean;
+  onChange: (styles: string[]) => void;
+}): JSX.Element {
+  const swatches = sameSwatches ? { fill: SWATCHES.line, line: SWATCHES.line, text: SWATCHES.line } : SWATCHES;
   const get = (p: string): string => declarationValue(styles, p);
   const set = (p: string, v: string): void => onChange(withDeclaration(styles, p, v));
   const width = get('stroke-width');
@@ -135,8 +142,8 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
   const dash = get('stroke-dasharray');
   return (
     <div className="appearance">
-      {kind === 'box' && <ColorField label="Fill" value={get('fill')} swatches={SWATCHES.fill} onChange={(v) => set('fill', v)} />}
-      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} swatches={SWATCHES.line} onChange={(v) => set('stroke', v)} />
+      {kind === 'box' && <ColorField label="Fill" value={get('fill')} swatches={swatches.fill} onChange={(v) => set('fill', v)} />}
+      <ColorField label={kind === 'box' ? 'Border' : 'Line color'} value={get('stroke')} swatches={swatches.line} onChange={(v) => set('stroke', v)} />
       <Segmented
         label={kind === 'box' ? 'Border width' : 'Line width'}
         value={width}
@@ -154,7 +161,7 @@ export function AppearanceFields({ styles, kind, onChange }: { styles: readonly 
           onChange={(v) => v !== 'custom' && set('stroke-dasharray', v)}
         />
       )}
-      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} swatches={SWATCHES.text} onChange={(v) => set('color', v)} />
+      <ColorField label={kind === 'box' ? 'Text' : 'Label text'} value={get('color')} swatches={swatches.text} onChange={(v) => set('color', v)} />
       {kind === 'box' && (
         <div className="segmented-field">
           <span className="color-field-label">Text style</span>

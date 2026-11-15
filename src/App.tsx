@@ -56,7 +56,7 @@ const PARSE_DELAY_MS = 300;
 /** The open diagram is saved this long after the last change. */
 const AUTOSAVE_MS = 400;
 /** Code for a new diagram. */
-const NEW_DIAGRAM = `flowchart TB
+const NEW_DIAGRAM = `flowchart LR
   A[Start] --> B[End]
 `;
 

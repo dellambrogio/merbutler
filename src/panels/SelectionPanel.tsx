@@ -199,6 +199,7 @@ export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onCh
                 key={boxStyles.join(';')}
                 styles={boxStyles}
                 kind="box"
+                sameSwatches
                 onChange={(after) => onChange(eachBox(model, (b) => ({ styles: applyDeclarationChange(b.styles, boxStyles, after) })))}
               />
             </OwnStyleSection>
@@ -215,6 +216,7 @@ export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onCh
                 key={edgeStyles.join(';')}
                 styles={edgeStyles}
                 kind="edge"
+                sameSwatches
                 onChange={(after) => onChange(eachEdge(model, (e) => ({ styles: applyDeclarationChange(e.styles, edgeStyles, after) })))}
               />
             </OwnStyleSection>

@@ -9,8 +9,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
   subgraph (`row1`, `col1`, class `layoutAlign`) with the direction of the line, and neighbors not linked yet get
   an invisible link (`~~~`), so Mermaid's own layout keeps them lined up, with dagre and with ELK. Again after
   moving nodes, the groups and their invisible links are made anew from the drawing; clicking with nothing changed
-  changes nothing. Mermaid ignores a subgraph's direction when its nodes link to nodes outside it: such a group
-  follows the direction around it, and gets invisible links only when that direction runs along the line. The
+  changes nothing. Only lines with no links to the rest of the diagram are grouped: Mermaid ignores the direction
+  of a subgraph linked to the outside, and there the groups did not help or pulled nodes apart. The
   groups cannot be selected, moved or dropped into, and are not offered in "Move to subgraph". A group you link
   to, collapse or that sits in a collapsed subgraph is kept as yours.
 - Own style: the Fill and Text rows offer the same color swatches as the Border row. The Classes panel keeps pale

@@ -1,3 +1,4 @@
 node_modules
 dist
 .tmp
+tools/mermaid-check/out/

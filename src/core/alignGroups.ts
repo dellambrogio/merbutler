@@ -7,10 +7,10 @@
  * packs unlinked elements into a block. So each group gets the direction of its line, and an
  * invisible link (`~~~`) joins neighbors that are not linked yet.
  *
- * Mermaid ignores a subgraph's `direction` when one of its elements is linked to one outside it:
- * the group is then laid out in the direction around it. If that direction lies along the line,
- * the chain still works; if it lies across, elements with no links between them share a rank there
- * and get no invisible links, and a line with links between its elements gets no group.
+ * Mermaid ignores a subgraph's `direction` when one of its elements is linked to one outside it,
+ * and invisible links there make other links skip ranks, which pushes elements off the line. So
+ * only a line with no links to the rest of the diagram becomes a group; the rest is left to
+ * Mermaid's layout. tools/mermaid-check draws the cases with Mermaid itself.
  *
  * A group is a subgraph with the class `layoutAlign` (no fill, no border, no visible title) and an
  * id `row<n>` or `col<n>`. Making the code again first takes out the groups made the last time, and
@@ -155,31 +155,25 @@ export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point
       if (ids.length < 2) continue;
       const members = new Set(ids);
       const inner = ends.filter(([s, t]) => s !== null && t !== null && s !== t && members.has(s) && members.has(t)) as [string, string][];
-      const isolated = !ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)));
+      // Linked to the outside: Mermaid ignores the group's direction, and invisible links would
+      // only make links that skip ranks. Its elements are left free for another line.
+      if (ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)))) continue;
+      for (const id of ids) used.add(id);
       // The way most links between the elements point along the line.
       const forward = inner.reduce((sum, [s, t]) => sum + Math.sign(ids.indexOf(t) - ids.indexOf(s)), 0) >= 0;
-      const along: Direction = line.row ? (forward ? 'LR' : 'RL') : forward ? 'TB' : 'BT';
-      const around = directionOf(scope);
-      const aroundAlong = line.row === (around === 'LR' || around === 'RL');
-      // Laid out in the direction around it, across the line: only elements sharing a rank stay in it.
-      if (!isolated && !aroundAlong && inner.length > 0) continue;
-      const direction = isolated ? along : around;
-      const chain = isolated || aroundAlong;
-      for (const id of ids) used.add(id);
-      const needsLinks = chain && ids.some((id, i) => i > 0 && !inner.some(([s, t]) => (s === id && t === ids[i - 1]) || (s === ids[i - 1] && t === id)));
+      const direction: Direction = line.row ? (forward ? 'LR' : 'RL') : forward ? 'TB' : 'BT';
+      const linked = (a: string, b: string): boolean => inner.some(([s, t]) => (s === a && t === b) || (s === b && t === a));
       // The whole scope, already a chain along its direction: nothing to add.
-      if (ids.length === siblings.length && !needsLinks && direction === around) continue;
+      if (ids.length === siblings.length && direction === directionOf(scope) && ids.every((id, i) => i === 0 || linked(ids[i - 1], id))) continue;
       const group = freshId(line.row ? 'row' : 'col', [...next.nodes.map((n) => n.id), ...next.subgraphs.map((s) => s.id)]);
       const links: FlowEdge[] = [];
-      if (chain) {
-        // Invisible links between neighbors not linked yet, in the direction of the flow.
-        const flowsBack = direction === 'RL' || direction === 'BT';
-        for (let i = 0; i < ids.length - 1; i++) {
-          const [a, b] = flowsBack ? [ids[i + 1], ids[i]] : [ids[i], ids[i + 1]];
-          if (inner.some(([s, t]) => (s === a && t === b) || (s === b && t === a))) continue;
-          const id = nextEdgeId({ ...next, edges: [...next.edges, ...links] });
-          links.push({ id, source: a, target: b, label: '', markdown: false, stroke: 'invisible', end: 'none', bothEnds: false });
-        }
+      // Invisible links between neighbors not linked yet, in the direction of the flow.
+      const flowsBack = direction === 'RL' || direction === 'BT';
+      for (let i = 0; i < ids.length - 1; i++) {
+        const [a, b] = flowsBack ? [ids[i + 1], ids[i]] : [ids[i], ids[i + 1]];
+        if (linked(a, b)) continue;
+        const id = nextEdgeId({ ...next, edges: [...next.edges, ...links] });
+        links.push({ id, source: a, target: b, label: '', markdown: false, stroke: 'invisible', end: 'none', bothEnds: false });
       }
       const subgraph: FlowSubgraph = { id: group, label: group, markdown: false, parent: scope, direction, classes: [ALIGN_CLASS] };
       next = {

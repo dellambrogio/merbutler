@@ -118,25 +118,27 @@ describe('code from a free layout: Mermaid draws the lines', () => {
   });
 });
 
-describe('code from a free layout: groups linked to the outside', () => {
-  test('across the direction around: unlinked elements are grouped without invisible links', async () => {
-    const model = await parseOk('flowchart TB\n  a --> x\n  b --> x\n');
-    const next = alignGroups(model, centers({ a: [0, 0], b: [200, 0], x: [100, 300] }));
-    expect(groupsOf(next)).toEqual([['row1', 'TB', ['a', 'b']]]);
-    expect(invisible(next)).toEqual([]);
-    expect(inLine((await laidOut(next)).dagre, ['a', 'b'], true)).toBe(true);
-  });
-
-  test('across the direction around: linked elements get no group, nothing would line them up', async () => {
-    const model = await parseOk('flowchart TB\n  a --> b\n  b --> x\n');
+describe('code from a free layout: lines linked to the outside get no group', () => {
+  test.each([
+    ['across the direction around, unlinked', 'flowchart TB\n  a --> x\n  b --> x\n'],
+    ['across the direction around, linked', 'flowchart TB\n  a --> b\n  b --> x\n'],
+    // An invisible a ~~~ b would make a --> x skip b's rank: b would leave the row (tools/mermaid-check).
+    ['along the direction around', 'flowchart LR\n  a --> x\n  b --> x\n'],
+  ])('%s', async (_name, code) => {
+    const model = await parseOk(code);
     expect(alignGroups(model, centers({ a: [0, 0], b: [200, 0], x: [100, 300] }))).toBe(model);
   });
 
-  test('along the direction around: a chain of invisible links', async () => {
-    const model = await parseOk('flowchart LR\n  a --> x\n  b --> x\n');
-    const next = alignGroups(model, centers({ a: [0, 0], b: [200, 0], x: [100, 300] }));
-    expect(groupsOf(next)).toEqual([['row1', 'LR', ['a', 'b']]]);
-    expect(invisible(next)).toEqual(['a~~~b']);
+  test('a fan-out drawn as a column with its fan-in gets no group: ELK would pull them apart', async () => {
+    const model = await parseOk('flowchart TB\n  start --> b1\n  start --> b2\n  b1 --> done\n  b2 --> done\n');
+    expect(alignGroups(model, centers({ start: [100, 0], b1: [0, 150], b2: [200, 150], done: [100, 300] }))).toBe(model);
+  });
+
+  test('elements of a line linked to the outside are free for another line', async () => {
+    // Row a, b, x: x is linked to y outside it. Column a, c is not linked out.
+    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n  x --> y\n');
+    const next = alignGroups(model, centers({ a: [0, 0], b: [200, 0], x: [400, 0], c: [0, 200], y: [600, 600] }));
+    expect(groupsOf(next)).toEqual([['col1', 'TB', ['a', 'c']]]);
   });
 });
 
@@ -231,16 +233,12 @@ describe('code from a free layout: groups made before', () => {
     expect(none.classDefs).toBeUndefined();
   });
 
-  test("the user's own invisible links stay; one to the outside makes the group follow the direction around it", async () => {
-    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n  a ~~~ x\n');
-    const first = alignGroups(model, centers({ a: [0, 0], b: [200, 0], c: [0, 200], x: [600, 600] }));
-    // A row along LR: chained.
-    expect(groupsOf(first)).toEqual([['row1', 'LR', ['a', 'b']]]);
-    expect(invisible(first).sort()).toEqual(['a~~~b', 'a~~~x']);
-    // A column across LR: grouped only, its elements share a rank.
-    const moved = alignGroups(first, centers({ a: [0, 0], b: [0, 400], c: [0, 200], x: [600, 600] }));
-    expect(groupsOf(moved)).toEqual([['col1', 'LR', ['a', 'c', 'b']]]);
-    expect(invisible(moved)).toEqual(['a~~~x']);
+  test("the user's own invisible links stay; one to the outside means no group", async () => {
+    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n  d\n  a ~~~ x\n');
+    const next = alignGroups(model, centers({ a: [0, 0], b: [200, 0], c: [0, 200], d: [200, 200], x: [600, 600] }));
+    // Row a, b links out through a; row c, d does not.
+    expect(groupsOf(next)).toEqual([['row1', 'LR', ['c', 'd']]]);
+    expect(invisible(next).sort()).toEqual(['a~~~x', 'c~~~d']);
   });
 
   test('the same drawing again returns the model itself: no undo step, no save', async () => {

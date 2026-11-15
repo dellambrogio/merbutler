@@ -43,6 +43,10 @@ deploy:
 media:
     tools/media/media.sh
 
+# Check Code from layout against Mermaid itself, with dagre and ELK (needs google-chrome)
+mermaid-check:
+    tools/mermaid-check/check.sh
+
 # Remove build output
 clean:
     rm -rf dist

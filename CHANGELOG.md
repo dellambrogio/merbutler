@@ -5,6 +5,11 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- A slim toolbar under the Code header: the diagram's name on the left (moved from the app header), with a green check when
+  saved or an orange dot when not;
+  undo, redo, Paste, Copy and the text size on the right, as icons (moved from the app header and from a bar under
+  the editor). Copy shows a check when done; a double click on the size gives back the default.
+
 ## 0.2.0 — 2026-11-15
 
 - The Syntax panel is closed by default; open it from its header under the code. The app remembers it open.

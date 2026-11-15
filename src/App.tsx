@@ -4,6 +4,7 @@ import { Canvas } from './canvas/Canvas';
 import { Splitter } from './Splitter';
 import { extractMermaid } from './core/clipboard';
 import { CodeEditor } from './sidebar/CodeEditor';
+import { CodeToolbar } from './sidebar/CodeToolbar';
 import { PanelSection } from './sidebar/PanelSection';
 import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
@@ -537,28 +538,6 @@ export function App(): JSX.Element {
         <button className="app-version" onClick={() => setAboutOpen(true)} title="About this version and its release notes">
           v{APP_VERSION}
         </button>
-        <span className="diagram-name" title={openDiagram ? `Saved in local storage${openDiagram.folder ? `, in ${openDiagram.folder}` : ''}` : 'Not saved: see Explorer'}>
-          {openDiagram ? openDiagram.name : 'Unsaved diagram'}
-        </span>
-        {openDiagram && (
-          <span className="muted saved-state" title="Saved in this browser as you edit">
-            saved
-          </span>
-        )}
-        <span className="history-buttons" role="group" aria-label="History">
-          <button onClick={onUndo} disabled={history.past.length === 0} title="Undo (Ctrl+Z)" aria-label="Undo">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 14 4 9l5-5" />
-              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-            </svg>
-          </button>
-          <button onClick={onRedo} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z or Ctrl+Y)" aria-label="Redo">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m15 14 5-5-5-5" />
-              <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
-            </svg>
-          </button>
-        </span>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
         <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
@@ -579,6 +558,20 @@ export function App(): JSX.Element {
             <Explorer diagrams={diagrams} folders={folders} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />
           </PanelSection>
           <PanelSection id="code" title="Code" grow>
+            <CodeToolbar
+              name={openDiagram ? openDiagram.name : null}
+              folder={openDiagram?.folder ?? ''}
+              onPaste={() => void onPasteButton()}
+              onCopy={() => navigator.clipboard.writeText(code)}
+              fontSize={fontSize}
+              canShrink={fontSize > FONT_SIZES[0]}
+              canGrow={fontSize < FONT_SIZES[FONT_SIZES.length - 1]}
+              onFont={changeFont}
+              onUndo={onUndo}
+              onRedo={onRedo}
+              canUndo={history.past.length > 0}
+              canRedo={history.future.length > 0}
+            />
             <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} lineWrap={settings.editorLineWrap} syntaxTooltips={settings.syntaxTooltips} onCursor={settings.syntaxFollowCursor ? onCursor : undefined} />
             {error && (
               <div className="error" role="alert">
@@ -586,24 +579,6 @@ export function App(): JSX.Element {
                 <pre>{error}</pre>
               </div>
             )}
-            <div className="code-footer">
-              <button onClick={() => void onPasteButton()} title="Replace the code with the clipboard (Ctrl+V on the canvas)">
-                Paste
-              </button>
-              <button onClick={() => void navigator.clipboard.writeText(code)} title="Copy the code to the clipboard">
-                Copy
-              </button>
-              <span className="code-footer-sep" aria-hidden="true" />
-              <button onClick={() => changeFont(-1)} title="Smaller text (Ctrl+Alt+−)" aria-label="Smaller text" disabled={fontSize === FONT_SIZES[0]}>
-                A−
-              </button>
-              <button className="font-size" onClick={() => changeFont(0)} title="Default size (Ctrl+Alt+0); more in Settings">
-                {fontSize}px
-              </button>
-              <button onClick={() => changeFont(1)} title="Larger text (Ctrl+Alt+=)" aria-label="Larger text" disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}>
-                A+
-              </button>
-            </div>
           </PanelSection>
           <PanelSection id="syntax" title="Syntax" defaultOpen={false}>
             <SyntaxPanel code={code} cursor={settings.syntaxFollowCursor ? cursorTokens : null} />

@@ -147,10 +147,25 @@ button.danger { color: var(--danger); }
 }
 .side-section.open .side-section-head { border-bottom-color: var(--border); }
 .side-section-head button { padding: 0 7px; font-size: 12px; line-height: 20px; }
-.code-footer { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 3px 8px; border-top: 1px solid var(--border); background: var(--panel); font-size: 12px; }
-.code-footer button { padding: 0 7px; font-size: 12px; line-height: 20px; }
-.code-footer .font-size { min-width: 46px; color: var(--muted); }
-.code-footer-sep { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--border); }
+/* The strip under the Code header (sidebar/CodeToolbar.tsx). */
+.code-toolbar { flex: none; display: flex; min-width: 0; align-items: center; gap: 2px; padding: 3px 8px 3px 6px; border-bottom: 1px solid var(--border); }
+.code-toolbar-button {
+  flex: none;
+  display: flex; align-items: center; justify-content: center; width: 24px; height: 22px; padding: 0;
+  border: none; border-radius: 5px; background: none; color: var(--muted); font-size: 15px; line-height: 1;
+}
+.code-toolbar-button:hover:not(:disabled) { background: var(--panel); color: var(--text); }
+.code-toolbar-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.code-toolbar-button.done { color: var(--accent); }
+.code-toolbar-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.code-toolbar-name { min-width: 0; padding-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; }
+.code-toolbar-name.unsaved { color: var(--muted); font-weight: 400; font-style: italic; }
+.code-toolbar-saved { flex: none; display: flex; margin-left: 4px; color: var(--success, #2e9d5b); }
+.code-toolbar-saved .code-toolbar-icon { width: 14px; height: 14px; stroke-width: 1.5; }
+.code-toolbar-unsaved { flex: none; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--warning, #d08a16); }
+.code-toolbar-sep { flex: none; width: 1px; height: 14px; margin: 0 5px; background: var(--border); }
+.code-font { flex: none; display: flex; align-items: center; gap: 0; }
+.code-font-size { min-width: 22px; color: var(--muted); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; cursor: default; user-select: none; }
 /* The whole header bar opens and closes the section (its actions keep their own clicks). */
 .side-section-head .side-section-toggle {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: none; border-radius: 0;
@@ -774,8 +789,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 
 
 /* The open diagram's name in the header. */
-.diagram-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.saved-state { font-size: 12px; }
 
 /* Explorer (sidebar/Explorer.tsx): the saved diagrams as a tree of folders and files. */
 .explorer { display: flex; flex-direction: column; min-height: 0; max-height: 40vh; font-size: 13px; }
@@ -926,13 +939,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 /* The version in the header (App.tsx) and the release notes in the About dialog (about/releaseNotes.ts). */
 .app-header .app-version { padding: 0 6px; border: 1px solid var(--border); border-radius: 9px; background: none; font-size: 11px; line-height: 16px; color: var(--muted); cursor: pointer; }
 .app-header .app-version:hover { color: var(--text); border-color: var(--accent); }
-/* Undo and redo in the header: one joined pair of line icons. */
-.history-buttons { display: inline-flex; margin-left: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.history-buttons button { display: flex; align-items: center; justify-content: center; width: 28px; height: 22px; padding: 0; border: none; border-radius: 0; background: none; color: var(--text); }
-.history-buttons button + button { border-left: 1px solid var(--border); }
-.history-buttons button:hover:not(:disabled) { background: var(--selection); color: var(--accent); }
-.history-buttons button:disabled { opacity: 0.35; }
-.history-buttons svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .about-notes { margin: 12px 0; border-top: 1px solid var(--border); padding-top: 8px; font-size: 13px; }
 .about-notes details + details { margin-top: 4px; }
 .about-notes summary { cursor: pointer; font-weight: 600; padding: 2px 0; }

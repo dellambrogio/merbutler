@@ -19,7 +19,7 @@ import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
 import { SNAP_PIXELS, snapCenter, type Guide } from './snap';
-import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup } from '../core/alignGroups';
+import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, visibleParent } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
@@ -329,11 +329,8 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     return best;
   };
   /** The subgraph an element is in, past alignment groups: they are invisible, so a drop does not take it out of one. */
-  const parentOf = (id: string): string | null => {
-    let p = model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null;
-    for (let s = model.subgraphs.find((x) => x.id === p); s && isAlignGroup(s); s = model.subgraphs.find((x) => x.id === p)) p = s.parent;
-    return p;
-  };
+  const parentOf = (id: string): string | null =>
+    visibleParent(model, model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null);
   const onNodeDrag: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
     altRef.current = e.altKey;
     const moved = movedRoots(dragged);

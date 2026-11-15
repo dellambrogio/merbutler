@@ -5,6 +5,11 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- Code from layout leaves subgraphs in a line to Mermaid when the link between them goes into one of them (with
+  ELK they came apart).
+- The Subgraph field of the Node panel shows the subgraph a node is in, not the invisible group Code from layout
+  put it in, and does not offer those groups.
+
 ## 0.4.0 — 2026-11-15
 
 - Code from layout (dock, with the free layout on): nodes lined up in a row or a column go into an invisible

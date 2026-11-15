@@ -25,6 +25,12 @@ and the code follows; undo and redo sit above the code. The Gallery, at the bott
 every diagram type. The dock (the tools at the bottom of the canvas) and every panel can be dragged out of the way, and panels resized by their corner; the link keeps where they are and their size.
 ([MP4 version](docs/demo.mp4))
 
+![Mermaid stacks three apps in a column; in the free layout one is dragged until it snaps into a row with the others; Code from layout groups the row; with the free layout off, Mermaid's own layout keeps the row](docs/layout-demo.gif)
+
+Mermaid stacks the three apps in a column. In the free layout, drag one until it snaps into line with the others,
+then **Code from layout** writes the row into the code (an invisible subgraph and `~~~` links), so Mermaid's own
+layout keeps it, here and in any other Mermaid renderer. ([MP4 version](docs/layout-demo.mp4))
+
 ### How the sync works
 
 ```mermaid
@@ -57,8 +63,10 @@ flowchart LR
 - 🧩 **Subgraphs**: nested, with their own direction, and edges to or from a whole subgraph.
 - 🎨 **Styling without syntax**: color swatches and pickers for nodes and edges, and a panel to create, edit and apply
   style classes (`classDef`).
-- ✋ **Free layout**: place nodes anywhere. The positions are kept in a `%%` comment that Mermaid ignores, and the
-  code follows the drawing (direction and statement order), so other renderers come close to it.
+- ✋ **Free layout**: place nodes anywhere, with guides that snap them into line. The positions are kept in a `%%`
+  comment that Mermaid ignores, and the code follows the drawing (direction and statement order), so other renderers
+  come close to it. **Code from layout** goes further: the rows and columns you lined up become invisible subgraphs
+  that Mermaid itself keeps in line.
 - 🔷 **All 53 node shapes** and all Mermaid flowchart edge styles and end markers.
 - 📝 **Rich labels**: quoted text, line breaks and Markdown bold/italic.
 - 💾 **Saved diagrams**: keep many named diagrams in folders in your browser, in the **Explorer**; the open one saves itself as you edit.
@@ -135,6 +143,14 @@ just dev        # open the URL that Vite prints
   go next to a linked element. Turning it off shows Mermaid's layout again and keeps your positions in the code
   (`%% merbutler-layout off …`): turning it on puts every node back where you left it. Delete the line to forget
   them. Not for swimlanes, whose lanes are bands.
+  While you drag, a node snaps into line with another one when their centers come within a few pixels, across or
+  down, and a guide line shows the line; hold Alt to drag without snapping.
+- **Code from layout** (dock, with the free layout on) writes the rows and columns you lined up into the code, so
+  Mermaid's own layout keeps them in line too: each becomes an invisible subgraph (`row1`, `col1`, class
+  `layoutAlign`) with the direction of the line, and neighbors not linked yet get an invisible link (`~~~`). A
+  message says what it did, and the groups are outlined for a moment. Only lines whose nodes have no links to the
+  rest of the diagram are grouped: Mermaid ignores a subgraph's direction when it is linked to the outside, and
+  there the groups did not help. `just mermaid-check` draws the cases with Mermaid itself, with dagre and ELK.
 
 ## Code editor
 
@@ -209,7 +225,8 @@ window does not see them.
 | Style classes | Dock → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select. In a free layout, moving nodes sets it from the drawing |
-| Free layout | Dock → **Free layout**: drag nodes and subgraphs anywhere; their positions are kept in the code. Click again for Mermaid's layout, and once more to put your nodes back |
+| Free layout | Dock → **Free layout**: drag nodes and subgraphs anywhere; they snap into line with others (Alt: no snapping), and their positions are kept in the code. Click again for Mermaid's layout, and once more to put your nodes back |
+| Code from layout | Dock → **Code from layout** (free layout on): the rows and columns you lined up become invisible subgraphs with `~~~` links, so Mermaid keeps them in line. Click again after moving nodes |
 | Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
 
 ## Every diagram type
@@ -286,6 +303,8 @@ deleting those parts. Today every example in the Gallery is editable, and none l
 - The canvas places nodes like Mermaid's engine, but not pixel for pixel: node sizes are estimated from the text.
 - A free layout is Merbutler's own: other renderers ignore the positions and lay the diagram out themselves, from the
   direction and statement order. Two edges between the same nodes are drawn on the same straight line.
+- Code from layout leaves a row or column to Mermaid when its nodes link to the rest of the diagram, and a link that
+  skips a node in a row (`a --> c` with `b` between) still pushes `b` a little off the line.
 - A subgraph without an id (`subgraph Some title`) gets the id Mermaid gives it (for example `subGraph3`)
   after the first canvas edit.
 - Labels are trimmed. An empty node label becomes the node id.
@@ -332,7 +351,8 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`, its toolbar `CodeToolbar.tsx`), Syntax (`SyntaxPanel.tsx`), Explorer (`Explorer.tsx`, storage and folders in `src/core/library.ts`), Gallery (`GalleryNav.tsx`), and their collapsible frame (`PanelSection.tsx`) |
 | `src/panels/` | The floating panels, on one frame (`Panel.tsx`): node, edge, selection (`inspectors/` by diagram type), Diagram, Style classes, Palettes, and the About and Settings windows (versions come from `package.json` through `vite.config.ts`); moving and resizing (`draggablePanels.ts`) |
 | `src/App.tsx` | Split view and sync logic |
-| `tools/media/` | The README media: a scripted headless Chrome session (`demo.mjs`, `screenshot.mjs`, staged by `stage.mjs`), encoded by `media.sh` |
+| `tools/media/` | The README media: scripted headless Chrome sessions (`demo.mjs`, `layout-demo.mjs`, `screenshot.mjs`, staged by `stage.mjs`, with the pointer and recorder in `kit.mjs`), encoded by `media.sh` (`just media`) |
+| `tools/mermaid-check/` | Code from layout checked against Mermaid itself: each case in `cases.mjs` drawn with dagre and ELK in headless Chrome (`just mermaid-check`) |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 
 ## Versions and release notes

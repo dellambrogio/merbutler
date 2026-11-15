@@ -3,7 +3,7 @@
  * diagram kind (flowchart and swimlane, state, use case). Each action returns a new model through
  * `actions.change`, like the toolbar and the inspector do.
  */
-import { isAlignGroup } from '../core/alignGroups';
+import { isAlignGroup, visibleParent } from '../core/alignGroups';
 import { action, separator, submenu, type MenuItem } from './ContextMenu';
 import {
   addNode,
@@ -117,8 +117,7 @@ export function moveTargets(model: FlowModel, id: string): (string | null)[] {
 /** Moves an element, with the right "Move to" choices for its kind of diagram. */
 function moveItem(model: FlowModel, id: string, parent: string | null, actions: MenuActions): MenuItem {
   // Past alignment groups, which are not offered.
-  let current = parent;
-  for (let s = model.subgraphs.find((x) => x.id === current); s && isAlignGroup(s); s = model.subgraphs.find((x) => x.id === current)) current = s.parent;
+  const current = visibleParent(model, parent);
   const label = model.kind === 'swimlane' ? 'Move to lane' : model.kind === 'usecase' ? 'Move to boundary' : model.kind === 'state' ? 'Move into' : 'Move to subgraph';
   return submenu(
     label,

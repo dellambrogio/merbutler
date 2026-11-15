@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { moveTargets } from '../src/canvas/canvasMenu';
 import { layoutModel, type CanvasNode } from '../src/canvas/layout';
 import { layoutCanvas } from '../src/canvas/layoutEngine';
-import { ALIGN_CLASS, alignGroups, alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, withoutAlignGroups, type AlignReport } from '../src/core/alignGroups';
+import { ALIGN_CLASS, alignGroups, alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, visibleParent, withoutAlignGroups, type AlignReport } from '../src/core/alignGroups';
 import { canonicalOrder, type FlowModel } from '../src/core/model';
 import { parse } from '../src/core/parse';
 import type { Point } from '../src/core/positions';
@@ -132,6 +132,15 @@ describe('code from a free layout: lines linked to the outside get no group', ()
   test('a fan-out drawn as a column with its fan-in gets no group: ELK would pull them apart', async () => {
     const model = await parseOk('flowchart TB\n  start --> b1\n  start --> b2\n  b1 --> done\n  b2 --> done\n');
     expect(alignGroups(model, centers({ start: [100, 0], b1: [0, 150], b2: [200, 150], done: [100, 300] }))).toBe(model);
+  });
+
+  test('subgraphs in a line joined by a link into one of them get no group: ELK pulls them apart', async () => {
+    const model = await parseOk('flowchart LR\n  subgraph Frontend\n    web\n  end\n  subgraph Backend\n    api --> db\n  end\n  Frontend --> api\n');
+    const { model: next, report } = alignGroupsWithReport(model, centers({ web: [0, 0], Frontend: [0, 0], api: [0, 300], db: [0, 450], Backend: [0, 380] }));
+    expect(groupsOf(next).flatMap((g) => g[2])).not.toContain('Frontend');
+    expect(next.subgraphs.find((x) => x.id === 'Frontend')!.parent).toBeNull();
+    expect(next.subgraphs.find((x) => x.id === 'Backend')!.parent).toBeNull();
+    expect(report.skipped).toBeGreaterThan(0);
   });
 
   test('elements of a line linked to the outside are free for another line', async () => {
@@ -323,6 +332,14 @@ describe('code from a free layout: the code and the canvas', () => {
     expect(canAlign(swimlane) || canAlign(state)).toBe(false);
     expect(alignGroups(swimlane, centers({ a: [0, 0], b: [200, 0], l1: [100, 0] }))).toBe(swimlane);
     expect(alignGroups(state, centers({ a: [0, 0], b: [100, 0] }))).toBe(state);
+  });
+
+  test('the subgraph an element is in, as the user sees it: past alignment groups', async () => {
+    const model = alignGroups(await parseOk('flowchart LR\n  subgraph s\n    a\n    b\n  end\n  x\n'), centers({ a: [0, 0], b: [200, 0], s: [100, 0], x: [600, 600] }));
+    expect(model.nodes.find((n) => n.id === 'a')!.parent).toBe('row1');
+    expect(visibleParent(model, 'row1')).toBe('s');
+    expect(visibleParent(model, 's')).toBe('s');
+    expect(visibleParent(model, null)).toBeNull();
   });
 
   test('"Move to subgraph" and drops do not offer alignment groups', async () => {

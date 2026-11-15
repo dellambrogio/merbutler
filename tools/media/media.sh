@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Redo the README media in docs/: the light and dark screenshots, the demo video (MP4) and its GIF.
+# Redo the README media in docs/: the light and dark screenshots, the demo video (MP4) and its GIF, and the
+# free layout demo (MP4 and GIF).
 # Needs google-chrome, ffmpeg and Node 22+. Starts its own dev server and stops it at the end.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -28,4 +29,13 @@ ffmpeg -y -v error -f concat -safe 0 -i "$MEDIA_WORK/frames.txt" \
 ffmpeg -y -v error -i "$docs/demo.mp4" \
   -vf "fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \
   "$docs/demo.gif"
+
+echo "Free layout demo (about half a minute)…"
+node layout-demo.mjs
+ffmpeg -y -v error -f concat -safe 0 -i "$MEDIA_WORK/layout-frames.txt" \
+  -vf "setpts=PTS/1.3,fps=25,scale=1280:720:out_range=tv,format=yuv420p" \
+  -c:v libx264 -preset slow -pix_fmt yuv420p -crf 24 -movflags +faststart -an "$docs/layout-demo.mp4"
+ffmpeg -y -v error -i "$docs/layout-demo.mp4" \
+  -vf "fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \
+  "$docs/layout-demo.gif"
 ls -la "$docs"

@@ -74,4 +74,9 @@ export const CASES = [
     code: 'flowchart LR\n  a\n  b\n  c\n  d\n  e\n  f\n',
     at: { a: [0, 0], b: [200, 0], c: [400, 0], d: [0, 200], e: [200, 200], f: [400, 200] },
   },
+  {
+    name: 'README demo: apps in a row, Frontend above Backend',
+    code: 'flowchart LR\n  subgraph Frontend\n    web[Web app]\n    mobile[Mobile app]\n    admin[Admin console]\n  end\n  subgraph Backend\n    api[API] --> db[(Database)]\n    api --> queue[[Queue]]\n  end\n  Frontend --> api\n',
+    at: { web: [0, 0], mobile: [200, 0], admin: [400, 0], Frontend: [200, 0], api: [200, 300], db: [100, 450], queue: [300, 450], Backend: [200, 380] },
+  },
 ];

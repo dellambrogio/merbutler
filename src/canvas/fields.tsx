@@ -1,4 +1,5 @@
 /** Inspector fields shared by every diagram kind: labels, text fields, parents, styling, comments. */
+import { isAlignGroup, visibleParent } from '../core/alignGroups';
 import { useState, type JSX } from 'react';
 import { toEditText } from '../core/labels';
 import { commentsFromText, commentsToText, isSwimlane, type FlowModel, type Styled } from '../core/model';
@@ -29,10 +30,11 @@ export function ParentSelect({
   return (
     <label>
       {isSwimlane(model) ? 'Lane or subgraph' : 'Subgraph'}
-      <select value={value ?? ''} onChange={(e) => onSelect(e.target.value || null)}>
+      <select value={visibleParent(model, value) ?? ''} onChange={(e) => onSelect(e.target.value || null)}>
         <option value="">(none)</option>
         {model.subgraphs
-          .filter((s) => !exclude.has(s.id))
+          // Alignment groups (Code from layout) are invisible: not offered, and shown as the subgraph around them.
+          .filter((s) => !exclude.has(s.id) && !isAlignGroup(s))
           .map((s) => (
             <option key={s.id} value={s.id}>
               {s.label === s.id ? s.id : `${s.label} (${s.id})`}

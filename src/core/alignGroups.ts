@@ -46,6 +46,13 @@ export function isAlignGroup(subgraph: FlowSubgraph): boolean {
   return ALIGN_ID.test(subgraph.id) && (subgraph.classes?.includes(ALIGN_CLASS) ?? false);
 }
 
+/** The subgraph that holds an element as the user sees it: past alignment groups, which are invisible. */
+export function visibleParent(model: FlowModel, parent: string | null): string | null {
+  let p = parent;
+  for (let s = model.subgraphs.find((x) => x.id === p); s && isAlignGroup(s); s = model.subgraphs.find((x) => x.id === p)) p = s.parent;
+  return p;
+}
+
 /**
  * The model without alignment groups: what they held goes back to their parent. A group that is
  * collapsed, holds something `keep` says to keep, or has a link of its own is not taken out: it is
@@ -207,6 +214,8 @@ function groupLines(model: FlowModel, centers: ReadonlyMap<string, Point>): { mo
     if (siblings.length < 2) continue;
     /** Each link as the elements of the scope that hold its ends (null: outside the scope). */
     const ends = next.edges.map((e): [string | null, string | null] => [memberOf(e.source, scope), memberOf(e.target, scope)]);
+    /** Whether a link joins the elements of the scope themselves, not something inside one of them. */
+    const direct = next.edges.map((e, i) => e.source === ends[i][0] && e.target === ends[i][1]);
     const candidates = [...lines(siblings, centers, true), ...lines(siblings, centers, false)];
     const used = new Set<string>();
     while (candidates.length > 0) {
@@ -219,7 +228,10 @@ function groupLines(model: FlowModel, centers: ReadonlyMap<string, Point>): { mo
       const inner = ends.filter(([s, t]) => s !== null && t !== null && s !== t && members.has(s) && members.has(t)) as [string, string][];
       // Linked to the outside: Mermaid ignores the group's direction, and invisible links would
       // only make links that skip ranks. Its elements are left free for another line.
-      if (ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)))) {
+      // A link between two of them that ends inside one (a subgraph) does not hold a chain either:
+      // with ELK the subgraphs came apart and out of order (tools/mermaid-check).
+      const into = ends.some(([s, t], i) => s !== null && t !== null && s !== t && members.has(s) && members.has(t) && !direct[i]);
+      if (into || ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)))) {
         skipped.push(ids);
         continue;
       }

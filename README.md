@@ -230,7 +230,7 @@ window does not see them.
 | Direction | Toolbar select. In a free layout, moving nodes sets it from the drawing |
 | Free layout | Dock → **Free layout**: drag nodes and subgraphs anywhere; they snap into line with others (Alt: no snapping), and their positions are kept in the code. Click again for Mermaid's layout, and once more to put your nodes back |
 | Code from layout | Dock → **Code from layout** (free layout on): the rows and columns you lined up become invisible subgraphs with `~~~` links, so Mermaid keeps them in line. Click again after moving nodes |
-| Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
+| Context menu | Right-click a node, subgraph, edge or the empty canvas (or press the ContextMenu key or Shift+F10 on the selection). **Go to code**, first for a node, subgraph or edge, selects the line that writes it in the code (opening Code if it is closed). Nodes: rename, add a connected node, duplicate, shape, move to a subgraph, delete. Edges: edit label, reverse, stroke, end markers, delete. Subgraphs: rename, add inside, collapse, direction, move, delete. Canvas: add elements, direction, fit. State and use case diagrams get their own entries (next state, type, `[*]`, notes, relations) |
 
 ## Every diagram type
 

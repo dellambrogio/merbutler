@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 
 /** Sections open by default that the user closed. */
 const CLOSED_KEY = 'merbutler:closedSections';
@@ -70,7 +70,7 @@ function useSectionHeight(id: string): [number | null, (height: number | null, k
  * top edge below it, `resizeEdge="bottom"` above it), which takes height from, or gives it to, the
  * growing section; a double click there gives them back their own height.
  */
-export function PanelSection({ id, title, actions, grow = false, defaultOpen = true, resizeEdge = 'top', onOpenChange, children }: {
+export function PanelSection({ id, title, actions, grow = false, defaultOpen = true, resizeEdge = 'top', onOpenChange, openRequest, children }: {
   id: string;
   title: string;
   /** Controls shown in the header while the section is open. */
@@ -82,9 +82,16 @@ export function PanelSection({ id, title, actions, grow = false, defaultOpen = t
   resizeEdge?: 'top' | 'bottom';
   /** Called when the user opens or closes the section. */
   onOpenChange?: (open: boolean) => void;
+  /** A new number opens the section if it is closed (for example "Go to code" opens Code). */
+  openRequest?: number;
   children: ReactNode;
 }): JSX.Element {
   const [open, toggle] = useSectionOpen(id, defaultOpen);
+  useEffect(() => {
+    if (openRequest && !open) toggle();
+    // Only a new request opens it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
   const [height, setHeight] = useSectionHeight(id);
   const body = useRef<HTMLDivElement>(null);
   const resizable = open && !grow;

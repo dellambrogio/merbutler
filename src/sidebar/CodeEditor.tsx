@@ -133,9 +133,11 @@ interface CodeEditorProps {
   syntaxTooltips: boolean;
   /** The tokens at the cursor, or the selected text, for the Syntax panel. Called when they may have changed. */
   onCursor?: (tokens: string[]) => void;
+  /** A range to select, scroll to and focus ("Go to code"); a new `n` selects it again. */
+  reveal?: { from: number; to: number; n: number } | null;
 }
 
-export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize, lineWrap, syntaxTooltips, onCursor }: CodeEditorProps): JSX.Element {
+export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionData, fontSize, lineWrap, syntaxTooltips, onCursor, reveal }: CodeEditorProps): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -210,6 +212,17 @@ export function CodeEditor({ value, onChange, onUndo, onRedo, error, completionD
       ...(focused ? { selection: { anchor: change.from + change.insert.length }, scrollIntoView: true } : {}),
     });
   }, [value]);
+
+  // "Go to code": the range selected, in view, and the editor focused.
+  useEffect(() => {
+    const v = view.current;
+    if (!v || !reveal) return;
+    const length = v.state.doc.length;
+    const from = Math.min(reveal.from, length);
+    const to = Math.min(reveal.to, length);
+    v.dispatch({ selection: { anchor: from, head: to }, effects: EditorView.scrollIntoView(from, { y: 'center' }) });
+    v.focus();
+  }, [reveal]);
 
   // A new listener (the Syntax panel started following the cursor) gets the tokens at once.
   useEffect(() => {

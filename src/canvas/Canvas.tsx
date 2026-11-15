@@ -19,6 +19,7 @@ import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
 import { SNAP_PIXELS, snapCenter, type Guide } from './snap';
+import { codeLocation, type CodeRange, type CodeTarget } from '../core/codeLocation';
 import { ShapeMenu } from './ShapePicker';
 import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, visibleParent } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
@@ -96,6 +97,10 @@ interface CanvasProps {
   /** Which panels are open and where the user dragged them (kept in the URL). */
   panels: PanelLayout;
   onPanelsChange: (update: (panels: PanelLayout) => PanelLayout) => void;
+  /** The code, for "Go to code" in the menu. */
+  code?: string;
+  /** Selects a range of the code in the code editor ("Go to code"). */
+  onGoToCode?: (range: CodeRange) => void;
 }
 
 /** Keeps the selection of the old elements on the new (re-laid-out) elements. */
@@ -137,7 +142,7 @@ function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
   return { x: (left + right) / 2, y: y - 12 };
 }
 
-export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: CanvasProps): JSX.Element {
+export function Canvas({ model, readOnly, onChange, panels, onPanelsChange, code, onGoToCode }: CanvasProps): JSX.Element {
   const { fitView, getInternalNode, getZoom, screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const title = diagramTitle(model);
@@ -633,6 +638,10 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     fit: (): void => void fitView({ padding: 0.2, duration: 250 }),
     openClasses: (): void => setClassesOpen(true),
     openPalette: (): void => setPanelOpen('palette', true),
+    goToCode: (target: CodeTarget): (() => void) | null => {
+      const range = code !== undefined && onGoToCode ? codeLocation(code, model, target) : null;
+      return range ? () => onGoToCode!(range) : null;
+    },
   };
   const openedMenu = menu ? menuFor(model, menu.target, readOnly, menuActions) : null;
 

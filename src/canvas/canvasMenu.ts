@@ -4,6 +4,7 @@
  * `actions.change`, like the toolbar and the inspector do.
  */
 import { isAlignGroup, visibleParent } from '../core/alignGroups';
+import type { CodeTarget } from '../core/codeLocation';
 import { action, separator, submenu, type MenuItem } from './ContextMenu';
 import {
   addNode,
@@ -46,6 +47,8 @@ export interface MenuActions {
   openClasses: () => void;
   /** Opens the Palettes panel. */
   openPalette: () => void;
+  /** "Go to code": what selects the element's line in the code editor, or null when the code does not name it. */
+  goToCode?: (target: CodeTarget) => (() => void) | null;
 }
 
 /** The shapes the menu offers; the inspector has all of them. */
@@ -58,6 +61,14 @@ export function menuFor(model: FlowModel, target: MenuTarget, readOnly: boolean,
   const view = [action('Fit view', actions.fit)];
   if (target.kind === 'pane') return { title: 'Diagram', items: readOnly ? view : [...paneItems(model, actions), separator, ...view] };
   if (readOnly) return null;
+  const menu = elementMenu(model, target, actions);
+  if (!menu) return null;
+  // First: where it is written.
+  const go = actions.goToCode?.(target);
+  return go ? { ...menu, items: [action('Go to code', go), separator, ...menu.items] } : menu;
+}
+
+function elementMenu(model: FlowModel, target: CodeTarget, actions: MenuActions): { title: string; items: MenuItem[] } | null {
   if (target.kind === 'node') {
     const node = model.nodes.find((n) => n.id === target.id);
     return node ? { title: nodeTitle(model, node), items: nodeItems(model, node, actions) } : null;

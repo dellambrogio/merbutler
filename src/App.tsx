@@ -101,6 +101,9 @@ export function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   /** A diagram type the canvas does not edit: the code Mermaid last accepted, drawn by Mermaid. */
   const [preview, setPreview] = useState<{ code: string; type: DiagramType; reason?: string } | null>(null);
+  /** "Go to code" from the canvas: the range the code editor selects, and a request to open the Code section. */
+  const [codeReveal, setCodeReveal] = useState<{ from: number; to: number; n: number } | null>(null);
+  const goToCode = useCallback((range: { from: number; to: number }): void => setCodeReveal((r) => ({ ...range, n: (r?.n ?? 0) + 1 })), []);
   const [notice, setNotice] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -556,7 +559,7 @@ export function App(): JSX.Element {
           <PanelSection id="explorer" title="Explorer" resizeEdge="bottom">
             <Explorer diagrams={diagrams} folders={folders} openId={openId} unsavedWork={unsavedWork} onSaveCurrent={saveCurrent} {...library} />
           </PanelSection>
-          <PanelSection id="code" title="Code" grow>
+          <PanelSection id="code" title="Code" grow openRequest={codeReveal?.n}>
             <CodeToolbar
               name={openDiagram ? openDiagram.name : null}
               folder={openDiagram?.folder ?? ''}
@@ -571,7 +574,7 @@ export function App(): JSX.Element {
               canUndo={history.past.length > 0}
               canRedo={history.future.length > 0}
             />
-            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} lineWrap={settings.editorLineWrap} syntaxTooltips={settings.syntaxTooltips} onCursor={settings.syntaxFollowCursor ? onCursor : undefined} />
+            <CodeEditor value={code} onChange={onCodeChange} onUndo={onUndo} onRedo={onRedo} error={error} completionData={completionData} fontSize={fontSize} lineWrap={settings.editorLineWrap} syntaxTooltips={settings.syntaxTooltips} onCursor={settings.syntaxFollowCursor ? onCursor : undefined} reveal={codeReveal} />
             {error && (
               <div className="error" role="alert">
                 <strong>{preview ? 'The preview shows the last valid code until the code parses.' : 'Canvas is read-only until the code parses.'}</strong>
@@ -612,7 +615,7 @@ export function App(): JSX.Element {
             <Preview code={preview.code} typeName={preview.type.name} stale={error !== null} reason={preview.reason} />
           ) : model ? (
             <ReactFlowProvider>
-              <Canvas model={model} readOnly={error !== null} onChange={onModelChange} panels={panels} onPanelsChange={setPanels} />
+              <Canvas model={model} readOnly={error !== null} onChange={onModelChange} panels={panels} onPanelsChange={setPanels} code={code} onGoToCode={goToCode} />
             </ReactFlowProvider>
           ) : (
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>

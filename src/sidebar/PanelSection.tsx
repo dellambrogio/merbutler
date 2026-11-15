@@ -70,7 +70,7 @@ function useSectionHeight(id: string): [number | null, (height: number | null, k
  * top edge below it, `resizeEdge="bottom"` above it), which takes height from, or gives it to, the
  * growing section; a double click there gives them back their own height.
  */
-export function PanelSection({ id, title, actions, grow = false, defaultOpen = true, resizeEdge = 'top', children }: {
+export function PanelSection({ id, title, actions, grow = false, defaultOpen = true, resizeEdge = 'top', onOpenChange, children }: {
   id: string;
   title: string;
   /** Controls shown in the header while the section is open. */
@@ -80,6 +80,8 @@ export function PanelSection({ id, title, actions, grow = false, defaultOpen = t
   defaultOpen?: boolean;
   /** The edge that resizes it: the one toward the growing section. */
   resizeEdge?: 'top' | 'bottom';
+  /** Called when the user opens or closes the section. */
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }): JSX.Element {
   const [open, toggle] = useSectionOpen(id, defaultOpen);
@@ -153,7 +155,7 @@ export function PanelSection({ id, title, actions, grow = false, defaultOpen = t
         />
       )}
       <div className="side-section-head">
-        <button type="button" className="side-section-toggle" aria-expanded={open} onClick={toggle} title={open ? `Close ${title}` : `Open ${title}`}>
+        <button type="button" className="side-section-toggle" aria-expanded={open} onClick={() => (toggle(), onOpenChange?.(!open))} title={open ? `Close ${title}` : `Open ${title}`}>
           <span className="side-section-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
           {title}
         </button>

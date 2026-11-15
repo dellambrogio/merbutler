@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX } from 'react';
 import { FAMILIES, GALLERY_EXAMPLES, GALLERY_TYPES, typeExamples, type GalleryExample, type GalleryType } from './gallery';
 import { parse } from '../core/parse';
 import { renderMermaid, type RenderResult } from '../preview/render';
@@ -17,9 +17,22 @@ type Status = { kind: 'editable' } | { kind: 'preview'; typeName: string } | { k
 const previews = new Map<string, RenderResult>();
 const statuses = new Map<string, Status>();
 
+/** Bumped when a preview or a type's status arrives; the sidebar's Gallery section listens. */
+let cacheVersion = 0;
+const listeners = new Set<() => void>();
+function notify(): void {
+  cacheVersion++;
+  for (const l of listeners) l();
+}
+const subscribe = (l: () => void): (() => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+
 async function renderPreview(example: GalleryExample): Promise<void> {
   if (previews.has(example.id)) return;
   previews.set(example.id, await renderMermaid(example.code));
+  notify();
 }
 
 async function statusOf(example: GalleryExample): Promise<Status> {
@@ -65,6 +78,45 @@ const SUPPORT_HINT: Record<Support, string> = {
   Preview: 'Drawn by Mermaid; edited in the code',
   'Read-only': 'The canvas shows it read-only',
 };
+
+/** What the sidebar shows for a type: its first example's preview, and how the app edits it. */
+export interface TypeVisual {
+  preview: RenderResult | undefined;
+  support: Support | null;
+  hint: string | null;
+}
+
+export function typeVisual(type: GalleryType): TypeVisual {
+  const support = typeSupport(type);
+  return { preview: previews.get(typeExamples(type)[0].id), support, hint: support ? SUPPORT_HINT[support] : null };
+}
+
+/**
+ * Draws the previews and works out the support of these types (one at a time, kept for the
+ * gallery too), and re-renders the caller as they arrive.
+ */
+export function useTypeVisuals(types: GalleryType[]): void {
+  useSyncExternalStore(subscribe, () => cacheVersion);
+  const key = types.map((t) => t.id).join(' ');
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      for (const t of types) {
+        if (!alive) return;
+        const missing = typeExamples(t).some((ex) => !statuses.has(ex.id));
+        for (const ex of typeExamples(t)) await statusOf(ex);
+        if (missing) notify();
+        if (!alive) return;
+        await renderPreview(typeExamples(t)[0]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // The types are named by `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+}
 
 const VIEW_KEY = 'merbutler:galleryView';
 
@@ -145,6 +197,7 @@ export function Gallery({ open, view: typeId, onView, onOpen, onClose }: Gallery
     };
     void (async () => {
       for (const ex of GALLERY_EXAMPLES) await statusOf(ex);
+      notify();
       bump();
       // One preview at a time; the list of wanted previews follows the view as it changes.
       while (alive) {
@@ -244,11 +297,8 @@ export function Gallery({ open, view: typeId, onView, onOpen, onClose }: Gallery
         </button>
       </div>
       {type ? (
-        <div className="gallery-page">
-          <TypeList current={type} shown={shownTypes} onShow={show} />
-          <div className="gallery-body" ref={body}>
-            <TypePage type={type} passes={passes} onOpen={onOpen} />
-          </div>
+        <div className="gallery-body" ref={body}>
+          <TypePage type={type} passes={passes} onOpen={onOpen} />
         </div>
       ) : (
         <div className="gallery-body" ref={body}>
@@ -308,77 +358,6 @@ function Tile({ type, example, count, onOpen }: { type: GalleryType; example: Ga
 }
 
 /** One type's page: its examples, by section when it has several (flowcharts). */
-/**
- * The list of all types, by family, next to a type's page: the open type in color, the others
- * greyed out until hovered. Types without a match for the search or filters are fainter.
- */
-function TypeList({ current, shown, onShow }: { current: GalleryType; shown: GalleryType[]; onShow: (id: string) => void }): JSX.Element {
-  const list = useRef<HTMLElement>(null);
-
-  // The open type stays in view.
-  useEffect(() => {
-    const box = list.current;
-    const item = box?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!box || !item) return;
-    const outer = box.getBoundingClientRect();
-    const r = item.getBoundingClientRect();
-    if (r.top < outer.top) box.scrollTop -= outer.top - r.top + 8;
-    else if (r.bottom > outer.bottom) box.scrollTop += r.bottom - outer.bottom + 8;
-  }, [current]);
-
-  /** Up and down arrows open the previous or next type. */
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLElement>): void => {
-    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
-    if (step === 0) return;
-    e.preventDefault();
-    const index = GALLERY_TYPES.indexOf(current);
-    const next = GALLERY_TYPES[Math.min(GALLERY_TYPES.length - 1, Math.max(0, index + step))];
-    onShow(next.id);
-    requestAnimationFrame(() => list.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus());
-  };
-
-  return (
-    <nav className="gallery-type-list" aria-label="Diagram types" ref={list} onKeyDown={onKeyDown}>
-      {FAMILIES.map((family) => (
-        <div key={family} className="gallery-type-list-family">
-          <div className="gallery-type-list-heading">{family}</div>
-          {GALLERY_TYPES.filter((t) => t.family === family).map((t) => {
-            const open = t === current;
-            const support = typeSupport(t);
-            const preview = previews.get(typeExamples(t)[0].id);
-            return (
-              <button
-                key={t.id}
-                className={`gallery-type-item${open ? ' current' : ''}${shown.includes(t) ? '' : ' no-match'}`}
-                aria-current={open ? 'page' : undefined}
-                tabIndex={open ? 0 : -1}
-                onClick={() => onShow(t.id)}
-                title={support ? SUPPORT_HINT[support] : undefined}
-              >
-                <span className="gallery-type-item-head">
-                  <span className={`gallery-type-item-dot chip-${(support ?? 'none').toLowerCase()}`}>
-                    <span className="gallery-dot" aria-hidden="true" />
-                  </span>
-                  <span className="gallery-type-item-title">{t.title}</span>
-                  <span className="gallery-count">{typeExamples(t).length}</span>
-                </span>
-                <span className="gallery-type-item-thumb" aria-hidden="true">
-                  {preview && 'svg' in preview ? (
-                    // Mermaid renders with securityLevel 'strict', and the examples are fixed text in this app.
-                    <span className="gallery-svg" dangerouslySetInnerHTML={{ __html: preview.svg }} />
-                  ) : (
-                    <span className="muted">{preview ? 'No preview' : '…'}</span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
-  );
-}
-
 function TypePage({ type, passes, onOpen }: { type: GalleryType; passes: (ex: GalleryExample, t: GalleryType) => boolean; onOpen: (code: string) => void }): JSX.Element {
   const support = typeSupport(type);
   const total = typeExamples(type).length;

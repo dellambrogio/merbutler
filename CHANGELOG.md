@@ -5,6 +5,11 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- The Gallery moves to the bottom of the sidebar: every diagram type by family, each with a small preview, a dot
+  for how the app edits it and its number of examples. A click opens the gallery at that type; the type on show is
+  marked, and a click on it, on its family or on the Gallery header closes the gallery. The list of types on the left of a type's page is gone. The gallery opens over the canvas only, so the
+  sidebar stays in view.
+- A quieter header: Settings as a gear, and About opens from the version next to the name (the About button is gone).
 - A slim toolbar under the Code header: the diagram's name on the left (moved from the app header), with a green check when
   saved or an orange dot when not;
   undo, redo, Paste, Copy and the text size on the right, as icons (moved from the app header and from a bar under

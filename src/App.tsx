@@ -6,6 +6,7 @@ import { extractMermaid } from './core/clipboard';
 import { CodeEditor } from './sidebar/CodeEditor';
 import { CodeToolbar } from './sidebar/CodeToolbar';
 import { PanelSection } from './sidebar/PanelSection';
+import { GalleryNav } from './sidebar/GalleryNav';
 import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
@@ -535,19 +536,17 @@ export function App(): JSX.Element {
       <header className="app-header">
         <strong>Merbutler</strong>
         <span className="muted">Mermaid diagram editor</span>
-        <button className="app-version" onClick={() => setAboutOpen(true)} title="About this version and its release notes">
+        <button className="app-version" onClick={() => setAboutOpen(true)} aria-haspopup="dialog" title="About Merbutler: this version and its release notes">
           v{APP_VERSION}
         </button>
         <span className="spacer" />
         {notice && <span className="notice">{notice}</span>}
-        <button onClick={() => setGalleryOpen((open) => !open)} aria-expanded={galleryOpen} title="Examples of every diagram type">
-          Gallery
-        </button>
-        <button onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" title="Settings, kept in this browser">
-          Settings
-        </button>
-        <button onClick={() => setAboutOpen(true)} aria-haspopup="dialog" title="About Merbutler">
-          About
+        <button className="header-button icon" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog" aria-label="Settings" title="Settings, kept in this browser">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="2.2" />
+            <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
+            <circle cx="8" cy="8" r="4.6" />
+          </svg>
         </button>
       </header>
       <AboutPanel open={aboutOpen} onClose={closeAbout} />
@@ -583,6 +582,22 @@ export function App(): JSX.Element {
           <PanelSection id="syntax" title="Syntax" defaultOpen={false}>
             <SyntaxPanel code={code} cursor={settings.syntaxFollowCursor ? cursorTokens : null} />
           </PanelSection>
+          <PanelSection id="gallery" title="Gallery" onOpenChange={(sectionOpen) => !sectionOpen && closeGallery()}>
+            <GalleryNav
+              open={galleryOpen}
+              view={galleryView}
+              onShow={(typeId) => {
+                // A click on what the gallery shows closes it.
+                if (galleryOpen && galleryView === typeId) {
+                  setGalleryOpen(false);
+                  return;
+                }
+                setGalleryView(typeId);
+                setGalleryOpen(true);
+              }}
+              onClose={closeGallery}
+            />
+          </PanelSection>
         </div>
         <section className="pane canvas-pane">
           {preview && hasStructuredEditor(preview.type.name) ? (
@@ -602,19 +617,19 @@ export function App(): JSX.Element {
           ) : (
             <div className="placeholder">{error ? 'No valid diagram yet.' : 'Loading…'}</div>
           )}
+          {/* Always mounted, so it slides in and out and keeps its previews. */}
+          <Gallery
+            open={galleryOpen}
+            view={galleryView}
+            onView={setGalleryView}
+            onOpen={(text) => {
+              replaceFromPaste(text);
+              setGalleryOpen(false);
+            }}
+            onClose={closeGallery}
+          />
         </section>
         <Splitter value={split} onChange={setSplit} minFirst={220} minSecond={320} label="Code editor width" />
-        {/* Always mounted, so it slides in and out and keeps its previews. */}
-        <Gallery
-          open={galleryOpen}
-          view={galleryView}
-          onView={setGalleryView}
-          onOpen={(text) => {
-            replaceFromPaste(text);
-            setGalleryOpen(false);
-          }}
-          onClose={closeGallery}
-        />
       </main>
     </div>
   );

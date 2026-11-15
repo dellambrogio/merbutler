@@ -17,7 +17,7 @@ import {
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
-import { alignGroups } from '../core/alignGroups';
+import { alignGroups, canAlign, isAlignGroup } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
@@ -166,7 +166,9 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     pendingSelect.current = null;
     // Mermaid has no positions: an element can be dragged only to move it into another subgraph.
     // In a free layout everything can be dragged, and stays where it is dropped.
-    laid.nodes = laid.nodes.map((n) => ({ ...n, draggable: free || canMove(model, n.id) }));
+    // Alignment groups (Code from layout) are invisible: they cannot be picked, moved or dropped into.
+    const aligned = new Set(model.subgraphs.filter(isAlignGroup).map((s) => s.id));
+    laid.nodes = laid.nodes.map((n) => (aligned.has(n.id) ? { ...n, draggable: false, selectable: false } : { ...n, draggable: free || canMove(model, n.id) }));
     if (select) {
       setNodes(laid.nodes.map((n) => ({ ...n, selected: n.id === select })));
       setEdges(laid.edges);
@@ -266,8 +268,12 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     }
     return best;
   };
-  const parentOf = (id: string): string | null =>
-    model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null;
+  /** The subgraph an element is in, past alignment groups: they are invisible, so a drop does not take it out of one. */
+  const parentOf = (id: string): string | null => {
+    let p = model.nodes.find((n) => n.id === id)?.parent ?? model.subgraphs.find((s) => s.id === id)?.parent ?? null;
+    for (let s = model.subgraphs.find((x) => x.id === p); s && isAlignGroup(s); s = model.subgraphs.find((x) => x.id === p)) p = s.parent;
+    return p;
+  };
   const onNodeDrag: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
     const moved = movedRoots(dragged);
     const target = dropTargetAt(e, moved);
@@ -726,11 +732,11 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
             onClick={toggleFree}
           />
         )}
-        {free && !stateDiagram && !usecaseDiagram && (
+        {free && canAlign(model) && (
           <DockItem
             icon={DockIcons.align}
             label="Code from layout"
-            hint="Puts the rows and columns you lined up into invisible subgraphs with a direction, so Mermaid lines them up too. Again after moving nodes: the groups follow the drawing"
+            hint="Puts the rows and columns you lined up into invisible subgraphs, chained with invisible links (~~~), so Mermaid lines them up too. Again after moving nodes: the groups follow the drawing"
             disabled={readOnly}
             onClick={codeFromLayout}
           />

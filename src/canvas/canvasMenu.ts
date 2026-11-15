@@ -3,6 +3,7 @@
  * diagram kind (flowchart and swimlane, state, use case). Each action returns a new model through
  * `actions.change`, like the toolbar and the inspector do.
  */
+import { isAlignGroup } from '../core/alignGroups';
 import { action, separator, submenu, type MenuItem } from './ContextMenu';
 import {
   addNode,
@@ -109,11 +110,15 @@ export function moveTargets(model: FlowModel, id: string): (string | null)[] {
   const exclude = model.subgraphs.some((s) => s.id === id) ? subgraphWithDescendants(model, id) : new Set<string>();
   // State diagrams: a composite with regions holds its states in the regions.
   const filter = (s: FlowSubgraph): boolean => model.kind !== 'state' || s.region === true || !model.subgraphs.some((r) => r.region && r.parent === s.id);
-  return [null, ...model.subgraphs.filter((s) => !exclude.has(s.id) && filter(s)).map((s) => s.id)];
+  // Alignment groups (Code from layout) are made from the drawing, not moved into.
+  return [null, ...model.subgraphs.filter((s) => !exclude.has(s.id) && filter(s) && !isAlignGroup(s)).map((s) => s.id)];
 }
 
 /** Moves an element, with the right "Move to" choices for its kind of diagram. */
-function moveItem(model: FlowModel, id: string, current: string | null, actions: MenuActions): MenuItem {
+function moveItem(model: FlowModel, id: string, parent: string | null, actions: MenuActions): MenuItem {
+  // Past alignment groups, which are not offered.
+  let current = parent;
+  for (let s = model.subgraphs.find((x) => x.id === current); s && isAlignGroup(s); s = model.subgraphs.find((x) => x.id === current)) current = s.parent;
   const label = model.kind === 'swimlane' ? 'Move to lane' : model.kind === 'usecase' ? 'Move to boundary' : model.kind === 'state' ? 'Move into' : 'Move to subgraph';
   return submenu(
     label,

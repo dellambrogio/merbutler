@@ -6,9 +6,13 @@ these notes. New changes go under **Unreleased** until the next version gets its
 ## Unreleased
 
 - Code from layout (dock, with the free layout on): nodes lined up in a row or a column go into an invisible
-  subgraph (class `layoutAlign`) with `direction LR` or `TB`, so Mermaid's own layout keeps them lined up. Again
-  after moving nodes, the groups are made anew from the drawing. Mermaid ignores a subgraph's direction when its
-  nodes link to nodes outside it; the group still keeps them together.
+  subgraph (`row1`, `col1`, class `layoutAlign`) with the direction of the line, and neighbors not linked yet get
+  an invisible link (`~~~`), so Mermaid's own layout keeps them lined up, with dagre and with ELK. Again after
+  moving nodes, the groups and their invisible links are made anew from the drawing; clicking with nothing changed
+  changes nothing. Mermaid ignores a subgraph's direction when its nodes link to nodes outside it: such a group
+  follows the direction around it, and gets invisible links only when that direction runs along the line. The
+  groups cannot be selected, moved or dropped into, and are not offered in "Move to subgraph". A group you link
+  to, collapse or that sits in a collapsed subgraph is kept as yours.
 - Own style: the Fill and Text rows offer the same color swatches as the Border row. The Classes panel keeps pale
   fills and deep text colors.
 - A new diagram starts left to right (`flowchart LR`) instead of top to bottom.

@@ -1,121 +1,229 @@
 /**
- * Mermaid code from a free layout: nodes the user lined up (a row or a column) go into an invisible
- * subgraph with a `direction`, so Mermaid's own layout keeps them lined up too.
+ * Mermaid code from a free layout: elements the user lined up (a row or a column) go into an
+ * invisible subgraph, so Mermaid's own layout keeps them lined up too.
  *
- * Each group is a subgraph with the class `layoutAlign` (no fill, no border, no visible title). Making
- * the code again first takes out the groups made the last time, so they follow the drawing.
+ * Mermaid places a subgraph's contents in ranks along its direction, and only a chain of links
+ * keeps elements in a line along it: elements with no link between them share a rank, and ELK
+ * packs unlinked elements into a block. So each group gets the direction of its line, and an
+ * invisible link (`~~~`) joins neighbors that are not linked yet.
  *
- * Mermaid ignores a subgraph's `direction` when one of its nodes is linked to a node outside it;
- * the group still keeps its members together.
+ * Mermaid ignores a subgraph's `direction` when one of its elements is linked to one outside it:
+ * the group is then laid out in the direction around it. If that direction lies along the line,
+ * the chain still works; if it lies across, elements with no links between them share a rank there
+ * and get no invisible links, and a line with links between its elements gets no group.
+ *
+ * A group is a subgraph with the class `layoutAlign` (no fill, no border, no visible title) and an
+ * id `row<n>` or `col<n>`. Making the code again first takes out the groups made the last time, and
+ * the invisible links between their elements, so they follow the drawing.
  */
-import { addClassDef, classUsage, freshId, removeClassDef, type Direction, type FlowModel, type FlowSubgraph } from './model';
+import {
+  addClassDef,
+  canonicalOrder,
+  classUsage,
+  freshId,
+  nextEdgeId,
+  removeClassDef,
+  type Direction,
+  type FlowEdge,
+  type FlowModel,
+  type FlowSubgraph,
+} from './model';
 import { readingOrder, type Point } from './positions';
 
 export const ALIGN_CLASS = 'layoutAlign';
 const ALIGN_STYLES = ['fill:none', 'stroke:none', 'color:transparent'];
+const ALIGN_ID = /^(row|col)\d+$/;
 /** Centers this close count as lined up. */
 const TOLERANCE = 20;
 
-/** Whether a subgraph is an alignment group made by `alignGroups`. */
-export function isAlignGroup(subgraph: FlowSubgraph): boolean {
-  return subgraph.classes?.includes(ALIGN_CLASS) ?? false;
+/** Whether the diagram can get alignment groups: flowcharts only. */
+export function canAlign(model: FlowModel): boolean {
+  return model.kind === undefined;
 }
 
-/** The model without alignment groups: what they held goes back to their parent. */
-export function withoutAlignGroups(model: FlowModel): FlowModel {
-  const groups = new Map(model.subgraphs.filter(isAlignGroup).map((s) => [s.id, s]));
-  if (groups.size === 0) return model;
+/** Whether a subgraph is an alignment group made by `alignGroups` (not one the user made or styled). */
+export function isAlignGroup(subgraph: FlowSubgraph): boolean {
+  return ALIGN_ID.test(subgraph.id) && (subgraph.classes?.includes(ALIGN_CLASS) ?? false);
+}
+
+/**
+ * The model without alignment groups: what they held goes back to their parent. A group that is
+ * collapsed, holds something `keep` says to keep, or has a link of its own is not taken out: it is
+ * the user's now. A linked one loses the class, so its title shows.
+ */
+export function withoutAlignGroups(model: FlowModel, keep: (id: string) => boolean = () => false): FlowModel {
+  const linked = new Set(model.edges.flatMap((e) => [e.source, e.target]));
+  const childrenOf = (id: string): string[] => [...model.nodes, ...model.subgraphs].filter((x) => x.parent === id).map((x) => x.id);
+  const groups = new Map(
+    model.subgraphs.filter((s) => isAlignGroup(s) && !linked.has(s.id) && s.view !== 'collapsed' && !childrenOf(s.id).some(keep)).map((s) => [s.id, s]),
+  );
+  const unclassed = model.subgraphs.filter((s) => isAlignGroup(s) && linked.has(s.id)).map((s) => s.id);
+  if (groups.size === 0 && unclassed.length === 0) return model;
   const lift = (parent: string | null): string | null => {
     for (let p = parent; p !== null; p = groups.get(p)!.parent) if (!groups.has(p)) return p;
     return null;
   };
   const positions = model.positions && Object.fromEntries(Object.entries(model.positions).filter(([id]) => !groups.has(id)));
+  const parentOf = new Map([...model.nodes, ...model.subgraphs].map((x) => [x.id, x.parent]));
+  const madeLink = (e: FlowEdge): boolean => {
+    const p = parentOf.get(e.source);
+    return isPlainInvisible(e) && p != null && groups.has(p) && parentOf.get(e.target) === p;
+  };
   return {
     ...model,
+    edges: model.edges.filter((e) => !madeLink(e)),
     nodes: model.nodes.map((n) => (groups.has(n.parent ?? '') ? { ...n, parent: lift(n.parent) } : n)),
-    subgraphs: model.subgraphs.filter((s) => !groups.has(s.id)).map((s) => (groups.has(s.parent ?? '') ? { ...s, parent: lift(s.parent) } : s)),
+    subgraphs: model.subgraphs
+      .filter((s) => !groups.has(s.id))
+      .map((s) => (groups.has(s.parent ?? '') ? { ...s, parent: lift(s.parent) } : s))
+      .map((s) => (unclassed.includes(s.id) ? withoutClass(s) : s)),
     ...(positions ? { positions } : {}),
   };
 }
 
+/** An invisible link with nothing of its own: the kind `alignGroups` adds. */
+function isPlainInvisible(e: FlowEdge): boolean {
+  return e.stroke === 'invisible' && e.label === '' && !e.ref && !e.styles?.length && !e.comments?.length && (e.length ?? 1) === 1;
+}
+
+function withoutClass(s: FlowSubgraph): FlowSubgraph {
+  const classes = (s.classes ?? []).filter((c) => c !== ALIGN_CLASS);
+  const { classes: _old, ...rest } = s;
+  return classes.length > 0 ? { ...rest, classes } : rest;
+}
+
 interface Line {
+  /** In order along the line: left to right, or top to bottom. */
   ids: string[];
-  /** A row reads left to right, a column top to bottom. */
   row: boolean;
 }
 
-/** Ids whose centers are within TOLERANCE of each other along one axis, in groups of two or more. */
+/** Ids whose centers are within TOLERANCE of the first one's along one axis, in groups of two or more. */
 function lines(ids: readonly string[], centers: ReadonlyMap<string, Point>, row: boolean): Line[] {
-  const at = (id: string): number => (row ? centers.get(id)!.y : centers.get(id)!.x);
-  const sorted = [...ids].sort((a, b) => at(a) - at(b));
+  const across = (id: string): number => (row ? centers.get(id)!.y : centers.get(id)!.x);
+  const along = (id: string): number => (row ? centers.get(id)!.x : centers.get(id)!.y);
+  const sorted = [...ids].sort((a, b) => across(a) - across(b));
   const out: Line[] = [];
   let current: string[] = [];
+  const flush = (): void => {
+    if (current.length > 1) out.push({ ids: [...current].sort((a, b) => along(a) - along(b)), row });
+    current = [];
+  };
   for (const id of sorted) {
-    if (current.length > 0 && at(id) - at(current[0]) > TOLERANCE) {
-      if (current.length > 1) out.push({ ids: current, row });
-      current = [];
-    }
+    if (current.length > 0 && across(id) - across(current[0]) > TOLERANCE) flush();
     current.push(id);
   }
-  if (current.length > 1) out.push({ ids: current, row });
+  flush();
   return out;
-}
-
-/** The direction of a line, in the sense of `current` when it lies on the same axis. */
-function lineDirection(row: boolean, current: Direction): Direction {
-  if (row) return current === 'RL' ? 'RL' : 'LR';
-  return current === 'BT' ? 'BT' : 'TB';
 }
 
 /**
  * Groups the elements lined up in the drawing. `centers` are the centers of the elements on the
  * canvas. In each scope (the top level and each expanded subgraph), the longest lines are taken
- * first and an element goes into one group at most. A line that holds the whole scope sets the
- * subgraph's direction (or the diagram's) instead of adding a group. Flowcharts only.
+ * first and an element goes into one group at most. Returns `model` itself when the code would
+ * not change.
  */
 export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point>): FlowModel {
-  if (model.kind !== undefined) return model;
-  let next = withoutAlignGroups(model);
-  const scopes: (FlowSubgraph | null)[] = [null, ...next.subgraphs.filter((s) => s.view !== 'collapsed')];
+  if (!canAlign(model)) return model;
+  const start = withoutAlignGroups(model, (id) => !centers.has(id));
+  let next = start;
+  const parentOf = new Map<string, string | null>([...next.nodes, ...next.subgraphs].map((x) => [x.id, x.parent]));
+  const subgraphOf = new Map(next.subgraphs.map((s) => [s.id, s]));
+  /** The direction a scope lays out in: its own, else the one around it. */
+  const directionOf = (scope: string | null): Direction =>
+    scope === null ? next.direction : (subgraphOf.get(scope)?.direction ?? directionOf(parentOf.get(scope) ?? null));
+  /** The element of the scope that holds `id` (itself or an ancestor), or null. */
+  const memberOf = (id: string, scope: string | null): string | null => {
+    for (let cur: string | null = id; cur !== null && parentOf.has(cur); cur = parentOf.get(cur) ?? null) if (parentOf.get(cur) === scope) return cur;
+    return null;
+  };
+  const scopes: (string | null)[] = [null, ...next.subgraphs.filter((s) => s.view !== 'collapsed').map((s) => s.id)];
   const groupCenters = new Map(centers);
-  let added = false;
+  const made: string[][] = [];
   for (const scope of scopes) {
-    const parent = scope?.id ?? null;
-    const siblings = [...next.nodes, ...next.subgraphs].filter((x) => x.parent === parent && centers.has(x.id)).map((x) => x.id);
+    const siblings = [...parentOf].filter(([id, p]) => p === scope && centers.has(id)).map(([id]) => id);
     if (siblings.length < 2) continue;
+    /** Each link as the elements of the scope that hold its ends (null: outside the scope). */
+    const ends = next.edges.map((e): [string | null, string | null] => [memberOf(e.source, scope), memberOf(e.target, scope)]);
     const candidates = [...lines(siblings, centers, true), ...lines(siblings, centers, false)];
     const used = new Set<string>();
-    for (;;) {
-      const best = candidates
-        .map((l) => ({ ...l, ids: l.ids.filter((id) => !used.has(id)) }))
-        .filter((l) => l.ids.length > 1)
-        .sort((a, b) => b.ids.length - a.ids.length)[0];
-      if (!best) break;
-      for (const id of best.ids) used.add(id);
-      const own = scope ? (next.subgraphs.find((s) => s.id === parent)!.direction ?? next.direction) : next.direction;
-      const direction = lineDirection(best.row, own);
-      if (best.ids.length === siblings.length) {
-        // The whole scope is one line: its own direction is enough.
-        next = scope
-          ? { ...next, subgraphs: next.subgraphs.map((s) => (s.id === parent ? { ...s, direction } : s)) }
-          : { ...next, direction };
-        break;
+    while (candidates.length > 0) {
+      // The line with the most elements not in a group yet; it is used up either way.
+      const fresh = candidates.map((l) => l.ids.filter((id) => !used.has(id)).length);
+      const [line] = candidates.splice(fresh.indexOf(Math.max(...fresh)), 1);
+      const ids = line.ids.filter((id) => !used.has(id));
+      if (ids.length < 2) continue;
+      const members = new Set(ids);
+      const inner = ends.filter(([s, t]) => s !== null && t !== null && s !== t && members.has(s) && members.has(t)) as [string, string][];
+      const isolated = !ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)));
+      // The way most links between the elements point along the line.
+      const forward = inner.reduce((sum, [s, t]) => sum + Math.sign(ids.indexOf(t) - ids.indexOf(s)), 0) >= 0;
+      const along: Direction = line.row ? (forward ? 'LR' : 'RL') : forward ? 'TB' : 'BT';
+      const around = directionOf(scope);
+      const aroundAlong = line.row === (around === 'LR' || around === 'RL');
+      // Laid out in the direction around it, across the line: only elements sharing a rank stay in it.
+      if (!isolated && !aroundAlong && inner.length > 0) continue;
+      const direction = isolated ? along : around;
+      const chain = isolated || aroundAlong;
+      for (const id of ids) used.add(id);
+      const needsLinks = chain && ids.some((id, i) => i > 0 && !inner.some(([s, t]) => (s === id && t === ids[i - 1]) || (s === ids[i - 1] && t === id)));
+      // The whole scope, already a chain along its direction: nothing to add.
+      if (ids.length === siblings.length && !needsLinks && direction === around) continue;
+      const group = freshId(line.row ? 'row' : 'col', [...next.nodes.map((n) => n.id), ...next.subgraphs.map((s) => s.id)]);
+      const links: FlowEdge[] = [];
+      if (chain) {
+        // Invisible links between neighbors not linked yet, in the direction of the flow.
+        const flowsBack = direction === 'RL' || direction === 'BT';
+        for (let i = 0; i < ids.length - 1; i++) {
+          const [a, b] = flowsBack ? [ids[i + 1], ids[i]] : [ids[i], ids[i + 1]];
+          if (inner.some(([s, t]) => (s === a && t === b) || (s === b && t === a))) continue;
+          const id = nextEdgeId({ ...next, edges: [...next.edges, ...links] });
+          links.push({ id, source: a, target: b, label: '', markdown: false, stroke: 'invisible', end: 'none', bothEnds: false });
+        }
       }
-      const id = freshId(best.row ? 'row' : 'col', [...next.nodes.map((n) => n.id), ...next.subgraphs.map((s) => s.id)]);
-      const members = new Set(best.ids);
-      const group: FlowSubgraph = { id, label: id, markdown: false, parent, direction, classes: [ALIGN_CLASS] };
+      const subgraph: FlowSubgraph = { id: group, label: group, markdown: false, parent: scope, direction, classes: [ALIGN_CLASS] };
       next = {
         ...next,
-        nodes: next.nodes.map((n) => (members.has(n.id) ? { ...n, parent: id } : n)),
-        subgraphs: [...next.subgraphs.map((s) => (members.has(s.id) ? { ...s, parent: id } : s)), group],
+        nodes: next.nodes.map((n) => (members.has(n.id) ? { ...n, parent: group } : n)),
+        subgraphs: [...next.subgraphs.map((s) => (members.has(s.id) ? { ...s, parent: group } : s)), subgraph],
+        edges: [...next.edges, ...links],
       };
-      const points = best.ids.map((m) => centers.get(m)!);
-      groupCenters.set(id, { x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: points.reduce((sum, p) => sum + p.y, 0) / points.length });
-      added = true;
+      const points = ids.map((m) => centers.get(m)!);
+      groupCenters.set(group, { x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: points.reduce((sum, p) => sum + p.y, 0) / points.length });
+      made.push(ids);
     }
   }
-  if (added && !next.classDefs?.some((d) => d.name === ALIGN_CLASS)) next = addClassDef(next, ALIGN_CLASS, ALIGN_STYLES);
-  if (!added && next.classDefs?.some((d) => d.name === ALIGN_CLASS) && classUsage(next, ALIGN_CLASS) === 0) next = removeClassDef(next, ALIGN_CLASS);
-  // Statements in reading order, so each group lists its members along its line.
-  return readingOrder(next, groupCenters);
+  if (made.length === 0) {
+    if (start === model) return model;
+    return next.classDefs?.some((d) => d.name === ALIGN_CLASS) && classUsage(next, ALIGN_CLASS) === 0 ? removeClassDef(next, ALIGN_CLASS) : next;
+  }
+  if (!next.classDefs?.some((d) => d.name === ALIGN_CLASS)) next = addClassDef(next, ALIGN_CLASS, ALIGN_STYLES);
+  // Statements in reading order; then each group's elements in order along its line.
+  next = readingOrder(next, groupCenters);
+  for (const ids of made) next = orderAlong(next, ids);
+  // In the order the code is written, so the code reads back the same.
+  next = canonicalOrder(next);
+  return sameCode(next, model) ? model : next;
+}
+
+/** Whether two models give the same code: in the order it is written, and without edge ids (the app's own). */
+function sameCode(a: FlowModel, b: FlowModel): boolean {
+  const key = (m: FlowModel): string => {
+    const written = canonicalOrder(m);
+    return JSON.stringify({ ...written, edges: written.edges.map(({ id: _id, ...e }) => e) });
+  };
+  return key(a) === key(b);
+}
+
+/** The elements `ids` in this order in the model's lists, in the places they already take. */
+function orderAlong(model: FlowModel, ids: readonly string[]): FlowModel {
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  const reorder = <T extends { id: string }>(items: T[]): T[] => {
+    const slots = items.flatMap((x, i) => (rank.has(x.id) ? [i] : []));
+    const sorted = slots.map((i) => items[i]).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+    const out = [...items];
+    slots.forEach((slot, k) => (out[slot] = sorted[k]));
+    return out;
+  };
+  return { ...model, nodes: reorder(model.nodes), subgraphs: reorder(model.subgraphs) };
 }

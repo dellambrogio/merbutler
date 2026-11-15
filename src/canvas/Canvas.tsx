@@ -20,7 +20,6 @@ import type { Box, CanvasNode } from './layout';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
-  DIRECTIONS,
   addNode,
   addSubgraph,
   addClassDef,
@@ -46,21 +45,25 @@ import {
 } from '../core/model';
 import { EditRequestContext, QuickAddContext, RenameContext, ShapeNodeView, type QuickAddActions } from './ShapeNodeView';
 import { ContextMenu } from './ContextMenu';
-import { CLASS_DRAG_TYPE, ClassPanel, ClassStrip, PalettePanel, classDragAdds, type Selection } from './ClassPanel';
-import { DEFAULT_DOCK_POSITION, DIRECTION_NAMES, Dock, DockIcons, DockItem, DockMenu, DockSeparator } from './Dock';
-import { MultiInspector } from './MultiInspector';
-import { LayoutPanel } from './LayoutPanel';
+import { CLASS_DRAG_TYPE, ClassStrip, classDragAdds, type Selection } from './classDrag';
+import { ClassesPanel } from '../panels/ClassesPanel';
+import { PalettePanel } from '../panels/PalettePanel';
+import { DEFAULT_DOCK_POSITION, DIRECTION_NAMES, Dock, DockIcons, DockItem, DockSeparator } from './Dock';
+import { SelectionPanel } from '../panels/SelectionPanel';
+import { DiagramPanel } from '../panels/DiagramPanel';
+import { NodePanel } from '../panels/NodePanel';
+import { EdgePanel } from '../panels/EdgePanel';
 import { OpenClassesContext } from './styleControls';
 import { canMove, menuFor, moveTargets, type MenuTarget } from './canvasMenu';
 import { CollapseContext, SubgraphNodeView } from './SubgraphNodeView';
 import { ImageConsentContext } from './AssetView';
-import { useDraggablePanels } from './draggablePanels';
-import type { PanelLayout } from '../core/urlState';
+import { useDraggablePanels } from '../panels/draggablePanels';
+import type { PanelLayout, PanelSize } from '../core/urlState';
+
+/** No panel resized (one object, so the panels' sizes do not change on every render). */
+const NO_SIZES: Record<string, PanelSize> = {};
 import { addNote, addPseudoState, canTransition } from '../state/stateDiagram';
-import { StateEdgeInspector, StateNodeInspector, StateSubgraphInspector } from '../state/StateInspector';
 import { addUseCaseNode, addUseCaseNote, canRelate } from '../usecase/usecaseDiagram';
-import { UseCaseBoundaryInspector, UseCaseEdgeInspector, UseCaseNodeInspector } from '../usecase/UseCaseInspector';
-import { FlowEdgeInspector, FlowNodeInspector, FlowSubgraphInspector } from '../flowchart/FlowchartInspector';
 import { diagramTheme, GRADIENT_ID, HAND_DRAWN_ID, themeVars, type DiagramTheme } from '../flowchart/themes';
 
 const NODE_TYPES = { shape: ShapeNodeView, subgraph: SubgraphNodeView };
@@ -453,8 +456,8 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     [onPanelsChange],
   );
   const setClassesOpen = useCallback((open: boolean | ((was: boolean) => boolean)): void => setPanelOpen('classes', open), [setPanelOpen]);
-  /** The layout panel (dock → Layout). */
-  const layoutOpen = panels.open.includes('layout');
+  /** The diagram panel (dock → Diagram): direction, free layout and layout options. */
+  const diagramOpen = panels.open.includes('diagram');
   /** The palettes panel (dock → Palette). */
   const paletteOpen = panels.open.includes('palette');
   const openClasses = useCallback(() => setClassesOpen(true), [setClassesOpen]);
@@ -462,6 +465,12 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     nodes: selectedNodes.filter((n) => n.type === 'shape').map((n) => n.id),
     subgraphs: selectedNodes.filter((n) => n.type === 'subgraph').map((n) => n.id),
     edges: selectedEdges.filter((e) => !model.edges.find((m) => m.id === e.id)?.noteLink).map((e) => e.id),
+  };
+
+  /** Closing the node, edge or selection panel clears the selection. */
+  const clearSelection = (): void => {
+    setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    setEdges((es) => es.map((e) => (e.selected ? { ...e, selected: false } : e)));
   };
 
   const deleteSelected = (): void => {
@@ -472,11 +481,22 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
 
   // ---- Context menu (right-click, the ContextMenu key, or Shift+F10 on the selection) ----
   const canvasRef = useRef<HTMLDivElement>(null);
-  const panelDrag = useDraggablePanels(canvasRef, panels.at, (name, at) =>
-    onPanelsChange((p) => {
-      const { [name]: _old, ...rest } = p.at;
-      return { ...p, at: at ? { ...rest, [name]: at } : rest };
-    }),
+  const panelDrag = useDraggablePanels(
+    canvasRef,
+    panels.at,
+    panels.size ?? NO_SIZES,
+    (name, at) =>
+      onPanelsChange((p) => {
+        const { [name]: _old, ...rest } = p.at;
+        return { ...p, at: at ? { ...rest, [name]: at } : rest };
+      }),
+    (name, size) =>
+      onPanelsChange((p) => {
+        const { [name]: _old, ...rest } = p.size ?? {};
+        const next = size ? { ...rest, [name]: size } : rest;
+        const { size: _sizes, ...without } = p;
+        return Object.keys(next).length > 0 ? { ...without, size: next } : without;
+      }),
   );
   const [menu, setMenu] = useState<{ x: number; y: number; target: MenuTarget } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -555,7 +575,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   useEffect(() => {
     if (!focusEdgeLabel.current || !edge) return;
     focusEdgeLabel.current = false;
-    requestAnimationFrame(() => canvasRef.current?.querySelector<HTMLTextAreaElement>('.inspector textarea')?.focus());
+    requestAnimationFrame(() => canvasRef.current?.querySelector<HTMLTextAreaElement>('.panel-inspector textarea')?.focus());
   }, [edge]);
 
   // Ctrl/Cmd+A selects every node and edge, when the focus is on the canvas or nowhere (after a click on the empty canvas).
@@ -564,7 +584,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     const onKey = (e: KeyboardEvent): void => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a') return;
       const target = e.target as HTMLElement;
-      const onCanvas = canvasRef.current?.contains(target) && !target.closest('input, textarea, select, [contenteditable="true"], .inspector, .class-panel, .layout-panel');
+      const onCanvas = canvasRef.current?.contains(target) && !target.closest('input, textarea, select, [contenteditable="true"], .panel');
       if (!onCanvas && target !== document.body) return;
       e.preventDefault();
       setNodes((prev) => prev.map((n) => (n.selected ? n : { ...n, selected: true })));
@@ -646,9 +666,9 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   return (
     <div className={`canvas${readOnly ? ' read-only' : ''}${connecting ? ' connecting' : ''}`} data-dock={DEFAULT_DOCK_POSITION} ref={canvasRef} onKeyDown={onCanvasKeyDown} onPointerDown={panelDrag.onPointerDown} onDoubleClick={panelDrag.onDoubleClick} onDragOver={onClassDragOver} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setClassDropHover(null); }} onDrop={onClassDrop}>
       <OpenClassesContext.Provider value={openClasses}>
-      {classesOpen && <ClassPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
+      {diagramOpen && <DiagramPanel model={model} readOnly={readOnly} onChange={onChange} onClose={() => setPanelOpen('diagram', false)} />}
+      {classesOpen && <ClassesPanel model={model} selection={selection} readOnly={readOnly} onChange={onChange} onClose={() => setClassesOpen(false)} />}
       {paletteOpen && !readOnly && <PalettePanel model={model} onChange={onChange} onClose={() => setPanelOpen('palette', false)} />}
-      {layoutOpen && <LayoutPanel model={model} readOnly={readOnly} onChange={onChange} onClose={() => setPanelOpen('layout', false)} />}
       {menu && openedMenu && <ContextMenu x={menu.x} y={menu.y} title={openedMenu.title} items={openedMenu.items} onClose={closeMenu} />}
       <Dock position={DEFAULT_DOCK_POSITION}>
         {usecaseDiagram && (
@@ -675,17 +695,14 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
             <DockItem icon={DockIcons.subgraph} label={stateDiagram ? 'Composite' : 'Subgraph'} hint="Select nodes first to put them into it (Ctrl+G)" add onClick={onAddSubgraph} disabled={readOnly} />
           ))}
         <DockSeparator />
-        <DockMenu
+        <DockItem
           icon={DockIcons.direction(model.direction)}
-          label={swimlane ? 'Lanes' : 'Direction'}
-          hint={swimlane ? 'LR: lanes are rows. TB: lanes are columns.' : `${model.direction}: ${DIRECTION_NAMES[model.direction].toLowerCase()}`}
+          label="Diagram"
+          hint={`${swimlane ? 'Lanes' : DIRECTION_NAMES[model.direction]} (${model.direction}), and how Mermaid places the nodes`}
           badge={model.direction}
-          disabled={readOnly}
-          value={model.direction}
-          options={DIRECTIONS.map((d) => ({ value: d, label: `${DIRECTION_NAMES[d]} (${d})`, icon: DockIcons.direction(d) }))}
-          onChoose={(direction) => onChange({ ...model, direction })}
+          active={diagramOpen}
+          onClick={() => setPanelOpen('diagram', (o) => !o)}
         />
-        <DockItem icon={DockIcons.layout} label="Layout" hint="How Mermaid places and aligns the nodes" active={layoutOpen} onClick={() => setPanelOpen('layout', (o) => !o)} />
         {!swimlane && (
           <DockItem
             icon={DockIcons.free}
@@ -721,21 +738,13 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         <ClassStrip model={model} selection={selection} readOnly={readOnly} onChange={onChange} />
       </Dock>
 
-      {!readOnly && stateDiagram && node && <StateNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
-      {!readOnly && stateDiagram && subgraph && <StateSubgraphInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
-      {!readOnly && stateDiagram && edge && <StateEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
-      {!readOnly && usecaseDiagram && node && <UseCaseNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
-      {!readOnly && usecaseDiagram && subgraph && <UseCaseBoundaryInspector model={model} subgraph={subgraph} onChange={onChange} onDelete={deleteSelected} />}
-      {!readOnly && usecaseDiagram && edge && <UseCaseEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
-
-      {!readOnly && !stateDiagram && !usecaseDiagram && node && <FlowNodeInspector model={model} node={node} onChange={onChange} onDelete={deleteSelected} />}
-
-            {!readOnly && !stateDiagram && !usecaseDiagram && subgraph && <FlowSubgraphInspector model={model} subgraph={subgraph} lane={isLane(subgraph.id)} onChange={onChange} onDelete={deleteSelected} />}
-
-            {!readOnly && !stateDiagram && !usecaseDiagram && edge && <FlowEdgeInspector model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} />}
+      {!readOnly && (node || subgraph) && (
+        <NodePanel model={model} node={node} subgraph={subgraph} lane={!!subgraph && isLane(subgraph.id)} onChange={onChange} onDelete={deleteSelected} onClose={clearSelection} />
+      )}
+      {!readOnly && edge && <EdgePanel model={model} edge={edge} onChange={onChange} onDelete={deleteSelected} onClose={clearSelection} />}
 
       {!readOnly && selectedNodes.length + selectedEdges.length > 1 && (
-        <MultiInspector
+        <SelectionPanel
           model={model}
           nodes={model.nodes.filter((n) => selectedNodes.some((x) => x.id === n.id))}
           subgraphs={model.subgraphs.filter((sg) => selectedNodes.some((x) => x.id === sg.id))}
@@ -743,6 +752,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           flowchart={!stateDiagram && !usecaseDiagram}
           onChange={onChange}
           onDelete={deleteSelected}
+          onClose={clearSelection}
         />
       )}
 

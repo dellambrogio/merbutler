@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { parseReleaseNotes, RELEASED, RELEASES } from '../src/about/releaseNotes';
+import { parseReleaseNotes, RELEASED, RELEASES } from '../src/panels/releaseNotes';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 

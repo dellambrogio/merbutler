@@ -5,11 +5,12 @@ import { commentsFromText, commentsToText, isSwimlane, type FlowModel, type Styl
 import { stylesFromText, stylesToText } from '../flowchart/styling';
 import { AppearanceFields, ClassSelect, OwnStyleSection } from './styleControls';
 
-/** What every inspector gets: the model, a way to change it, and the delete action. */
+/** What every inspector gets: the model, a way to change it, the delete action, and closing (clears the selection). */
 export interface InspectorProps {
   model: FlowModel;
   onChange: (model: FlowModel) => void;
   onDelete: () => void;
+  onClose: () => void;
 }
 
 /** State diagrams: a state, `[*]`, choice, fork, join or note. */

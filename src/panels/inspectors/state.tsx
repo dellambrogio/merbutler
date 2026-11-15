@@ -1,16 +1,16 @@
 /** The inspector of state diagrams: a state (or [*], choice, fork, join, note), a composite state or region, a transition. */
 import type { JSX } from 'react';
-import { setParent, subgraphWithDescendants, updateEdge, updateNode, updateSubgraph, type FlowEdge, type FlowNode, type FlowSubgraph } from '../core/model';
-import { LabelInput, ParentSelect, StyleFields, type InspectorProps } from '../canvas/fields';
-import { DirectionSelect } from '../canvas/DirectionSelect';
-import { noteLink, setStateKind, STATE_KINDS } from './stateDiagram';
+import { setParent, subgraphWithDescendants, updateEdge, updateNode, updateSubgraph, type FlowEdge, type FlowNode, type FlowSubgraph } from '../../core/model';
+import { LabelInput, ParentSelect, StyleFields, type InspectorProps } from '../../canvas/fields';
+import { DirectionSelect } from '../../canvas/DirectionSelect';
+import { noteLink, setStateKind, STATE_KINDS } from '../../state/stateDiagram';
+import { Panel } from '../Panel';
 
-export function StateNodeInspector({ model, node, onChange, onDelete }: InspectorProps & { node: FlowNode }): JSX.Element {
+export function StateNodeInspector({ model, node, onChange, onDelete, onClose }: InspectorProps & { node: FlowNode }): JSX.Element {
   const pseudo = node.state === 'start' || node.state === 'end';
   const title = pseudo ? `[*] ${node.state}` : node.state === 'note' ? `Note on ${node.note?.of}` : `State ${node.id}`;
   return (
-    <div className="inspector">
-      <div className="inspector-title">{title}</div>
+    <Panel name="inspector" title={<>{title}</>} onClose={onClose}>
       {!pseudo && node.state !== 'fork' && node.state !== 'join' && node.state !== 'choice' && (
         <label>
           {node.state === 'note' ? 'Text' : 'Label'}
@@ -57,21 +57,20 @@ export function StateNodeInspector({ model, node, onChange, onDelete }: Inspecto
       <button className="danger" onClick={onDelete}>
         Delete {node.state === 'note' ? 'note' : 'state'}
       </button>
-    </div>
+    </Panel>
   );
 }
 
 /** State diagrams: a composite state, or a concurrency region in one. */
-export function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: InspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
+export function StateSubgraphInspector({ model, subgraph, onChange, onDelete, onClose }: InspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
   if (subgraph.region) {
     return (
-      <div className="inspector">
-        <div className="inspector-title">Concurrent region of {subgraph.parent}</div>
+      <Panel name="inspector" title={<>Concurrent region of {subgraph.parent}</>} onClose={onClose}>
         <div className="muted inspector-note">Regions are separated by -- in the code. Add states with + State while the region is selected.</div>
         <button className="danger" onClick={onDelete} title="Its states move to the composite state">
           Delete region (keep states)
         </button>
-      </div>
+      </Panel>
     );
   }
   const addRegion = (): void => {
@@ -96,8 +95,7 @@ export function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: 
     onChange({ ...next, subgraphs: [...next.subgraphs, ...created] });
   };
   return (
-    <div className="inspector">
-      <div className="inspector-title">Composite state {subgraph.id}</div>
+    <Panel name="inspector" title={<>Composite state {subgraph.id}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput key={`${subgraph.id}:${subgraph.label}`} value={subgraph.label} onCommit={(label) => onChange(updateSubgraph(model, subgraph.id, { label }))} />
@@ -116,18 +114,17 @@ export function StateSubgraphInspector({ model, subgraph, onChange, onDelete }: 
       <button className="danger" onClick={onDelete} title="The states inside move up one level">
         Delete composite (keep states)
       </button>
-    </div>
+    </Panel>
   );
 }
 
 /** State diagrams: a transition. Its label is the only setting. */
-export function StateEdgeInspector({ model, edge, onChange, onDelete }: InspectorProps & { edge: FlowEdge }): JSX.Element {
+export function StateEdgeInspector({ model, edge, onChange, onDelete, onClose }: InspectorProps & { edge: FlowEdge }): JSX.Element {
   if (edge.noteLink) {
     return (
-      <div className="inspector">
-        <div className="inspector-title">Note link</div>
+      <Panel name="inspector" title={<>Note link</>} onClose={onClose}>
         <div className="muted inspector-note">Select the note to change or delete it.</div>
-      </div>
+      </Panel>
     );
   }
   const name = (id: string): string => {
@@ -135,10 +132,7 @@ export function StateEdgeInspector({ model, edge, onChange, onDelete }: Inspecto
     return kind === 'start' || kind === 'end' ? '[*]' : id;
   };
   return (
-    <div className="inspector">
-      <div className="inspector-title">
-        Transition {name(edge.source)} → {name(edge.target)}
-      </div>
+    <Panel name="inspector" title={<>Transition {name(edge.source)} → {name(edge.target)}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput key={`${edge.id}:${edge.label}`} value={edge.label} onCommit={(label) => onChange(updateEdge(model, edge.id, { label }))} />
@@ -146,6 +140,6 @@ export function StateEdgeInspector({ model, edge, onChange, onDelete }: Inspecto
       <button className="danger" onClick={onDelete}>
         Delete transition
       </button>
-    </div>
+    </Panel>
   );
 }

@@ -12,12 +12,13 @@ import {
   type FlowEdge,
   type FlowNode,
   type FlowSubgraph,
-} from '../core/model';
-import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
-import { ShapePicker } from '../canvas/ShapePicker';
-import { DirectionSelect } from '../canvas/DirectionSelect';
-import { CurvePicker, EndPicker, LengthPicker, StrokePicker } from '../canvas/styleControls';
-import { checkClick } from './parseFlowchart';
+} from '../../core/model';
+import { CommentField, LabelInput, MarkdownToggle, ParentSelect, StyleFields, TextField, type InspectorProps } from '../../canvas/fields';
+import { ShapePicker } from '../../canvas/ShapePicker';
+import { DirectionSelect } from '../../canvas/DirectionSelect';
+import { CurvePicker, EndPicker, LengthPicker, StrokePicker } from '../../canvas/styleControls';
+import { checkClick } from '../../flowchart/parseFlowchart';
+import { Panel } from '../Panel';
 
 /** The rest of a node's `click` statement. Checked with Mermaid before it is applied. */
 function ClickField({ id, value, onCommit }: { id: string; value: string; onCommit: (click: string | undefined) => void }): JSX.Element {
@@ -119,10 +120,9 @@ function AssetFields({ id, asset, onChange }: { id: string; asset: Asset; onChan
   );
 }
 
-export function FlowNodeInspector({ model, node, onChange, onDelete }: InspectorProps & { node: FlowNode }): JSX.Element {
+export function FlowNodeInspector({ model, node, onChange, onDelete, onClose }: InspectorProps & { node: FlowNode }): JSX.Element {
   return (
-    <div className="inspector">
-      <div className="inspector-title">Node {node.id}</div>
+    <Panel name="inspector" title={<>Node {node.id}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput
@@ -163,16 +163,13 @@ export function FlowNodeInspector({ model, node, onChange, onDelete }: Inspector
       <button className="danger" onClick={onDelete}>
         Delete node
       </button>
-    </div>
+    </Panel>
   );
 }
 
-export function FlowSubgraphInspector({ model, subgraph, onChange, onDelete, lane }: InspectorProps & { subgraph: FlowSubgraph, lane: boolean }): JSX.Element {
+export function FlowSubgraphInspector({ model, subgraph, onChange, onDelete, lane, onClose }: InspectorProps & { subgraph: FlowSubgraph, lane: boolean }): JSX.Element {
   return (
-    <div className="inspector">
-      <div className="inspector-title">
-        {lane ? 'Lane' : 'Subgraph'} {subgraph.id}
-      </div>
+    <Panel name="inspector" title={<>{lane ? 'Lane' : 'Subgraph'} {subgraph.id}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput
@@ -220,17 +217,13 @@ export function FlowSubgraphInspector({ model, subgraph, onChange, onDelete, lan
       <button className="danger" onClick={onDelete} title="The nodes inside move up one level">
         Delete subgraph (keep contents)
       </button>
-    </div>
+    </Panel>
   );
 }
 
-export function FlowEdgeInspector({ model, edge, onChange, onDelete }: InspectorProps & { edge: FlowEdge }): JSX.Element {
+export function FlowEdgeInspector({ model, edge, onChange, onDelete, onClose }: InspectorProps & { edge: FlowEdge }): JSX.Element {
   return (
-    <div className="inspector">
-      <div className="inspector-title">
-        Edge {edge.ref ? `${edge.ref}: ` : ''}
-        {edge.source} → {edge.target}
-      </div>
+    <Panel name="inspector" title={<>Edge {edge.ref ? `${edge.ref}: ` : ''} {edge.source} → {edge.target}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput
@@ -273,6 +266,6 @@ export function FlowEdgeInspector({ model, edge, onChange, onDelete }: Inspector
       <button className="danger" onClick={onDelete}>
         Delete edge
       </button>
-    </div>
+    </Panel>
   );
 }

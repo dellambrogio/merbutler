@@ -28,6 +28,19 @@ describe('state in the URL hash', () => {
     expect(await readHash('#unknown=1')).toEqual({ gallery: null });
   });
 
+  test('resized panels round-trip', async () => {
+    const panels = { open: ['diagram'], at: {}, size: { diagram: { w: 320, h: 480.4 } } };
+    const hash = await writeHash({ gallery: null, panels });
+    expect(hash).toBe('open=diagram&size=diagram_320_480');
+    expect(await readHash(`#${hash}`)).toEqual({ gallery: null, panels: { open: ['diagram'], at: {}, size: { diagram: { w: 320, h: 480 } } } });
+    // Nonsense sizes are left out.
+    expect(await readHash('#size=diagram_x_1.palette_5_400')).toEqual({ gallery: null });
+  });
+
+  test('a link to the old Layout panel opens the Diagram panel', async () => {
+    expect(await readHash('#open=layout.classes&move=layout_10_-20')).toEqual({ gallery: null, panels: { open: ['diagram', 'classes'], at: { diagram: { x: 10, y: -20 } } } });
+  });
+
   test('open and dragged panels round-trip', async () => {
     const panels = { open: ['classes'], at: { toolbar: { x: 40, y: 0 }, inspector: { x: -120, y: 30 } } };
     const hash = await writeHash({ code, gallery: null, panels });

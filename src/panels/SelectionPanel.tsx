@@ -23,8 +23,9 @@ import {
   type Styled,
 } from '../core/model';
 import { declarationValue, withDeclaration } from '../flowchart/styling';
-import { ShapePicker } from './ShapePicker';
-import { AppearanceFields, ClassSelect, CurvePicker, EndPicker, LengthPicker, OwnStyleSection, StrokePicker } from './styleControls';
+import { Panel } from './Panel';
+import { ShapePicker } from '../canvas/ShapePicker';
+import { AppearanceFields, ClassSelect, CurvePicker, EndPicker, LengthPicker, OwnStyleSection, StrokePicker } from '../canvas/styleControls';
 
 /** A value that matches no option of a picker: the selected elements differ. */
 const MIXED = '\u0000mixed';
@@ -68,7 +69,7 @@ export function applyDeclarationChange(own: readonly string[] | undefined, befor
 /** Classes as a key, for comparing two elements' classes. */
 const classKey = (c: readonly string[] | undefined): string => (c ?? []).join(' ');
 
-interface MultiInspectorProps {
+interface SelectionPanelProps {
   model: FlowModel;
   nodes: FlowNode[];
   subgraphs: FlowSubgraph[];
@@ -77,13 +78,14 @@ interface MultiInspectorProps {
   flowchart: boolean;
   onChange: (model: FlowModel) => void;
   onDelete: () => void;
+  onClose: () => void;
 }
 
 function count(n: number, word: string): string | null {
   return n === 0 ? null : `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-export function MultiInspector({ model, nodes, subgraphs, edges, flowchart, onChange, onDelete }: MultiInspectorProps): JSX.Element {
+export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onChange, onDelete, onClose }: SelectionPanelProps): JSX.Element {
   const boxes: Array<FlowNode | FlowSubgraph> = [...nodes, ...subgraphs];
   const title = [count(nodes.length, 'node'), count(subgraphs.length, isSwimlane(model) ? 'lane or subgraph' : 'subgraph'), count(edges.length, 'edge')]
     .filter(Boolean)
@@ -128,9 +130,7 @@ export function MultiInspector({ model, nodes, subgraphs, edges, flowchart, onCh
   const curve = shared(edges.map((e) => e.curve));
 
   return (
-    <div className="inspector multi-inspector">
-      <div className="inspector-title">{title} selected</div>
-      <p className="muted inspector-hint">Changes apply to all of them. Empty fields differ between them.</p>
+    <Panel name="inspector" className="multi-inspector" title={`${title} selected`} hint="Changes apply to all of them. Empty fields differ between them." onClose={onClose}>
 
       {shaped.length > 0 && (
         <ShapePicker value={shape === MIXED ? null : shape} onChange={(s: Shape) => onChange(shaped.reduce((m, n) => updateNode(m, n.id, { shape: s }), model))} />
@@ -225,6 +225,6 @@ export function MultiInspector({ model, nodes, subgraphs, edges, flowchart, onCh
       <button className="danger" onClick={onDelete}>
         Delete {title}
       </button>
-    </div>
+    </Panel>
   );
 }

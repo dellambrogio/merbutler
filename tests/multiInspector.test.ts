@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { applyDeclarationChange, sharedDeclarations } from '../src/canvas/MultiInspector';
+import { applyDeclarationChange, sharedDeclarations } from '../src/panels/SelectionPanel';
 
 describe('editing the style of several elements', () => {
   test('only declarations with the same value everywhere are shown', () => {

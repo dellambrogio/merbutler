@@ -198,12 +198,6 @@ button.danger { color: var(--danger); }
   background: #fdecec; color: #c43c3c; font-size: 12px; white-space: pre-wrap;
 }
 
-.inspector {
-  position: absolute; z-index: 5; background: var(--panel);
-  border: 1px solid var(--border); border-radius: 8px; padding: 6px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-}
-.inspector { top: 10px; right: 10px; width: 264px; max-height: calc(100% - 20px - var(--inspector-y, 0px)); translate: var(--inspector-x, 0) var(--inspector-y, 0); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
 
 /* The dock (Dock.tsx): the canvas's tools as macOS-like tiles, at the bottom and centered. */
 .dock {
@@ -256,27 +250,6 @@ button.danger { color: var(--danger); }
 .dock-label small { color: var(--muted); font-size: 11px; font-weight: 400; white-space: normal; }
 .dock[data-position="top"] .dock-label { bottom: auto; top: calc(100% + 12px); }
 .dock-item:hover .dock-label, .dock-item:focus-visible .dock-label { opacity: 1; }
-.dock-menu-anchor { position: relative; display: flex; }
-.dock-menu-anchor.open .dock-label { opacity: 0; }
-.dock-menu {
-  position: absolute; left: 50%; bottom: calc(100% + 12px); translate: -50% 0; z-index: 2;
-  display: flex; flex-direction: column; gap: 1px; min-width: 190px; padding: 5px;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
-}
-.dock[data-position="top"] .dock-menu { bottom: auto; top: calc(100% + 12px); }
-.dock-menu-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: none; border-radius: 6px;
-  background: none; color: var(--text); font-size: 13px; text-align: left; white-space: nowrap;
-}
-.dock-menu-item:hover:not(:disabled), .dock-menu-item:focus-visible { outline: none; background: var(--accent); color: #fff; }
-.dock-menu-item[aria-checked="true"] { font-weight: 600; }
-.dock-menu-icon { display: flex; flex: none; width: 20px; height: 20px; color: var(--accent); }
-.dock-menu-item:is(:hover, :focus-visible) .dock-menu-icon { color: inherit; }
-.dock-menu-icon svg { width: 100%; height: 100%; }
-.dock-menu-label { flex: 1; }
-.dock-menu-check { flex: none; width: 1em; text-align: center; }
 .dock-separator { flex: none; align-self: stretch; width: 1px; margin: 2px 3px; background: var(--border); }
 .dock-classes { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .dock[data-position="top"] .dock-classes { align-items: flex-start; }
@@ -287,10 +260,6 @@ button.danger { color: var(--danger); }
   box-sizing: border-box; width: 100%; height: 100%; min-width: 0; padding: 0; border-radius: inherit;
   font-size: calc(var(--dock-size) * 0.32);
 }
-.canvas[data-dock="bottom"] .inspector { max-height: calc(100% - 96px - var(--inspector-y, 0px)); }
-.inspector-title { font-weight: 600; }
-.inspector label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
-.inspector label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
 
 .shape-node { position: relative; display: flex; align-items: center; justify-content: center; }
 .shape-outline { position: absolute; inset: 0; overflow: visible; filter: var(--node-filter, none); }
@@ -312,7 +281,7 @@ button.danger { color: var(--danger); }
 }
 .shape-input, .subgraph-input { position: relative; resize: none; font: inherit; line-height: 18px; }
 .shape-input { width: 85%; text-align: center; padding: 2px 4px; }
-.inspector textarea { font: inherit; resize: vertical; line-height: 18px; padding: 3px 8px; }
+.panel-body textarea { font: inherit; resize: vertical; line-height: 18px; padding: 3px 8px; }
 .edge-label {
   position: absolute; pointer-events: all; padding: 2px 4px; border-radius: 3px;
   background: var(--edge-label-bg, var(--bg)); color: var(--text); font-size: 12px; line-height: 16px; text-align: center;
@@ -549,7 +518,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .subgraph-node.region { border-style: dashed; border-radius: 4px; background: transparent; }
 .subgraph-node.region .subgraph-title { min-height: 10px; padding: 2px; }
 .inspector-note { font-size: 12px; }
-.inspector-hint { margin: -4px 0 0; font-size: 12px; }
 
 /* Structured editors (outline, tables) next to the preview. */
 .structured-layout { position: absolute; inset: 0; display: grid; grid-template-columns: var(--split, minmax(260px, 380px)) 1fr; }
@@ -716,21 +684,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .inspector-row { display: flex; gap: 8px; }
 .inspector-row label { flex: 1; min-width: 0; }
 
-/* Floating panels move by a drag on their background (draggablePanels.ts). */
-:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel) { cursor: grab; }
-:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel).dragging { cursor: grabbing; user-select: none; }
-:is(.dock, .inspector, .class-panel, .layout-panel, .palette-panel) :is(input, textarea, select, label, a, summary, [contenteditable]) { cursor: auto; }
-
-/* Style classes panel (ClassPanel.tsx), above the dock, between the layout and palette panels. */
-.class-panel {
-  position: absolute; z-index: 6; bottom: 78px; left: max(270px, calc(50% - 150px)); width: 290px; max-height: calc(100% - 90px + var(--classes-y, 0px));
-  translate: var(--classes-x, 0) var(--classes-y, 0);
-  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-}
-.class-panel-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; }
-.class-panel-hint { margin: 0; padding: 0 10px 6px; font-size: 12px; }
-.class-list { overflow-y: auto; padding: 0 6px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
 .class-row { border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 .class-row.expanded { border-color: var(--accent); }
 .class-row-head { display: flex; align-items: center; }
@@ -743,12 +696,13 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .class-apply { margin-right: 6px; padding: 0 8px; line-height: 22px; font-weight: 600; }
 .class-apply.on { color: var(--danger); }
 .class-row-body { display: flex; flex-direction: column; gap: 8px; padding: 6px 8px 10px; border-top: 1px solid var(--border); }
-.class-row-body label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
-.class-new { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--border); margin-top: 6px; }
+.class-list { display: flex; flex-direction: column; gap: 4px; }
+.class-new { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .class-new input { flex: 1; min-width: 0; }
 .class-new .field-error { flex-basis: 100%; }
-.class-sets { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 10px 10px; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-.class-set { align-self: stretch; display: flex; flex-direction: column; gap: 4px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+/* Palettes: as many columns as cards of at least 200px fit; the cards share the row, so they always fill it. */
+.class-sets { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
+.class-set { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 .class-set-head { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .class-set-names { flex: 1; min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .class-set-head button { flex: none; font-size: 12px; padding: 1px 8px; }
@@ -809,24 +763,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .react-flow__node.dragging { opacity: 0.75; }
 .react-flow__node.drop-target > .subgraph-node { border-color: var(--accent); border-style: solid; border-width: 2px; background: var(--selection); }
 
-/* Palettes panel (PalettePanel in ClassPanel.tsx), above the dock, right of the classes panel. */
-.palette-panel {
-  position: absolute; z-index: 6; bottom: 78px; left: max(570px, calc(50% + 150px)); width: 270px; max-height: calc(100% - 90px + var(--palette-y, 0px));
-  translate: var(--palette-x, 0) var(--palette-y, 0);
-  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-}
-/* Layout panel (LayoutPanel.tsx), above the dock, left of the classes panel. */
-.layout-panel {
-  position: absolute; z-index: 6; bottom: 78px; left: max(10px, calc(50% - 410px)); width: 250px; max-height: calc(100% - 90px + var(--layout-y, 0px));
-  translate: var(--layout-x, 0) var(--layout-y, 0); overflow-y: auto; scrollbar-width: thin;
-  display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
-}
-.layout-fields { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; }
-.layout-fields label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
-.layout-fields label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
-.layout-fields .class-panel-hint { padding: 0; }
 
 /* The open diagram's name in the header: opens the saved diagrams. */
 .diagram-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
@@ -855,18 +791,13 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .library-actions { display: flex; gap: 10px; padding: 0 6px 2px; }
 .link-button.danger { color: var(--danger); }
 .library-empty { padding: 12px 6px; font-size: 13px; }
-/* The Mermaid version an option needs (LayoutPanel.tsx). */
+/* The Mermaid version an option needs (DiagramPanel.tsx). */
 .layout-label { display: flex; align-items: center; gap: 6px; }
 .since-tag {
   display: inline-block; padding: 0 5px; border: 1px solid var(--border); border-radius: 999px;
   font-size: 10px; line-height: 15px; color: var(--muted); white-space: nowrap; cursor: help;
 }
 
-.canvas[data-dock="top"] :is(.class-panel, .layout-panel, .palette-panel) { top: 78px; bottom: auto; }
-.canvas[data-dock="top"] .palette-panel { max-height: calc(100% - 90px - var(--palette-y, 0px)); }
-.canvas[data-dock="top"] .class-panel { max-height: calc(100% - 90px - var(--classes-y, 0px)); }
-.canvas[data-dock="top"] .layout-panel { max-height: calc(100% - 90px - var(--layout-y, 0px)); }
-.canvas[data-dock="top"] .inspector { top: 78px; max-height: calc(100% - 88px - var(--inspector-y, 0px)); }
 
 /* Direction pull-down of a subgraph (DirectionSelect.tsx), with the dock's direction icons. */
 .direction-option { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; color: var(--text); font-size: 13px; }
@@ -882,16 +813,7 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 /* No hover labels while a class is dragged. */
 .class-dragging .dock-label { display: none; }
 
-/* About dialog (about/About.tsx). */
-.about {
-  width: min(460px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--bg); color: var(--text); box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
-}
-.about::backdrop { background: rgb(0 0 0 / 0.35); }
-.about-body { padding: 16px 20px 18px; }
-.about-head { display: flex; align-items: baseline; gap: 8px; }
-.about-head h2 { margin: 0; font-size: 18px; }
-.about-head button { padding: 0 8px; line-height: 22px; }
+/* About panel (panels/AboutPanel.tsx). */
 .about p { margin: 10px 0; line-height: 1.45; }
 .about a { color: var(--accent); }
 .about-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 14px 0; font-size: 13px; }
@@ -931,14 +853,11 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .cm-syntax-entry code { font-family: ui-monospace, monospace; padding: 0 3px; border-radius: 3px; background: var(--selection-match); }
 .cm-syntax-more { margin-top: 6px; color: var(--muted); }
 
-/* Settings dialog (settings/SettingsDialog.tsx), on the About dialog's frame. */
-.settings { width: min(520px, calc(100vw - 32px)); }
-.settings .settings-note { margin: 4px 0 8px; font-size: 12px; }
-.settings-group { margin: 10px 0 0; padding: 4px 12px 8px; border: 1px solid var(--border); border-radius: 6px; }
-.settings-group legend { padding: 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+/* Settings panel (panels/SettingsPanel.tsx). */
+.settings .panel-section { gap: 0; }
 .settings-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 2px 12px; padding: 6px 0; }
 .settings-row + .settings-row { border-top: 1px solid var(--border); }
-.settings-label { font-size: 13px; font-weight: 500; }
+.panel-body label.settings-label { display: block; color: var(--text); font-size: 13px; font-weight: 500; }
 .settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .settings-control input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .settings-control input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
@@ -948,7 +867,6 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .settings-choices button + button { border-left: 1px solid var(--border); }
 .settings-choices button.selected { background: var(--accent); color: #fff; }
 .settings .settings-description { grid-column: 2; margin: 0; font-size: 11.5px; line-height: 1.4; }
-.settings-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
 @media (max-width: 480px) {
   .settings-row { grid-template-columns: 1fr; }
   .settings .settings-description { grid-column: 1; }
@@ -984,3 +902,75 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .about-notes li { margin: 3px 0; line-height: 1.4; }
 .about-notes p { margin: 6px 0; }
 .about-notes code { font-family: ui-monospace, monospace; font-size: 11.5px; padding: 0 3px; border-radius: 3px; background: var(--selection-match); }
+
+/* Panels (panels/Panel.tsx): one frame for every panel, floating over the canvas or in a window over the app. */
+.panel {
+  box-sizing: border-box; padding: 0; color: var(--text); font-size: 13px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+.panel-floating, .panel-frame { display: flex; flex-direction: column; min-height: 0; }
+.panel-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 7px 7px 12px; border-bottom: 1px solid var(--border); }
+.panel-title { min-width: 0; margin: 0; overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.panel-meta { flex: none; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.panel-close {
+  flex: none; width: 24px; height: 24px; padding: 0; border: none; border-radius: 6px;
+  background: none; color: var(--muted); font-size: 12px; line-height: 24px;
+}
+.panel-close:hover { background: var(--selection); color: var(--text); }
+.panel-hint { flex: none; margin: 0; padding: 8px 12px 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.panel-body > .panel-hint { padding: 0; }
+.panel-hint code { font-family: ui-monospace, monospace; font-size: 11.5px; }
+.panel-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; overflow-y: auto; scrollbar-width: thin; }
+.panel-body label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 12px; }
+.panel-body label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
+.panel-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.panel-section { display: flex; flex-direction: column; gap: 8px; }
+.panel-section + .panel-section { padding-top: 10px; border-top: 1px solid var(--border); }
+.panel-section-title { margin: 0; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.panel-foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); }
+
+/* Floating panels: the node, edge and selection panel at the top right; the others above the dock,
+   side by side (Diagram, Classes, Palette, as in the dock). A drag moves one (draggablePanels.ts). */
+.panel-floating { --panel-y: 0px; --panel-width: 280px; position: absolute; z-index: 6; overflow: hidden; max-height: min(var(--panel-h), calc(100% - 90px + var(--panel-y))); }
+/* The resize handle (draggablePanels.ts): the bottom-right corner, drawn as two short diagonal lines. */
+.panel-resize {
+  position: absolute; right: 1px; bottom: 1px; z-index: 1; width: 14px; height: 14px; cursor: nwse-resize; border-bottom-right-radius: 11px;
+  background: linear-gradient(135deg, transparent 0 55%, var(--muted) 55% 61%, transparent 61% 72%, var(--muted) 72% 78%, transparent 78%);
+  opacity: 0.45;
+}
+.panel-floating:hover .panel-resize, .panel-floating.resizing .panel-resize { opacity: 0.9; }
+.panel-floating.resizing { user-select: none; }
+.panel-floating.resizing, .panel-floating.resizing * { cursor: nwse-resize !important; }
+.panel-inspector { --panel-y: var(--inspector-y, 0px); z-index: 5; top: 10px; right: 10px; max-height: min(var(--panel-h), calc(100% - 96px - var(--panel-y))); translate: var(--inspector-x, 0) var(--inspector-y, 0); }
+.panel-diagram { --panel-y: var(--diagram-y, 0px); bottom: 78px; left: max(10px, calc(50% - 430px)); translate: var(--diagram-x, 0) var(--diagram-y, 0); }
+.panel-classes { --panel-y: var(--classes-y, 0px); bottom: 78px; left: max(300px, calc(50% - 140px)); translate: var(--classes-x, 0) var(--classes-y, 0); }
+.panel-palette { --panel-y: var(--palette-y, 0px); bottom: 78px; left: max(590px, calc(50% + 150px)); translate: var(--palette-x, 0) var(--palette-y, 0); }
+.canvas[data-dock="top"] :is(.panel-diagram, .panel-classes, .panel-palette) { top: 78px; bottom: auto; max-height: min(var(--panel-h), calc(100% - 90px - var(--panel-y))); }
+.canvas[data-dock="top"] .panel-inspector { top: 78px; max-height: min(var(--panel-h), calc(100% - 88px - var(--panel-y))); }
+:is(.dock, .panel-floating) { cursor: grab; }
+:is(.dock, .panel-floating).dragging { cursor: grabbing; user-select: none; }
+:is(.dock, .panel-floating) :is(input, textarea, select, label, a, summary, [contenteditable]) { cursor: auto; }
+
+/* Window panels (About, Settings): over the whole app, not modal. */
+.panel-window {
+  position: fixed; inset: 0; z-index: 60; margin: auto; height: fit-content;
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: hidden;
+}
+.panel-window:focus { outline: none; }
+.panel-window.settings { width: min(520px, calc(100vw - 32px)); }
+/* A window panel moves by a drag on its background (useMovableWindow in Panel.tsx). */
+.panel-window .panel-frame { cursor: grab; }
+.panel-window.dragging .panel-frame { cursor: grabbing; user-select: none; }
+.panel-window .panel-frame :is(input, textarea, select, label, a, summary, button, [contenteditable]) { cursor: auto; }
+.panel-window .panel-frame { max-height: calc(100vh - 50px); }
+
+/* Diagram panel: the four directions as a segmented control with the dock's icons. */
+.direction-choices { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.direction-choices button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 4px; border: none; border-radius: 0;
+  background: none; color: var(--text); font-size: 11px; font-weight: 600;
+}
+.direction-choices button + button { border-left: 1px solid var(--border); }
+.direction-choices button.selected { background: var(--accent); color: #fff; }
+.direction-choices button.selected .direction-icon { color: inherit; }

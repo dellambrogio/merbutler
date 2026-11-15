@@ -21,7 +21,7 @@ Everything runs in the browser: no server, no account.
 ![Typing code updates the canvas; renaming, reshaping, adding and connecting nodes on the canvas updates the code](docs/demo.gif)
 
 Type code and the canvas follows. Rename a node, change its shape, add and connect nodes, or flip the direction,
-and the code follows. The dock (the tools at the bottom of the canvas) and the inspector can be dragged out of the way; the link keeps where they are.
+and the code follows. The dock (the tools at the bottom of the canvas) and every panel can be dragged out of the way, and panels resized by their corner; the link keeps where they are and their size.
 ([MP4 version](docs/demo.mp4))
 
 ### How the sync works
@@ -117,7 +117,7 @@ just dev        # open the URL that Vite prints
   Renames and style edits do not move the view.
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
   ELK gets the options Mermaid gives it, including the `elk:` config (`preset`, `nodePlacementAlignment`,
-  `nodePlacementStrategy`, `considerModelOrder`, …). The **Layout** panel in the dock sets them in the front matter,
+  `nodePlacementStrategy`, `considerModelOrder`, …). The **Diagram** panel (dock → **Diagram**) sets them in the front matter,
   for example to line nodes up to one side, or to keep them in the order of the code.
   With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
   shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
@@ -200,7 +200,7 @@ window does not see them.
 | Connect | Hover over a node or subgraph to show its handles, then drag from a handle and drop it on a handle of another node or subgraph |
 | Edge label, line, end marker, both ends, length, curve | Select the edge → inspector: the line (normal, dotted, thick, invisible), the marker (none, arrow, circle, cross), the length (1–3 ranks) and the curve (each drawn with Mermaid's own curve) are picked from small drawings |
 | Colors and text style | Select a node, subgraph or edge → inspector → **Own style**: swatches or any color for fill, border (or line) and text, border width and style, bold, italic. Written as `style id …` / `linkStyle n …`; **Reset** removes it, **Advanced** shows it as text |
-| Style classes | Toolbar → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
+| Style classes | Dock → **Classes**: every `classDef` with a preview and how many elements use it. Create, rename, edit (same controls as above) and delete classes; rename and delete update every element. With elements selected, **＋ / −** adds or removes a class on them. In the inspector, the class chips do the same for one element |
 | Delete | Select, then `Delete`/`Backspace`, or the inspector button. Deleting a subgraph keeps its contents: they move up one level |
 | Direction | Toolbar select. In a free layout, moving nodes sets it from the drawing |
 | Free layout | Dock → **Free layout**: drag nodes and subgraphs anywhere; their positions are kept in the code. Click again for Mermaid's layout, and once more to put your nodes back |

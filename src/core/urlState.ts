@@ -10,6 +10,8 @@
  * - `open`: the canvas panels that can be closed and are open, `.`-separated (`open=classes`).
  * - `move`: canvas panels the user dragged, as `name_x_y` in pixels, `.`-separated
  *   (`move=dock_40_0.inspector_-120_30`). A panel left out is in its own place.
+ * - `size`: canvas panels the user resized, as `name_width_height` in pixels, `.`-separated
+ *   (`size=diagram_320_480`). A panel left out has its own size.
  * - `split`: the width of the code editor, in percent of the window (`split=35.5`).
  * - `editorsplit`: the width of an outline or table editor, in percent of the area next to the code.
  *
@@ -35,12 +37,20 @@ export interface PanelOffset {
   y: number;
 }
 
-/** Which canvas panels are open, and where the user dragged them. */
+/** The size in pixels a panel was resized to. */
+export interface PanelSize {
+  w: number;
+  h: number;
+}
+
+/** Which canvas panels are open, where the user dragged them and what size they gave them. */
 export interface PanelLayout {
   /** Names of the open panels among those that can be closed. */
   open: string[];
   /** Offsets of the dragged panels, by name. */
   at: Record<string, PanelOffset>;
+  /** Sizes of the resized panels, by name; missing when none was resized. */
+  size?: Record<string, PanelSize>;
 }
 
 export const NO_PANELS: PanelLayout = { open: [], at: {} };
@@ -56,6 +66,10 @@ function writePanels(panels: PanelLayout | undefined): string[] {
     .filter(([n, at]) => PANEL_NAME.test(n) && (Math.round(at.x) !== 0 || Math.round(at.y) !== 0))
     .map(([n, at]) => `${n}_${Math.round(at.x)}_${Math.round(at.y)}`);
   if (moved.length > 0) params.push(`move=${moved.join('.')}`);
+  const sized = Object.entries(panels.size ?? {})
+    .filter(([n, s]) => PANEL_NAME.test(n) && s.w > 0 && s.h > 0)
+    .map(([n, s]) => `${n}_${Math.round(s.w)}_${Math.round(s.h)}`);
+  if (sized.length > 0) params.push(`size=${sized.join('.')}`);
   return params;
 }
 
@@ -68,14 +82,23 @@ function readPercent(text: string | null): number | undefined {
   return n >= 5 && n <= 95 ? n : undefined;
 }
 
+/** Panels that were renamed: links made before still open them. */
+const RENAMED: Record<string, string> = { layout: 'diagram' };
+
 function readPanels(params: URLSearchParams): PanelLayout | undefined {
-  const open = (params.get('open') ?? '').split('.').filter((n) => PANEL_NAME.test(n));
+  const open = [...new Set((params.get('open') ?? '').split('.').filter((n) => PANEL_NAME.test(n)).map((n) => RENAMED[n] ?? n))];
   const at: Record<string, PanelOffset> = {};
   for (const part of (params.get('move') ?? '').split('.')) {
     const m = /^([a-z][a-z0-9-]*)_(-?\d+)_(-?\d+)$/.exec(part);
-    if (m && (m[2] !== '0' || m[3] !== '0')) at[m[1]] = { x: Number(m[2]), y: Number(m[3]) };
+    if (m && (m[2] !== '0' || m[3] !== '0')) at[RENAMED[m[1]] ?? m[1]] = { x: Number(m[2]), y: Number(m[3]) };
   }
-  return open.length > 0 || Object.keys(at).length > 0 ? { open, at } : undefined;
+  const size: Record<string, PanelSize> = {};
+  for (const part of (params.get('size') ?? '').split('.')) {
+    const m = /^([a-z][a-z0-9-]*)_(\d{2,4})_(\d{2,4})$/.exec(part);
+    if (m) size[RENAMED[m[1]] ?? m[1]] = { w: Number(m[2]), h: Number(m[3]) };
+  }
+  if (open.length === 0 && Object.keys(at).length === 0 && Object.keys(size).length === 0) return undefined;
+  return Object.keys(size).length > 0 ? { open, at, size } : { open, at };
 }
 
 function toBase64Url(bytes: Uint8Array): string {

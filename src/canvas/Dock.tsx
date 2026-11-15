@@ -1,12 +1,12 @@
 /**
- * The dock: the canvas's row of tools (add a node, a subgraph, …, the direction, the Layout,
- * Classes and Palette panels, and the style classes), drawn like the macOS dock. Each tool is an icon tile
+ * The dock: the canvas's row of tools (add a node, a subgraph, …, the Diagram, Classes and
+ * Palette panels, and the style classes), drawn like the macOS dock. Each tool is an icon tile
  * with its name in a bubble on hover, and a dot under the tiles whose panel is open.
  *
  * It sits at the bottom of the canvas, centered; `DockPosition` leaves room for a setting that
  * puts it at the top instead.
  */
-import { useEffect, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react';
+import type { JSX, ReactNode } from 'react';
 import type { Direction } from '../core/model';
 
 export type DockPosition = 'bottom' | 'top';
@@ -16,13 +16,13 @@ export const DEFAULT_DOCK_POSITION: DockPosition = 'bottom';
 
 export function Dock({ position = DEFAULT_DOCK_POSITION, children }: { position?: DockPosition; children: ReactNode }): JSX.Element {
   return (
-    <div className="dock" data-position={position} role="toolbar" aria-label="Dock">
+    <div className="dock" data-panel="dock" data-position={position} role="toolbar" aria-label="Dock">
       {children}
     </div>
   );
 }
 
-export function DockItem({ icon, label, hint, onClick, disabled = false, active, add = false, badge, menuOpen }: {
+export function DockItem({ icon, label, hint, onClick, disabled = false, active, add = false, badge }: {
   icon: ReactNode;
   /** The name in the hover bubble (and for screen readers). */
   label: string;
@@ -36,8 +36,6 @@ export function DockItem({ icon, label, hint, onClick, disabled = false, active,
   add?: boolean;
   /** A short text on the tile's corner, such as a count. */
   badge?: string;
-  /** For a tile that opens a menu: whether it is open. */
-  menuOpen?: boolean;
 }): JSX.Element {
   return (
     <button
@@ -48,8 +46,6 @@ export function DockItem({ icon, label, hint, onClick, disabled = false, active,
       disabled={disabled}
       aria-label={hint ? `${label}: ${hint}` : label}
       aria-pressed={active}
-      aria-haspopup={menuOpen === undefined ? undefined : 'menu'}
-      aria-expanded={menuOpen}
     >
       <span className="dock-tile">
         <span className="dock-icon" aria-hidden="true">{icon}</span>
@@ -59,91 +55,6 @@ export function DockItem({ icon, label, hint, onClick, disabled = false, active,
       <DockLabel label={label} hint={hint} />
       {active !== undefined && <span className="dock-dot" aria-hidden="true" />}
     </button>
-  );
-}
-
-export interface DockMenuOption<T extends string> {
-  value: T;
-  label: string;
-  icon: ReactNode;
-}
-
-/**
- * A tile that opens a menu of options above it, each with an icon and a name; the current one is
- * checked. Escape, a click elsewhere or a choice closes it; the arrow keys move between options.
- */
-export function DockMenu<T extends string>({ icon, label, hint, badge, disabled = false, value, options, onChoose }: {
-  icon: ReactNode;
-  label: string;
-  hint?: string;
-  badge?: string;
-  disabled?: boolean;
-  value: T;
-  options: readonly DockMenuOption<T>[];
-  onChoose: (value: T) => void;
-}): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const outside = (e: PointerEvent): void => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener('pointerdown', outside, true);
-    // Start on the current option, so Enter keeps it and the arrows move from it.
-    menuRef.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
-    return () => window.removeEventListener('pointerdown', outside, true);
-  }, [open]);
-
-  const close = (): void => {
-    setOpen(false);
-    ref.current?.querySelector<HTMLElement>('.dock-item')?.focus();
-  };
-  const onKeyDown = (e: KeyboardEvent): void => {
-    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])];
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    const move = (to: number): void => {
-      e.preventDefault();
-      e.stopPropagation(); // not the canvas's arrow keys
-      items[(to + items.length) % items.length]?.focus();
-    };
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    } else if (e.key === 'ArrowDown') move(at + 1);
-    else if (e.key === 'ArrowUp') move(at - 1);
-    else if (e.key === 'Home') move(0);
-    else if (e.key === 'End') move(items.length - 1);
-  };
-
-  return (
-    <div className={`dock-menu-anchor${open ? ' open' : ''}`} ref={ref} onKeyDown={open ? onKeyDown : undefined}>
-      <DockItem icon={icon} label={label} hint={hint} badge={badge} disabled={disabled} menuOpen={open} onClick={() => setOpen(!open)} />
-      {open && (
-        <div className="dock-menu" role="menu" aria-label={label} ref={menuRef}>
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={option.value === value}
-              className="dock-menu-item"
-              onClick={() => {
-                if (option.value !== value) onChoose(option.value);
-                close();
-              }}
-            >
-              <span className="dock-menu-icon" aria-hidden="true">{option.icon}</span>
-              <span className="dock-menu-label">{option.label}</span>
-              <span className="dock-menu-check" aria-hidden="true">{option.value === value ? '✓' : ''}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -162,7 +73,7 @@ export function DockSeparator(): JSX.Element {
 
 const DIRECTION_ANGLE: Record<Direction, number> = { LR: 0, TB: 90, RL: 180, BT: 270 };
 
-/** What each direction means, for menus. */
+/** What each direction means. */
 export const DIRECTION_NAMES: Record<Direction, string> = { TB: 'Top to bottom', BT: 'Bottom to top', LR: 'Left to right', RL: 'Right to left' };
 
 /** 24×24 line icons in the current color. */

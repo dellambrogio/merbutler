@@ -1,57 +1,40 @@
-import { useEffect, useRef, type JSX } from 'react';
+import type { JSX } from 'react';
+import { WindowPanel, PanelSection } from './Panel';
 import { DEFAULT_SETTINGS, resetSettings, saveSettings, SETTING_INFO, useSettings, type Settings, type SettingInfo } from '../core/settings';
 
 const KEYS = Object.keys(SETTING_INFO) as Array<keyof Settings>;
 const GROUPS = [...new Set(KEYS.map((k) => SETTING_INFO[k].group))];
 
-/** The app settings, in a modal dialog. Each change applies and is stored at once. */
-export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element {
-  const dialog = useRef<HTMLDialogElement>(null);
+/** The Settings panel: the app settings. Each change applies and is stored at once. */
+export function SettingsPanel({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element {
   const settings = useSettings();
-  useEffect(() => {
-    const d = dialog.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    else if (!open && d.open) d.close();
-  }, [open]);
   const allDefault = KEYS.every((k) => settings[k] === DEFAULT_SETTINGS[k]);
 
   return (
-    <dialog
-      ref={dialog}
-      className="about settings"
-      aria-labelledby="settings-title"
+    <WindowPanel
+      open={open}
       onClose={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="about-body">
-        <div className="about-head">
-          <h2 id="settings-title">Settings</h2>
-          <span className="spacer" />
-          <button onClick={onClose} aria-label="Close" title="Close (Esc)">
-            ✕
-          </button>
-        </div>
-        <p className="muted settings-note">Changes apply at once and are kept in this browser.</p>
-        {GROUPS.map((group) => (
-          <fieldset key={group} className="settings-group">
-            <legend>{group}</legend>
-            {KEYS.filter((k) => SETTING_INFO[k].group === group).map((key) => (
-              <SettingRow key={key} id={key} info={SETTING_INFO[key]} value={settings[key]} />
-            ))}
-          </fieldset>
-        ))}
-        <div className="settings-foot">
+      className="settings"
+      title="Settings"
+      hint="Changes apply at once and are kept in this browser."
+      foot={
+        <>
           <button onClick={() => resetSettings()} disabled={allDefault} title="Put every setting back to its default">
             Reset to defaults
           </button>
           <span className="spacer" />
           <button onClick={onClose}>Done</button>
-        </div>
-      </div>
-    </dialog>
+        </>
+      }
+    >
+      {GROUPS.map((group) => (
+        <PanelSection key={group} title={group}>
+          {KEYS.filter((k) => SETTING_INFO[k].group === group).map((key) => (
+            <SettingRow key={key} id={key} info={SETTING_INFO[key]} value={settings[key]} />
+          ))}
+        </PanelSection>
+      ))}
+    </WindowPanel>
   );
 }
 

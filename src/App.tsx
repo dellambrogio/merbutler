@@ -9,9 +9,9 @@ import { Gallery, loadView } from './gallery/Gallery';
 import { GALLERY_TYPES } from './gallery/gallery';
 import { NO_PANELS, readHash, writeHash, type PanelLayout, type UrlState } from './core/urlState';
 import { Preview } from './preview/Preview';
-import { About } from './about/About';
+import { AboutPanel } from './panels/AboutPanel';
 import { APP_VERSION } from './version';
-import { SettingsDialog } from './settings/SettingsDialog';
+import { SettingsPanel } from './panels/SettingsPanel';
 import { applyTheme } from './settings/theme';
 import { DEFAULT_SETTINGS, getSettings, saveSettings, useSettings } from './core/settings';
 import { SyntaxPanel } from './syntax/SyntaxPanel';
@@ -536,8 +536,8 @@ export function App(): JSX.Element {
           About
         </button>
       </header>
-      <About open={aboutOpen} onClose={closeAbout} />
-      <SettingsDialog open={settingsOpen} onClose={closeSettings} />
+      <AboutPanel open={aboutOpen} onClose={closeAbout} />
+      <SettingsPanel open={settingsOpen} onClose={closeSettings} />
       <main className="panes">
         <div className="pane side-pane">
           <PanelSection id="code" title="Code" grow>

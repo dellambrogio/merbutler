@@ -1,15 +1,20 @@
 /**
- * The layout panel: the layout engine and the `elk:` options that decide where nodes go and how
- * they line up. Each control writes the front matter `config:` of the code, so the code stays
- * plain Mermaid, and "Default" removes the option. An option set by a `%%{init}%%` directive wins
- * over the front matter, so its control only shows it.
+ * The diagram panel: how the whole diagram is laid out. Its direction (or, in a swimlane diagram,
+ * whether lanes are rows or columns), and the layout engine with the `elk:` options that decide
+ * where nodes go and how they line up. Free layout stays a tile in the dock.
+ *
+ * The layout options write the front matter `config:` of the code, so the code stays plain
+ * Mermaid, and "Default" removes the option. An option set by a `%%{init}%%` directive wins over
+ * the front matter, so its control only shows it.
  */
 import type { JSX } from 'react';
 import { directives, get, setConfigValue } from '../core/config';
-import { diagramLayout, type FlowModel } from '../core/model';
-import { diagramElkConfig, ELK_CHOICES, resolvedElk, type ElkChoice, type ElkFlag } from './elkConfig';
+import { DIRECTIONS, diagramLayout, isSwimlane, type FlowModel } from '../core/model';
+import { diagramElkConfig, ELK_CHOICES, resolvedElk, type ElkChoice, type ElkFlag } from '../canvas/elkConfig';
+import { DIRECTION_NAMES, DockIcons } from '../canvas/Dock';
+import { Panel, PanelSection } from './Panel';
 
-interface LayoutPanelProps {
+interface DiagramPanelProps {
   model: FlowModel;
   readOnly: boolean;
   onChange: (model: FlowModel) => void;
@@ -84,7 +89,7 @@ function SinceTag({ option }: { option: ElkChoice | ElkFlag }): JSX.Element | nu
 const CHOICE_ORDER: ElkChoice[] = ['nodePlacementAlignment', 'nodePlacementStrategy', 'considerModelOrder', 'layeringStrategy', 'cycleBreakingStrategy', 'preset'];
 const FLAG_ORDER: ElkFlag[] = ['forceNodeModelOrder', 'keepEntryNodeOnTop', 'mergeEdges'];
 
-export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelProps): JSX.Element {
+export function DiagramPanel({ model, readOnly, onChange, onClose }: DiagramPanelProps): JSX.Element {
   const elk = diagramElkConfig(model);
   const applied = resolvedElk(elk);
   const fromDirective = directives(model.preamble ?? '');
@@ -92,22 +97,37 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
   const set = (path: string[], value: string | boolean | undefined): void =>
     onChange({ ...model, preamble: setConfigValue(model.preamble, path, value) || undefined });
   const engine = diagramLayout(model);
-  const swimlane = model.kind === 'swimlane';
+  const swimlane = isSwimlane(model);
 
   return (
-    <div className="layout-panel" role="dialog" aria-label="Layout">
-      <div className="class-panel-head">
-        <strong>Layout</strong>
-        <span className="spacer" />
-        <button type="button" className="link-button" onClick={onClose} aria-label="Close the layout panel" title="Close">
-          ✕
-        </button>
-      </div>
-      <p className="muted class-panel-hint">
-        Mermaid places the nodes; these options steer it. They go into the front matter of the code. A tag such as{' '}
-        <span className="since-tag">12+</span> marks an option that older Mermaid versions ignore.
-      </p>
-      <div className="layout-fields">
+    <Panel name="diagram" title="Diagram" meta={model.direction} onClose={onClose}>
+      <PanelSection title={swimlane ? 'Lanes' : 'Direction'}>
+        <div className="direction-choices" role="radiogroup" aria-label={swimlane ? 'Lanes' : 'Direction'}>
+          {DIRECTIONS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              role="radio"
+              aria-checked={model.direction === d}
+              className={model.direction === d ? 'selected' : ''}
+              disabled={readOnly}
+              title={`${DIRECTION_NAMES[d]} (${d})`}
+              onClick={() => model.direction !== d && onChange({ ...model, direction: d })}
+            >
+              <span className="direction-icon" aria-hidden="true">
+                {DockIcons.direction(d)}
+              </span>
+              {d}
+            </button>
+          ))}
+        </div>
+        <p className="panel-note">{swimlane ? 'LR: lanes are rows. TB: lanes are columns.' : DIRECTION_NAMES[model.direction]}</p>
+      </PanelSection>
+      <PanelSection title="Layout">
+        <p className="panel-note">
+          Mermaid places the nodes; these options steer it. They go into the front matter of the code. A tag such as{' '}
+          <span className="since-tag">12+</span> marks an option that older Mermaid versions ignore.
+        </p>
         {!swimlane && (
           <label title={lockedBy(['layout']) ?? 'The layout engine (layout). Mermaid 12 uses ELK unless the code asks for dagre.'}>
             Engine
@@ -118,7 +138,7 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
           </label>
         )}
         {engine === 'dagre' ? (
-          <p className="muted class-panel-hint">These options are for ELK. dagre has none for alignment.</p>
+          <p className="panel-note">These options are for ELK. dagre has none for alignment.</p>
         ) : (
           <>
             {CHOICE_ORDER.map((key) => {
@@ -165,7 +185,7 @@ export function LayoutPanel({ model, readOnly, onChange, onClose }: LayoutPanelP
             })}
           </>
         )}
-      </div>
-    </div>
+      </PanelSection>
+    </Panel>
   );
 }

@@ -1,16 +1,16 @@
 /** The inspector of use case diagrams: an actor or use case (or note), a system boundary, a relationship. */
 import type { JSX } from 'react';
-import { setParent, updateEdge, updateNode, updateSubgraph, type FlowEdge, type FlowNode, type FlowSubgraph } from '../core/model';
-import { LabelInput, ParentSelect, StyleFields, TextField, type InspectorProps } from '../canvas/fields';
-import { allowedRelations, forwardRelation, setRelation, setUseCaseNode, USECASE_RELATIONS } from './usecaseDiagram';
+import { setParent, updateEdge, updateNode, updateSubgraph, type FlowEdge, type FlowNode, type FlowSubgraph } from '../../core/model';
+import { LabelInput, ParentSelect, StyleFields, TextField, type InspectorProps } from '../../canvas/fields';
+import { allowedRelations, forwardRelation, setRelation, setUseCaseNode, USECASE_RELATIONS } from '../../usecase/usecaseDiagram';
+import { Panel } from '../Panel';
 
 /** Use case diagrams: an actor, a use case, or a note. */
-export function UseCaseNodeInspector({ model, node, onChange, onDelete }: InspectorProps & { node: FlowNode }): JSX.Element {
+export function UseCaseNodeInspector({ model, node, onChange, onDelete, onClose }: InspectorProps & { node: FlowNode }): JSX.Element {
   const uc = node.usecase;
   if (!uc) {
     return (
-      <div className="inspector">
-        <div className="inspector-title">Note for {node.note?.of}</div>
+      <Panel name="inspector" title={<>Note for {node.note?.of}</>} onClose={onClose}>
         <label>
           Text
           <LabelInput key={`${node.id}:${node.label}`} value={node.label} onCommit={(label) => onChange(updateNode(model, node.id, { label }))} />
@@ -18,15 +18,12 @@ export function UseCaseNodeInspector({ model, node, onChange, onDelete }: Inspec
         <button className="danger" onClick={onDelete}>
           Delete note
         </button>
-      </div>
+      </Panel>
     );
   }
   const set = (patch: Partial<NonNullable<FlowNode['usecase']>>): void => onChange(setUseCaseNode(model, node.id, patch));
   return (
-    <div className="inspector">
-      <div className="inspector-title">
-        {uc.kind === 'actor' ? 'Actor' : 'Use case'} {node.id}
-      </div>
+    <Panel name="inspector" title={<>{uc.kind === 'actor' ? 'Actor' : 'Use case'} {node.id}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput key={`${node.id}:${node.label}`} value={node.label} onCommit={(label) => onChange(updateNode(model, node.id, { label }))} />
@@ -69,15 +66,14 @@ export function UseCaseNodeInspector({ model, node, onChange, onDelete }: Inspec
       <button className="danger" onClick={onDelete}>
         Delete {uc.kind === 'actor' ? 'actor' : 'use case'}
       </button>
-    </div>
+    </Panel>
   );
 }
 
 /** Use case diagrams: a system boundary. */
-export function UseCaseBoundaryInspector({ model, subgraph, onChange, onDelete }: InspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
+export function UseCaseBoundaryInspector({ model, subgraph, onChange, onDelete, onClose }: InspectorProps & { subgraph: FlowSubgraph }): JSX.Element {
   return (
-    <div className="inspector">
-      <div className="inspector-title">System boundary {subgraph.id}</div>
+    <Panel name="inspector" title={<>System boundary {subgraph.id}</>} onClose={onClose}>
       <label>
         Label
         <LabelInput key={`${subgraph.id}:${subgraph.label}`} value={subgraph.label} onCommit={(label) => onChange(updateSubgraph(model, subgraph.id, { label }))} />
@@ -94,28 +90,24 @@ export function UseCaseBoundaryInspector({ model, subgraph, onChange, onDelete }
       <button className="danger" onClick={onDelete} title="Its actors and use cases move out of it">
         Delete boundary (keep contents)
       </button>
-    </div>
+    </Panel>
   );
 }
 
 /** Use case diagrams: a relationship. */
-export function UseCaseEdgeInspector({ model, edge, onChange, onDelete }: InspectorProps & { edge: FlowEdge }): JSX.Element {
+export function UseCaseEdgeInspector({ model, edge, onChange, onDelete, onClose }: InspectorProps & { edge: FlowEdge }): JSX.Element {
   if (edge.noteLink) {
     return (
-      <div className="inspector">
-        <div className="inspector-title">Note link</div>
+      <Panel name="inspector" title={<>Note link</>} onClose={onClose}>
         <div className="muted inspector-note">Select the note to change or delete it.</div>
-      </div>
+      </Panel>
     );
   }
   const relation = edge.usecase?.relation ?? '-->';
   const allowed = allowedRelations(model, edge);
   const labelled = relation !== 'include' && relation !== 'extend' && relation !== 'generalization';
   return (
-    <div className="inspector">
-      <div className="inspector-title">
-        {edge.source} → {edge.target}
-      </div>
+    <Panel name="inspector" title={<>{edge.source} → {edge.target}</>} onClose={onClose}>
       <label>
         Relation
         <select value={forwardRelation(relation)} onChange={(e) => onChange(setRelation(model, edge.id, e.target.value as (typeof USECASE_RELATIONS)[number]['relation']))}>
@@ -135,6 +127,6 @@ export function UseCaseEdgeInspector({ model, edge, onChange, onDelete }: Inspec
       <button className="danger" onClick={onDelete}>
         Delete relationship
       </button>
-    </div>
+    </Panel>
   );
 }

@@ -39,6 +39,10 @@ deploy:
     sleep 3
     gh run watch --exit-status "$(gh run list --workflow pages.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')"
 
+# Redo the README screenshots and demo video in docs/ (needs google-chrome and ffmpeg)
+media:
+    tools/media/media.sh
+
 # Remove build output
 clean:
     rm -rf dist

@@ -139,8 +139,10 @@ button.danger { color: var(--danger); }
 .panes { flex: 1; display: grid; grid-template-columns: var(--split, minmax(280px, 2fr)) 3fr; min-height: 0; }
 .pane { position: relative; min-height: 0; min-width: 0; }
 .side-pane { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
-.side-section { position: relative; display: flex; flex-direction: column; min-height: 0; flex: none; border-bottom: 1px solid var(--border); }
-.side-section.grow { flex: 1; }
+/* Sections shrink (and scroll inside) before the growing one (Code) goes below its least height. */
+.side-section { position: relative; display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; border-bottom: 1px solid var(--border); }
+.side-section > .side-section-head { flex: none; }
+.side-section.grow { flex: 1 1 0; min-height: 160px; }
 .side-section-head {
   display: flex; align-items: center; gap: 4px; padding-right: 8px;
   border-bottom: 1px solid transparent; background: var(--panel); font-size: 12px;
@@ -175,7 +177,7 @@ button.danger { color: var(--danger); }
 .side-section-caret { width: 12px; font-size: 12px; color: var(--muted); }
 .side-section-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* A resized section: its content keeps the height dragged to; what it holds fills it. */
-.side-section.sized > .side-section-body { flex: none; height: var(--section-height); }
+.side-section.sized > .side-section-body { flex: 0 1 auto; height: var(--section-height); }
 .side-section.sized > .side-section-body > :is(.syntax-panel, .explorer, .gallery-nav) { flex: 1; max-height: none; }
 /* The grip on the top edge of a section that can be resized (PanelSection.tsx): only the height. */
 .side-section-resize { position: absolute; z-index: 2; left: 0; right: 0; top: -4px; height: 7px; cursor: ns-resize; touch-action: none; }

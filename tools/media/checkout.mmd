@@ -1,0 +1,14 @@
+flowchart TB
+  start([Customer]) --> check{In stock?}
+  check -->|yes| pay
+  check -->|no| wait[/Backorder/]
+  wait -.->|restocked| ship
+  subgraph checkout [Checkout]
+    pay[[Payment]] --> card{{Card}}
+    pay --> wallet{{Wallet}}
+  end
+  card ==> ship>Ship order]
+  wallet ==> ship
+  ship --> db[(Orders DB)]
+  classDef hot fill:#ffe8cc,stroke:#e8590c,color:#7a2e00
+  class pay,ship hot

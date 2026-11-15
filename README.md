@@ -13,15 +13,16 @@ Everything runs in the browser: no server, no account.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
-  <img alt="Merbutler: Mermaid code on the left, the editable flowchart on the right" src="docs/screenshot-light.png">
+  <img alt="Merbutler: the Explorer, the Mermaid code and the Gallery in the sidebar on the left, the editable flowchart on the right" src="docs/screenshot-light.png">
 </picture>
 
 ### Demo
 
-![Typing code updates the canvas; renaming, reshaping, adding and connecting nodes on the canvas updates the code](docs/demo.gif)
+![Typing code updates the canvas; renaming, reshaping and adding a connected node on the canvas updates the code; undo and redo; the gallery opens from the sidebar](docs/demo.gif)
 
-Type code and the canvas follows. Rename a node, change its shape, add and connect nodes, or flip the direction,
-and the code follows. The dock (the tools at the bottom of the canvas) and every panel can be dragged out of the way, and panels resized by their corner; the link keeps where they are and their size.
+Type code and the canvas follows. Rename a node, change its shape, add a connected node, or flip the direction,
+and the code follows; undo and redo sit above the code. The Gallery, at the bottom of the sidebar, shows examples of
+every diagram type. The dock (the tools at the bottom of the canvas) and every panel can be dragged out of the way, and panels resized by their corner; the link keeps where they are and their size.
 ([MP4 version](docs/demo.mp4))
 
 ### How the sync works
@@ -105,6 +106,7 @@ just dev        # open the URL that Vite prints
 | `just preview` | Build and serve the production build |
 | `just clean` | Remove build output |
 | `just deploy` | Run the GitHub Pages workflow on `main` and follow it (needs `gh`) |
+| `just media` | Redo the README screenshots and demo video in `docs/` (needs `google-chrome` and `ffmpeg`) |
 
 `just` alone lists all recipes. Without `just`, use `npm install`, `npm run dev`, `npm test` and `npm run build`.
 
@@ -327,9 +329,10 @@ The code is grouped by diagram type where it is specific to one, and by concern 
 | `src/editor/` | CodeMirror extensions for the code panel: highlighting, completion, error marks |
 | `src/syntax/` | The syntax reference of every type, and finding the entry at the cursor |
 | `src/gallery/` | Example diagrams of every type, and the gallery catalog |
-| `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`), Syntax (`SyntaxPanel.tsx`), Explorer (`Explorer.tsx`, storage and folders in `src/core/library.ts`), and their collapsible frame (`PanelSection.tsx`) |
+| `src/sidebar/` | The sidebar panels: Code (`CodeEditor.tsx`, its toolbar `CodeToolbar.tsx`), Syntax (`SyntaxPanel.tsx`), Explorer (`Explorer.tsx`, storage and folders in `src/core/library.ts`), Gallery (`GalleryNav.tsx`), and their collapsible frame (`PanelSection.tsx`) |
 | `src/panels/` | The floating panels, on one frame (`Panel.tsx`): node, edge, selection (`inspectors/` by diagram type), Diagram, Style classes, Palettes, and the About and Settings windows (versions come from `package.json` through `vite.config.ts`); moving and resizing (`draggablePanels.ts`) |
 | `src/App.tsx` | Split view and sync logic |
+| `tools/media/` | The README media: a scripted headless Chrome session (`demo.mjs`, `screenshot.mjs`, staged by `stage.mjs`), encoded by `media.sh` |
 | `tests/` | Round-trip, layout, label, clipboard, swimlane, state, use case, outline, table, menu, settings and URL tests, with `.mmd` fixtures |
 
 ## Versions and release notes

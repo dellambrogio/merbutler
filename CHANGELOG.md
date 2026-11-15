@@ -5,6 +5,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- In a short window, Code keeps at least a few lines: Explorer and Gallery shrink and scroll inside first.
+
 ## 0.3.0 — 2026-11-15
 
 - The Gallery moves to the bottom of the sidebar: every diagram type by family, each with a small preview, a dot for

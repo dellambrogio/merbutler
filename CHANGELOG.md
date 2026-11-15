@@ -5,6 +5,8 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+## 0.5.0 — 2026-11-16
+
 - **Go to code** in the canvas menu of a node, subgraph or edge: selects the line that writes it in the code (a
   node's definition, the `subgraph` line, the edge's own line) and scrolls to it. Code opens if it is closed.
 - **Node** in the dock opens a menu of every shape, by group and with a search, like the Shape picker of the Node

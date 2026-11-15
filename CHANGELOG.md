@@ -15,6 +15,9 @@ these notes. New changes go under **Unreleased** until the next version gets its
   to, collapse or that sits in a collapsed subgraph is kept as yours. Each click says what it did, for example
   "Grouped 1 row and 1 column, with 2 invisible links. 1 line was left to Mermaid: its nodes link to other
   nodes." (or "Already up to date", "Nothing lined up to group"), and outlines the groups for a moment.
+- Free layout: a dragged node snaps into line with another one (centers across or down, within 8 pixels on the
+  screen), and a guide line shows the line. Hold Alt to drag without snapping. Rows and columns are then exactly
+  straight, so Code from layout finds them.
 - Own style: the Fill and Text rows offer the same color swatches as the Border row. The Classes panel keeps pale
   fills and deep text colors.
 - A new diagram starts left to right (`flowchart LR`) instead of top to bottom.

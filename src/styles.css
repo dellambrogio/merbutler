@@ -748,6 +748,10 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .shape-picker-empty { font-size: 12px; margin: 4px; }
 /* Dragging moves an element into another subgraph: the one it would land in is highlighted. */
 .react-flow__node.dragging { opacity: 0.75; }
+/* Free layout: snap guides while dragging. */
+.snap-guide { position: absolute; pointer-events: none; z-index: 10; }
+.snap-guide-x { width: 0; border-left: 1px dashed var(--accent); }
+.snap-guide-y { height: 0; border-top: 1px dashed var(--accent); }
 /* Code from layout: a short message above the dock, and a brief outline around the groups it made. */
 .canvas-notice {
   position: absolute; z-index: 6; left: 50%; bottom: 76px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px));

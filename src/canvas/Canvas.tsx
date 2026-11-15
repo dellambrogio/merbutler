@@ -11,12 +11,14 @@ import {
   type Edge,
   type EdgeChange,
   type NodeChange,
+  type NodePositionChange,
   type OnBeforeDelete,
   type OnNodeDrag,
 } from '@xyflow/react';
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
+import { SNAP_PIXELS, snapCenter, type Guide } from './snap';
 import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
@@ -131,7 +133,7 @@ function titlePosition(nodes: CanvasNode[]): { x: number; y: number } | null {
 }
 
 export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: CanvasProps): JSX.Element {
-  const { fitView, getInternalNode, screenToFlowPosition } = useReactFlow();
+  const { fitView, getInternalNode, getZoom, screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes] = useState<CanvasNode[]>([]);
   const title = diagramTitle(model);
   const theme = useMemo(() => diagramTheme(model), [model]);
@@ -213,6 +215,60 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const freeRef = useRef(false);
   freeRef.current = isFreeLayout(model);
 
+  /** Snap guides shown while a node is dragged in a free layout. */
+  const [guides, setGuides] = useState<Guide[]>([]);
+  /** Alt held: drag without snapping. */
+  const altRef = useRef(false);
+  useEffect(() => {
+    const track = (e: KeyboardEvent): void => {
+      altRef.current = e.altKey;
+    };
+    window.addEventListener('keydown', track);
+    window.addEventListener('keyup', track);
+    return () => {
+      window.removeEventListener('keydown', track);
+      window.removeEventListener('keyup', track);
+    };
+  }, []);
+  /** Absolute box of a node on the canvas, or null. */
+  const boxOf = useCallback(
+    (id: string): Box | null => {
+      const internal = getInternalNode(id);
+      if (!internal) return null;
+      const { x, y } = internal.internals.positionAbsolute;
+      return { x, y, width: internal.measured.width ?? internal.width ?? 0, height: internal.measured.height ?? internal.height ?? 0 };
+    },
+    [getInternalNode],
+  );
+
+  /**
+   * Free layout: the dragged node's center snaps to the center of an element in line with it, and
+   * the others dragged with it move as much. Changes the position changes in place; returns the guides.
+   */
+  const snapChanges = useCallback(
+    (changes: NodeChange<CanvasNode>[], dragged: ReadonlySet<string>): Guide[] => {
+      const moves = changes.filter((c): c is NodePositionChange => c.type === 'position' && !!c.dragging && !!c.position);
+      const lead = moves[0];
+      const now = lead && boxOf(lead.id);
+      if (!lead || !now) return [];
+      // Where the change puts it: its box moved by the change.
+      const node = nodesRef.current.find((n) => n.id === lead.id);
+      if (!node) return [];
+      const moving = { ...now, x: now.x + lead.position!.x - node.position.x, y: now.y + lead.position!.y - node.position.y };
+      const ancestors = new Set<string>();
+      for (let p = node.parentId; p; p = nodesRef.current.find((n) => n.id === p)?.parentId) ancestors.add(p);
+      const others = nodesRef.current.flatMap((n) => {
+        if (dragged.has(n.id) || ancestors.has(n.id) || (n.type === 'subgraph' && n.data.align)) return [];
+        const b = boxOf(n.id);
+        return b ? [b] : [];
+      });
+      const { dx, dy, guides } = snapCenter(moving, others, SNAP_PIXELS / getZoom());
+      if (dx !== 0 || dy !== 0) for (const m of moves) m.position = { x: m.position!.x + dx, y: m.position!.y + dy };
+      return guides;
+    },
+    [boxOf, getZoom],
+  );
+
   const onNodesChange = useCallback((changes: NodeChange<CanvasNode>[]): void => {
     // A dragged node (with everything inside it) leaves the layout's edge routes; its edges draw their own curve again.
     const dragged = new Set(changes.flatMap((c) => (c.type === 'position' && c.dragging ? [c.id] : [])));
@@ -227,6 +283,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
           }
         }
       }
+      setGuides(freeRef.current && !altRef.current ? snapChanges(changes, dragged) : []);
       // In a free layout they become straight lines, as they will be after the drop.
       const free = freeRef.current;
       setEdges((edges) =>
@@ -238,7 +295,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
       );
     }
     setNodes((prev) => applyNodeChanges(changes.filter((c) => c.type !== 'remove'), prev));
-  }, []);
+  }, [snapChanges]);
   /**
    * Dragging moves elements into another subgraph (or to the top level): the subgraph under the
    * pointer is the drop target. Mermaid keeps no positions, so a drop anywhere else puts the
@@ -278,6 +335,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     return p;
   };
   const onNodeDrag: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
+    altRef.current = e.altKey;
     const moved = movedRoots(dragged);
     const target = dropTargetAt(e, moved);
     // Highlight only a real move.
@@ -318,6 +376,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   };
   const onNodeDragStop: OnNodeDrag<CanvasNode> = (e, _node, dragged) => {
     setDropInto(null);
+    setGuides([]);
     const moved = movedRoots(dragged);
     const target = dropTargetAt(e, moved);
     let next = model;
@@ -733,7 +792,7 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
             label={free ? 'Free layout: on' : 'Free layout'}
             hint={
               free
-                ? 'Nodes stay where you drop them, kept in a %% comment. Click to let Mermaid place them again; your positions are kept'
+                ? 'Nodes stay where you drop them, kept in a %% comment, and snap into line with others (hold Alt not to). Click to let Mermaid place them again; your positions are kept'
                 : model.positions
                   ? 'Puts the nodes back where you placed them'
                   : 'Place nodes anywhere; the code keeps their positions in a %% comment and follows the drawing'
@@ -850,6 +909,17 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
               {theme && <ThemeDefs theme={theme} />}
               <Background />
               <Controls showInteractive={false} fitViewOptions={{ padding: 0.2, duration: 250 }} />
+              {guides.length > 0 && (
+                <ViewportPortal>
+                  {guides.map((g) => (
+                    <div
+                      key={g.axis}
+                      className={`snap-guide snap-guide-${g.axis}`}
+                      style={g.axis === 'x' ? { left: g.at, top: g.from, height: g.to - g.from } : { top: g.at, left: g.from, width: g.to - g.from }}
+                    />
+                  ))}
+                </ViewportPortal>
+              )}
               {title && titleAnchor && (
                 <ViewportPortal>
                   <div

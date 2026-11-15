@@ -12,7 +12,9 @@ these notes. New changes go under **Unreleased** until the next version gets its
   changes nothing. Only lines with no links to the rest of the diagram are grouped: Mermaid ignores the direction
   of a subgraph linked to the outside, and there the groups did not help or pulled nodes apart. The
   groups cannot be selected, moved or dropped into, and are not offered in "Move to subgraph". A group you link
-  to, collapse or that sits in a collapsed subgraph is kept as yours.
+  to, collapse or that sits in a collapsed subgraph is kept as yours. Each click says what it did, for example
+  "Grouped 1 row and 1 column, with 2 invisible links. 1 line was left to Mermaid: its nodes link to other
+  nodes." (or "Already up to date", "Nothing lined up to group"), and outlines the groups for a moment.
 - Own style: the Fill and Text rows offer the same color swatches as the Border row. The Classes panel keeps pale
   fills and deep text colors.
 - A new diagram starts left to right (`flowchart LR`) instead of top to bottom.

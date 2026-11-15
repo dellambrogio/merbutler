@@ -20,7 +20,7 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
   const rename = useContext(RenameContext);
   const collapse = useContext(CollapseContext);
   // A lane stays a band: it does not collapse on the canvas.
-  const toggle = data.lane || data.region ? null : collapse;
+  const toggle = data.lane || data.region || data.align ? null : collapse;
   const lane = data.lane ? ` lane ${data.lane.rows ? 'lane-row' : 'lane-column'} lane-tint-${data.lane.index % LANE_TINTS}` : '';
   const [draft, setDraft] = useState<string | null>(null);
   /** True while the input is open. The blur that follows Enter/Escape must not commit again. */
@@ -35,7 +35,7 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
 
   const request = useContext(EditRequestContext);
   useEffect(() => {
-    if (request?.id === id && !data.region) {
+    if (request?.id === id && !data.region && !data.align) {
       editing.current = true;
       setDraft(toEditText(data.label));
     }
@@ -59,7 +59,7 @@ export function SubgraphNodeView({ id, data, width, height, selected }: NodeProp
     >
       <Handle type="target" position={data.targetPosition} />
       <Handle type="source" position={data.sourcePosition} />
-      {draft === null ? (
+      {data.align ? null : draft === null ? (
         <div
           className="subgraph-title"
           style={textStyle(data.look)}

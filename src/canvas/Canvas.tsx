@@ -17,7 +17,7 @@ import {
 import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
-import { alignGroups, canAlign, isAlignGroup } from '../core/alignGroups';
+import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
 import {
@@ -78,6 +78,9 @@ const EDGE_TYPES = { label: LabelEdgeView };
 
 
 
+
+/** How long the message of Code from layout stays. */
+const ALIGN_NOTICE_MS = 6000;
 
 interface CanvasProps {
   model: FlowModel;
@@ -336,15 +339,23 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   const free = isFreeLayout(model);
   const toggleFree = (): void => onChange(toggleFreeLayout(model, () => placedPositions(model, canvasBoxes())));
   /** Free layout: invisible subgraphs around the rows and columns lined up on the canvas, so Mermaid's layout lines them up too. */
+  /** What Code from layout did, shown for a few seconds; its groups get a brief outline. */
+  const [alignNotice, setAlignNotice] = useState<{ text: string; groups: ReadonlySet<string> } | null>(null);
+  const alignTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(alignTimer.current), []);
   const codeFromLayout = (): void => {
     const centers = new Map<string, Point>([...canvasBoxes()].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }]));
-    const next = alignGroups(model, centers);
+    const { model: next, report } = alignGroupsWithReport(model, centers);
+    clearTimeout(alignTimer.current);
+    setAlignNotice({ text: alignMessage(report), groups: new Set(report.groups) });
+    alignTimer.current = setTimeout(() => setAlignNotice(null), ALIGN_NOTICE_MS);
     if (next !== model) onChange(next);
   };
-  const shownNodes = useMemo(
-    () => (dropInto ? nodes.map((n) => (n.id === dropInto ? { ...n, className: 'drop-target' } : n)) : nodes),
-    [nodes, dropInto],
-  );
+  const shownNodes = useMemo(() => {
+    const flash = alignNotice?.groups;
+    if (!dropInto && !flash?.size) return nodes;
+    return nodes.map((n) => (n.id === dropInto ? { ...n, className: 'drop-target' } : flash?.has(n.id) ? { ...n, className: 'align-flash' } : n));
+  }, [nodes, dropInto, alignNotice]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]): void => {
     setEdges((prev) => applyEdgeChanges(changes.filter((c) => c.type !== 'remove'), prev));
@@ -759,6 +770,11 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         />
         <ClassStrip model={model} selection={selection} readOnly={readOnly} onChange={onChange} />
       </Dock>
+      {alignNotice && (
+        <div className="canvas-notice" role="status" onClick={() => setAlignNotice(null)} title="Click to close">
+          {alignNotice.text}
+        </div>
+      )}
 
       {!readOnly && (node || subgraph) && (
         <NodePanel model={model} node={node} subgraph={subgraph} lane={!!subgraph && isLane(subgraph.id)} onChange={onChange} onDelete={deleteSelected} onClose={clearSelection} />

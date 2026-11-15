@@ -1,4 +1,5 @@
 /** FlowModel -> React Flow nodes and edges, positioned with dagre. */
+import { isAlignGroup } from '../core/alignGroups';
 import dagre from '@dagrejs/dagre';
 import { MarkerType, Position, type Edge, type EdgeMarkerType, type Node } from '@xyflow/react';
 import { MARKER_IDS } from './EdgeMarkers';
@@ -49,6 +50,8 @@ export interface SubgraphNodeData extends Record<string, unknown> {
   region?: boolean;
   /** A swimlane: a band with its title along its start. `rows`: the lanes are rows (title on the left). */
   lane?: { rows: boolean; index: number };
+  /** An alignment group (Code from layout): invisible, with no title, arrow or rename. */
+  align?: boolean;
   look?: Look;
   sourcePosition: Position;
   targetPosition: Position;
@@ -506,6 +509,7 @@ export function canvasFrom(
             markdown: item.subgraph.markdown,
             collapsed: item.subgraph.view === 'collapsed',
             ...(item.subgraph.region ? { region: true } : {}),
+            ...(isAlignGroup(item.subgraph) ? { align: true } : {}),
             ...(laneIndex.has(id) ? { lane: { rows: laneFlow(model.direction) === 'TB', index: laneIndex.get(id)! } } : {}),
             ...lookField(subgraphLook(model, item.subgraph)),
             sourcePosition: handles.source,

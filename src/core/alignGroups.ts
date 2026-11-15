@@ -117,6 +117,20 @@ function lines(ids: readonly string[], centers: ReadonlyMap<string, Point>, row:
   return out;
 }
 
+/** What `alignGroupsWithReport` did. */
+export interface AlignReport {
+  /** Ids of the groups in the result. */
+  groups: string[];
+  rows: number;
+  columns: number;
+  /** Invisible links added. */
+  links: number;
+  /** Lines left to Mermaid because their elements link to others. */
+  skipped: number;
+  /** Whether the code changed. */
+  changed: boolean;
+}
+
 /**
  * Groups the elements lined up in the drawing. `centers` are the centers of the elements on the
  * canvas. In each scope (the top level and each expanded subgraph), the longest lines are taken
@@ -124,7 +138,54 @@ function lines(ids: readonly string[], centers: ReadonlyMap<string, Point>, row:
  * not change.
  */
 export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point>): FlowModel {
-  if (!canAlign(model)) return model;
+  return alignGroupsWithReport(model, centers).model;
+}
+
+/** `alignGroups`, and what it did. */
+export function alignGroupsWithReport(model: FlowModel, centers: ReadonlyMap<string, Point>): { model: FlowModel; report: AlignReport } {
+  const result = groupLines(model, centers);
+  const made = result.made;
+  const grouped = new Set(made.flatMap((m) => m.ids));
+  // A line left out counts if two of its elements did not go into another group.
+  const skipped = result.skipped.filter((ids) => ids.filter((id) => !grouped.has(id)).length > 1).length;
+  return {
+    model: result.model,
+    report: {
+      groups: made.map((m) => m.group),
+      rows: made.filter((m) => m.row).length,
+      columns: made.filter((m) => !m.row).length,
+      links: made.reduce((sum, m) => sum + m.links, 0),
+      skipped,
+      changed: result.model !== model,
+    },
+  };
+}
+
+/** One sentence on what Code from layout did, for the canvas. */
+export function alignMessage(report: AlignReport): string {
+  const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+  const parts = [report.rows > 0 ? plural(report.rows, 'row', 'rows') : '', report.columns > 0 ? plural(report.columns, 'column', 'columns') : ''].filter(Boolean);
+  const made = parts.join(' and ');
+  const left =
+    report.skipped > 0
+      ? `${plural(report.skipped, 'line was', 'lines were')} left to Mermaid: ${report.skipped === 1 ? 'its' : 'their'} nodes link to other nodes.`
+      : '';
+  let first: string;
+  if (made === '') first = report.changed ? 'Removed the groups: nothing is lined up now.' : 'Nothing lined up to group.';
+  else if (!report.changed) first = `Already up to date: ${made} grouped.`;
+  else first = `Grouped ${made}${report.links > 0 ? `, with ${plural(report.links, 'invisible link', 'invisible links')}` : ''}.`;
+  return left ? `${first} ${left}` : first;
+}
+
+interface Made {
+  group: string;
+  ids: string[];
+  row: boolean;
+  links: number;
+}
+
+function groupLines(model: FlowModel, centers: ReadonlyMap<string, Point>): { model: FlowModel; made: Made[]; skipped: string[][] } {
+  if (!canAlign(model)) return { model, made: [], skipped: [] };
   const start = withoutAlignGroups(model, (id) => !centers.has(id));
   let next = start;
   const parentOf = new Map<string, string | null>([...next.nodes, ...next.subgraphs].map((x) => [x.id, x.parent]));
@@ -139,7 +200,8 @@ export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point
   };
   const scopes: (string | null)[] = [null, ...next.subgraphs.filter((s) => s.view !== 'collapsed').map((s) => s.id)];
   const groupCenters = new Map(centers);
-  const made: string[][] = [];
+  const made: Made[] = [];
+  const skipped: string[][] = [];
   for (const scope of scopes) {
     const siblings = [...parentOf].filter(([id, p]) => p === scope && centers.has(id)).map(([id]) => id);
     if (siblings.length < 2) continue;
@@ -157,7 +219,10 @@ export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point
       const inner = ends.filter(([s, t]) => s !== null && t !== null && s !== t && members.has(s) && members.has(t)) as [string, string][];
       // Linked to the outside: Mermaid ignores the group's direction, and invisible links would
       // only make links that skip ranks. Its elements are left free for another line.
-      if (ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)))) continue;
+      if (ends.some(([s, t]) => (s !== null && members.has(s)) !== (t !== null && members.has(t)))) {
+        skipped.push(ids);
+        continue;
+      }
       for (const id of ids) used.add(id);
       // The way most links between the elements point along the line.
       const forward = inner.reduce((sum, [s, t]) => sum + Math.sign(ids.indexOf(t) - ids.indexOf(s)), 0) >= 0;
@@ -184,20 +249,21 @@ export function alignGroups(model: FlowModel, centers: ReadonlyMap<string, Point
       };
       const points = ids.map((m) => centers.get(m)!);
       groupCenters.set(group, { x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: points.reduce((sum, p) => sum + p.y, 0) / points.length });
-      made.push(ids);
+      made.push({ group, ids, row: line.row, links: links.length });
     }
   }
   if (made.length === 0) {
-    if (start === model) return model;
-    return next.classDefs?.some((d) => d.name === ALIGN_CLASS) && classUsage(next, ALIGN_CLASS) === 0 ? removeClassDef(next, ALIGN_CLASS) : next;
+    if (start === model) return { model, made, skipped };
+    const cleaned = next.classDefs?.some((d) => d.name === ALIGN_CLASS) && classUsage(next, ALIGN_CLASS) === 0 ? removeClassDef(next, ALIGN_CLASS) : next;
+    return { model: cleaned, made, skipped };
   }
   if (!next.classDefs?.some((d) => d.name === ALIGN_CLASS)) next = addClassDef(next, ALIGN_CLASS, ALIGN_STYLES);
   // Statements in reading order; then each group's elements in order along its line.
   next = readingOrder(next, groupCenters);
-  for (const ids of made) next = orderAlong(next, ids);
+  for (const m of made) next = orderAlong(next, m.ids);
   // In the order the code is written, so the code reads back the same.
   next = canonicalOrder(next);
-  return sameCode(next, model) ? model : next;
+  return { model: sameCode(next, model) ? model : next, made, skipped };
 }
 
 /** Whether two models give the same code: in the order it is written, and without edge ids (the app's own). */

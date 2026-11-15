@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { moveTargets } from '../src/canvas/canvasMenu';
 import { layoutModel, type CanvasNode } from '../src/canvas/layout';
 import { layoutCanvas } from '../src/canvas/layoutEngine';
-import { ALIGN_CLASS, alignGroups, canAlign, isAlignGroup, withoutAlignGroups } from '../src/core/alignGroups';
+import { ALIGN_CLASS, alignGroups, alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, withoutAlignGroups, type AlignReport } from '../src/core/alignGroups';
 import { canonicalOrder, type FlowModel } from '../src/core/model';
 import { parse } from '../src/core/parse';
 import type { Point } from '../src/core/positions';
@@ -329,5 +329,51 @@ describe('code from a free layout: the code and the canvas', () => {
     const model = alignGroups(await parseOk('flowchart LR\n  a\n  b\n  subgraph s\n    c\n  end\n'), centers({ a: [0, 0], b: [200, 0], s: [0, 300], c: [0, 300] }));
     expect(groupsOf(model)).toEqual([['row1', 'LR', ['a', 'b']]]);
     expect(moveTargets(model, 'c')).toEqual([null, 's']);
+  });
+});
+
+describe('code from a free layout: what it says it did', () => {
+  test('groups made, invisible links added, lines left to Mermaid', async () => {
+    // Row a, b, c (unlinked); column d, e (a chain); row x, y links out to z.
+    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n  d --> e\n  x --> z\n  y\n');
+    const { report } = alignGroupsWithReport(model, centers({ a: [0, 0], b: [200, 0], c: [400, 0], d: [0, 300], e: [0, 500], x: [300, 800], y: [500, 800], z: [900, 1200] }));
+    expect(report).toEqual({ groups: ['row1', 'col1'], rows: 1, columns: 1, links: 2, skipped: 1, changed: true });
+    expect(alignMessage(report)).toBe('Grouped 1 row and 1 column, with 2 invisible links. 1 line was left to Mermaid: its nodes link to other nodes.');
+  });
+
+  test('a line left out whose elements went into another group is not counted', async () => {
+    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n  x --> y\n');
+    // Row a, b, x links out; column a, c does not and takes a. b and x are left: still counted.
+    const r1 = alignGroupsWithReport(model, centers({ a: [0, 0], b: [200, 0], x: [400, 0], c: [0, 200], y: [900, 900] })).report;
+    expect(r1.skipped).toBe(1);
+    // Row a, x links out; column a, c takes a: only x is left of the row, not counted.
+    const r2 = alignGroupsWithReport(model, centers({ a: [0, 0], x: [400, 0], b: [700, 700], c: [0, 200], y: [900, 900] })).report;
+    expect(r2.skipped).toBe(0);
+  });
+
+  test('the same drawing again: already up to date', async () => {
+    const model = await parseOk('flowchart LR\n  a\n  b\n  c\n');
+    const at = centers({ a: [0, 0], b: [200, 0], c: [0, 300] });
+    const once = alignGroups(model, at);
+    const { model: again, report } = alignGroupsWithReport(once, at);
+    expect(again).toBe(once);
+    expect(report.changed).toBe(false);
+    expect(alignMessage(report)).toBe('Already up to date: 1 row grouped.');
+  });
+
+  test('nothing lined up, groups taken out, flowcharts only', async () => {
+    const model = await parseOk('flowchart LR\n  a\n  b\n');
+    expect(alignMessage(alignGroupsWithReport(model, centers({ a: [0, 0], b: [100, 100] })).report)).toBe('Nothing lined up to group.');
+    const grouped = alignGroups(await parseOk('flowchart LR\n  a\n  b\n  c\n'), centers({ a: [0, 0], b: [200, 0], c: [0, 300] }));
+    expect(alignMessage(alignGroupsWithReport(grouped, centers({ a: [0, 0], b: [200, 100], c: [500, 300] })).report)).toBe('Removed the groups: nothing is lined up now.');
+    const state = await parseOk('stateDiagram-v2\n  a --> b\n');
+    expect(alignGroupsWithReport(state, centers({ a: [0, 0], b: [100, 0] })).report).toEqual({ groups: [], rows: 0, columns: 0, links: 0, skipped: 0, changed: false });
+  });
+
+  test('the wording for several of each', () => {
+    const report = (r: Partial<AlignReport>): AlignReport => ({ groups: [], rows: 0, columns: 0, links: 0, skipped: 0, changed: true, ...r });
+    expect(alignMessage(report({ rows: 2, columns: 3, links: 1 }))).toBe('Grouped 2 rows and 3 columns, with 1 invisible link.');
+    expect(alignMessage(report({ columns: 1 }))).toBe('Grouped 1 column.');
+    expect(alignMessage(report({ skipped: 3, changed: false }))).toBe('Nothing lined up to group. 3 lines were left to Mermaid: their nodes link to other nodes.');
   });
 });

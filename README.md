@@ -128,7 +128,9 @@ just dev        # open the URL that Vite prints
 - **Layout** is automatic and uses the engine Mermaid 12 uses: ELK, or dagre when the config says `layout: dagre`.
   ELK gets the options Mermaid gives it, including the `elk:` config (`preset`, `nodePlacementAlignment`,
   `nodePlacementStrategy`, `considerModelOrder`, …). The **Diagram** panel (dock → **Diagram**) sets them in the front matter,
-  for example to line nodes up to one side, or to keep them in the order of the code.
+  for example to line nodes up to one side, or to keep them in the order of the code. It picks the engine by what it
+  does: **Hierarchical** (dagre) arranges nodes in ordered levels following their hierarchy; **Adaptive** (ELK, the
+  default) rearranges nodes based on their context to keep the diagram organized.
   With ELK, edges follow the routes ELK found, as in Mermaid. Mermaid code has no positions, so the canvas always
   shows the layout: dragging a node or subgraph moves it into the subgraph you drop it on (highlighted while you
   drag), or to the top level when you drop it outside its subgraph. A drop that changes nothing puts it back.

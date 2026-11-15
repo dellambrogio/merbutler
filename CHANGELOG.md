@@ -5,6 +5,9 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- The Diagram panel picks the layout engine by what it does, as two choices instead of a list: **Hierarchical**
+  (dagre) arranges nodes in ordered levels following their hierarchy; **Adaptive** (ELK, the default) rearranges
+  nodes based on their context to keep the diagram organized.
 - Code from layout leaves subgraphs in a line to Mermaid when the link between them goes into one of them (with
   ELK they came apart).
 - The Subgraph field of the Node panel shows the subgraph a node is in, not the invisible group Code from layout

@@ -86,6 +86,22 @@ function SinceTag({ option }: { option: ElkChoice | ElkFlag }): JSX.Element | nu
   );
 }
 
+/** The two layout engines, by what they do: dagre (Hierarchical) and ELK (Adaptive, Mermaid 12's default). */
+const ENGINES: ReadonlyArray<{ value: 'dagre' | 'elk'; name: string; text: string; title: string }> = [
+  {
+    value: 'dagre',
+    name: 'Hierarchical',
+    text: 'Arranges nodes in ordered levels following their hierarchy.',
+    title: 'dagre (layout: dagre in the front matter)',
+  },
+  {
+    value: 'elk',
+    name: 'Adaptive',
+    text: 'Rearranges nodes based on their context to keep the diagram organized.',
+    title: "ELK, Mermaid 12's default (no layout in the front matter)",
+  },
+];
+
 const CHOICE_ORDER: ElkChoice[] = ['nodePlacementAlignment', 'nodePlacementStrategy', 'considerModelOrder', 'layeringStrategy', 'cycleBreakingStrategy', 'preset'];
 const FLAG_ORDER: ElkFlag[] = ['forceNodeModelOrder', 'keepEntryNodeOnTop', 'mergeEdges'];
 
@@ -129,16 +145,27 @@ export function DiagramPanel({ model, readOnly, onChange, onClose }: DiagramPane
           <span className="since-tag">12+</span> marks an option that older Mermaid versions ignore.
         </p>
         {!swimlane && (
-          <label title={lockedBy(['layout']) ?? 'The layout engine (layout). Mermaid 12 uses ELK unless the code asks for dagre.'}>
-            Engine
-            <select value={engine} disabled={readOnly || lockedBy(['layout']) !== undefined} onChange={(e) => set(['layout'], e.target.value === 'dagre' ? 'dagre' : undefined)}>
-              <option value="elk">ELK (default)</option>
-              <option value="dagre">dagre</option>
-            </select>
-          </label>
+          <div className="engine-choices" role="radiogroup" aria-label="Layout engine">
+            {ENGINES.map((e) => (
+              <button
+                key={e.value}
+                type="button"
+                role="radio"
+                aria-checked={engine === e.value}
+                className={engine === e.value ? 'selected' : ''}
+                disabled={readOnly || lockedBy(['layout']) !== undefined}
+                title={lockedBy(['layout']) ?? e.title}
+                // Adaptive (ELK) is Mermaid 12's default: choosing it removes `layout` from the code.
+                onClick={() => engine !== e.value && set(['layout'], e.value === 'dagre' ? 'dagre' : undefined)}
+              >
+                <span className="engine-name">{e.name}</span>
+                <span className="engine-text">{e.text}</span>
+              </button>
+            ))}
+          </div>
         )}
         {engine === 'dagre' ? (
-          <p className="panel-note">These options are for ELK. dagre has none for alignment.</p>
+          <p className="panel-note">The options below are for Adaptive. Hierarchical has none for alignment.</p>
         ) : (
           <>
             {CHOICE_ORDER.map((key) => {

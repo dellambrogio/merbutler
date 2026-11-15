@@ -1006,6 +1006,16 @@ html.splitting, html.splitting * { cursor: col-resize !important; user-select: n
 .panel-window .panel-frame :is(input, textarea, select, label, a, summary, button, [contenteditable]) { cursor: auto; }
 .panel-window .panel-frame { max-height: calc(100vh - 50px); }
 
+/* Diagram panel: the layout engine as two choices, each with its name and what it does. */
+.engine-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.engine-choices button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 7px 9px; text-align: left;
+  border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--text);
+}
+.engine-choices button.selected { border-color: var(--accent); background: var(--selection-match); box-shadow: inset 0 0 0 1px var(--accent); }
+.engine-name { font-size: 12px; font-weight: 600; }
+.engine-choices button.selected .engine-name { color: var(--accent); }
+.engine-text { font-size: 11px; line-height: 1.35; color: var(--muted); }
 /* Diagram panel: the four directions as a segmented control with the dock's icons. */
 .direction-choices { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .direction-choices button {

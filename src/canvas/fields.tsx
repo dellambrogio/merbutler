@@ -106,7 +106,7 @@ export function StyleFields({ id, item, model, styleTitle, kind, onChange }: {
   model: FlowModel;
   styleTitle: string;
   /** `box`: a node or subgraph (fill, border, text). `edge`: a line (color, width, label). */
-  kind: 'box' | 'edge';
+  kind: 'box' | 'edge' | 'text';
   onChange: (patch: Styled) => void;
 }): JSX.Element {
   const styles = stylesToText(item.styles);

@@ -57,4 +57,17 @@ describe('color swatches', () => {
     expect(selected?.title).toBe(fill);
     act(() => root.unmount());
   });
+
+  test('a text block: a border and its text, no fill', () => {
+    const shown = rows(<AppearanceFields styles={[]} kind="text" sameSwatches onChange={() => {}} />);
+    expect(Object.keys(shown)).toEqual(['Border', 'Text']);
+    host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    act(() => root.render(<AppearanceFields styles={[]} kind="text" onChange={() => {}} />));
+    const labels = [...host.querySelectorAll('.color-field-label')].map((l) => l.textContent);
+    expect(labels).toEqual(['Border', 'Border width', 'Border style', 'Text', 'Text style']);
+    act(() => root.unmount());
+  });
+
 });

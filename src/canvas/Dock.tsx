@@ -6,7 +6,7 @@
  * It sits at the bottom of the canvas, centered; `DockPosition` leaves room for a setting that
  * puts it at the top instead.
  */
-import type { JSX, ReactNode } from 'react';
+import type { JSX, MouseEvent, ReactNode } from 'react';
 import type { Direction } from '../core/model';
 
 export type DockPosition = 'bottom' | 'top';
@@ -22,13 +22,13 @@ export function Dock({ position = DEFAULT_DOCK_POSITION, children }: { position?
   );
 }
 
-export function DockItem({ icon, label, hint, onClick, disabled = false, active, add = false, badge }: {
+export function DockItem({ icon, label, hint, onClick, disabled = false, active, add = false, badge, menu }: {
   icon: ReactNode;
   /** The name in the hover bubble (and for screen readers). */
   label: string;
   /** A second, smaller line in the bubble. */
   hint?: string;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   /** For a tile that opens a panel: whether it is open (a dot under the tile). */
   active?: boolean;
@@ -36,6 +36,8 @@ export function DockItem({ icon, label, hint, onClick, disabled = false, active,
   add?: boolean;
   /** A short text on the tile's corner, such as a count. */
   badge?: string;
+  /** For a tile that opens a menu: whether it is open. */
+  menu?: boolean;
 }): JSX.Element {
   return (
     <button
@@ -46,6 +48,7 @@ export function DockItem({ icon, label, hint, onClick, disabled = false, active,
       disabled={disabled}
       aria-label={hint ? `${label}: ${hint}` : label}
       aria-pressed={active}
+      {...(menu !== undefined ? { 'aria-haspopup': 'listbox' as const, 'aria-expanded': menu } : {})}
     >
       <span className="dock-tile">
         <span className="dock-icon" aria-hidden="true">{icon}</span>
@@ -89,6 +92,20 @@ export const DockIcons = {
   node: (
     <Svg>
       <rect x="3.5" y="6.5" width="17" height="11" rx="2.5" />
+    </Svg>
+  ),
+  /** An image: a frame with a mountain and the sun. */
+  image: (
+    <Svg>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <path d="M3.5 16.5l5-5 4 4 2.5-2.5 5.5 5" />
+      <circle cx="15.5" cy="9.5" r="1.6" />
+    </Svg>
+  ),
+  /** A text block: a T. */
+  text: (
+    <Svg>
+      <path d="M6 6.5h12M12 6.5v11.5M9.5 18h5" />
     </Svg>
   ),
   state: (

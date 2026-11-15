@@ -153,13 +153,16 @@ export function FlowNodeInspector({ model, node, onChange, onDelete, onClose }: 
         comments={node.comments}
         onCommit={(comments) => onChange(updateNode(model, node.id, { comments }))}
       />
-      <StyleFields kind="box"
-        id={node.id}
-        item={node}
-        model={model}
-        styleTitle="Written as: style id …"
-        onChange={(patch) => onChange(updateNode(model, node.id, patch))}
-      />
+      {/* An image is shown as it is: no class, no style. */}
+      {node.asset?.kind !== 'image' && (
+        <StyleFields kind={node.shape === 'text' && !node.asset ? 'text' : 'box'}
+          id={node.id}
+          item={node}
+          model={model}
+          styleTitle="Written as: style id …"
+          onChange={(patch) => onChange(updateNode(model, node.id, patch))}
+        />
+      )}
       <button className="danger" onClick={onDelete}>
         Delete node
       </button>

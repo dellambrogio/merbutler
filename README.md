@@ -212,7 +212,8 @@ window does not see them.
 
 | Action | How |
 |---|---|
-| Add node | **+ Node** (goes into the selected subgraph, or next to the selected node) |
+| Add node | **+ Node** opens a menu of every shape, by group, with a search (`diamond`, `db`, `(`); the node gets the shape you pick and goes into the selected subgraph. In a state diagram, **+ State** adds a state at once |
+| Add image or text | **+ Image**: an image node (`@{ img }`) with Mermaid's placeholder image; put your image's URL in its panel. **+ Text**: a text block without a box (`@{ shape: text }`). Flowcharts and swimlanes |
 | Add subgraph | **+ Subgraph** with nothing selected (an empty subgraph; inside a selected lane or region) |
 | Group into a subgraph | Select nodes and subgraphs, then **Group in subgraph** (the same button) or **Ctrl+G**. The new subgraph goes where they all are |
 | Align nodes | Toolbar → **Layout**: alignment, node placement, code order, layers, loops, Mermaid's presets. Each choice is written to the front matter (`config: elk:`); **Default** removes it. A tag (`11.17+`, `12+`) marks options that older Mermaid versions ignore: some sites still run one, and lay the diagram out with their defaults |

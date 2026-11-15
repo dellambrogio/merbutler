@@ -152,6 +152,17 @@ export function boxVars(look: Look | undefined): CSSProperties {
   return vars as CSSProperties;
 }
 
+/**
+ * A text block has no box, but Mermaid draws its border when its style sets a stroke color or
+ * width (`style id stroke:#f00,stroke-width:4px`); still without a fill.
+ */
+export function textBorder(shape: string, look: Look | undefined): boolean {
+  if (shape !== 'text' || !look) return false;
+  const width = look.strokeWidth?.trim();
+  if (width !== undefined && /^0(\.0+)?(px)?$/.test(width)) return false;
+  return look.stroke !== undefined || width !== undefined;
+}
+
 const NAMED_COLORS: Record<string, string> = {
   white: '#ffffff', black: '#000000', red: '#ff0000', green: '#008000', blue: '#0000ff', yellow: '#ffff00',
   orange: '#ffa500', purple: '#800080', gray: '#808080', grey: '#808080', pink: '#ffc0cb', cyan: '#00ffff',

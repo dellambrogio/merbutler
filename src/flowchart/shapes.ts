@@ -178,7 +178,7 @@ const SHAPE_TABLE = {
   brace: { at: 'brace', aliases: ['brace-l', 'comment'], title: 'Comment', group: 'Notes and text', size: padded(18), label: inset(0, 0, 0, 10) },
   'brace-r': { at: 'brace-r', aliases: [], title: 'Comment right', group: 'Notes and text', size: padded(18), label: inset(0, 10, 0, 0) },
   braces: { at: 'braces', aliases: [], title: 'Comment both', group: 'Notes and text', size: padded(22) },
-  text: { at: 'text', aliases: [], title: 'Text block', group: 'Notes and text', size: padded(8, 30) },
+  text: { at: 'text', aliases: [], title: 'Text block', group: 'Notes and text', size: padded(10, 30) },
 
   cloud: { at: 'cloud', aliases: [], title: 'Cloud', group: 'Pictures', size: padded(30, 64) },
   bang: { at: 'bang', aliases: [], title: 'Bang', group: 'Pictures', size: padded(34, 64) },

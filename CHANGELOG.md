@@ -5,6 +5,16 @@ these notes. New changes go under **Unreleased** until the next version gets its
 
 ## Unreleased
 
+- **Node** in the dock opens a menu of every shape, by group and with a search, like the Shape picker of the Node
+  panel; the new node gets the shape you pick. (State diagrams still add a state at once.)
+- The dock adds images and text after nodes: **Image** adds an image node (`@{ img }`) with Mermaid's placeholder
+  image, and its panel opens to put in your image's URL; **Text** adds a text block without a box
+  (`@{ shape: text }`). Flowcharts and swimlanes.
+- A text block's label no longer wraps on the canvas: its box was a few pixels narrower than the label.
+- A text block's Own style has no Fill: it has no box. It keeps the border (color, width, style), which Mermaid
+  draws when the style sets a stroke color or width, and the canvas now draws it too.
+- An image node takes no class and no style: its panel has neither, and a class put on a selection or dropped on
+  it from the dock leaves it as it is.
 - The Diagram panel picks the layout engine by what it does, as two choices instead of a list: **Hierarchical**
   (dagre) arranges nodes in ordered levels following their hierarchy; **Adaptive** (ELK, the default) rearranges
   nodes based on their context to keep the diagram organized.

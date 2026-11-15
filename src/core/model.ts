@@ -282,7 +282,9 @@ export function removeClassDef(model: FlowModel, name: string): FlowModel {
 }
 
 /** Adds a class to elements (nodes, subgraphs, edges by id), or removes it from them all if they all have it. */
-export function toggleClassOn(model: FlowModel, name: string, ids: { nodes?: string[]; subgraphs?: string[]; edges?: string[] }): FlowModel {
+export function toggleClassOn(model: FlowModel, name: string, given: { nodes?: string[]; subgraphs?: string[]; edges?: string[] }): FlowModel {
+  // An image node takes no class.
+  const ids = { ...given, nodes: given.nodes?.filter((id) => !isImageNode(model, id)) };
   const targets: Styled[] = [
     ...model.nodes.filter((n) => ids.nodes?.includes(n.id)),
     ...model.subgraphs.filter((s) => ids.subgraphs?.includes(s.id)),
@@ -296,6 +298,11 @@ export function toggleClassOn(model: FlowModel, name: string, ids: { nodes?: str
   for (const id of ids.subgraphs ?? []) next = updateSubgraph(next, id, { classes: change(next.subgraphs.find((s) => s.id === id)?.classes) });
   for (const id of ids.edges ?? []) next = updateEdge(next, id, { classes: change(next.edges.find((e) => e.id === id)?.classes) });
   return next;
+}
+
+/** Whether a node is an image (`@{ img }`): it is shown as it is, with no class or style. */
+export function isImageNode(model: FlowModel, id: string): boolean {
+  return model.nodes.find((n) => n.id === id)?.asset?.kind === 'image';
 }
 
 /** Comment lines from inspector text: one `%% ` line per non-empty line. */
@@ -357,13 +364,28 @@ export function nextEdgeId(model: FlowModel): string {
 }
 
 export function addNode(model: FlowModel, label = 'New node', shape: Shape = 'rect', parent: string | null = null): FlowModel {
-  const node: FlowNode = { id: nextNodeId(model), label, shape, markdown: false, parent };
+  // A shape with no brackets is written as `id@{ shape: name }`, with a Markdown label.
+  const node = normalizeNode({ id: nextNodeId(model), label, shape, markdown: false, parent });
   return { ...model, nodes: [...model.nodes, node] };
 }
 
 export function addSubgraph(model: FlowModel, label = 'Group', parent: string | null = null): FlowModel {
   const subgraph: FlowSubgraph = { id: nextSubgraphId(model), label, markdown: false, parent, direction: null };
   return { ...model, subgraphs: [...model.subgraphs, subgraph] };
+}
+
+/** The image a new image node starts with: Mermaid's own placeholder. */
+export const DEFAULT_IMAGE = 'https://static.mermaidchart.dev/whiteboard/default-image-shape.svg';
+
+/** Adds an image node (`id@{ img: … }`) with Mermaid's placeholder image and no label. */
+export function addImageNode(model: FlowModel, parent: string | null = null): FlowModel {
+  const id = nextNodeId(model);
+  return updateNode(addNode(model, '', 'rect', parent), id, { label: '', asset: { kind: 'image', img: DEFAULT_IMAGE, w: 120, h: 120 } });
+}
+
+/** Adds a text block: a label without a box (`id@{ shape: text }`). */
+export function addTextNode(model: FlowModel, parent: string | null = null): FlowModel {
+  return addNode(model, 'Text', 'text', parent);
 }
 
 /**

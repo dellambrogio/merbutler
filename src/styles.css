@@ -300,6 +300,8 @@ button.danger { color: var(--danger); }
 .shape-outline .solid { fill: var(--node-stroke); }
 .shape-outline .thick { stroke-width: 3.5; }
 .shape-outline .ghost { fill: transparent; stroke: none; }
+/* A text block with a border style: Mermaid draws the border, still without a fill. */
+.shape-node.text-border .shape-outline .ghost { stroke: var(--node-stroke); }
 .shape-node.selected .shape-outline .ghost { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; }
 .shape-label {
   position: relative; padding: 0 10px; text-align: center; line-height: 18px;

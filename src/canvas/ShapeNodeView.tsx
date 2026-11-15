@@ -5,7 +5,7 @@ import { toEditText } from '../core/labels';
 import { LabelText } from './LabelText';
 import type { QuickAdd, Shape } from '../core/model';
 import { SHAPE_INFO, SLANT } from '../flowchart/shapes';
-import { boxVars, textStyle } from '../flowchart/styling';
+import { boxVars, textBorder, textStyle } from '../flowchart/styling';
 import { AssetView } from './AssetView';
 
 /** Lets a node rename itself without passing callbacks through node data. */
@@ -355,7 +355,7 @@ export function ShapeNodeView({ id, data, width, height, selected }: NodeProps<S
 
   return (
     <div
-      className={`shape-node${selected ? ' selected' : ''}`}
+      className={`shape-node${selected ? ' selected' : ''}${textBorder(data.shape, data.look) ? ' text-border' : ''}`}
       style={{ width: w, height: h, ...boxVars(data.look) }}
       onDoubleClick={start}
     >

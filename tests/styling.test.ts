@@ -119,3 +119,15 @@ describe('readable labels', () => {
     expect(luminance('#0008')).toBeCloseTo(0);
   });
 });
+
+describe('the border of a text block', () => {
+  test('drawn when its style sets a stroke color or width, not for a zero width', async () => {
+    const { textBorder } = await import('../src/flowchart/styling');
+    expect(textBorder('text', { stroke: '#f00' })).toBe(true);
+    expect(textBorder('text', { strokeWidth: '4px' })).toBe(true);
+    expect(textBorder('text', { stroke: '#f00', strokeWidth: '0' })).toBe(false);
+    expect(textBorder('text', { color: '#f00' })).toBe(false);
+    expect(textBorder('text', undefined)).toBe(false);
+    expect(textBorder('rect', { stroke: '#f00' })).toBe(false);
+  });
+});

@@ -19,6 +19,7 @@ import { EdgeMarkerDefs } from './EdgeMarkers';
 import { LabelEdgeView } from './LabelEdgeView';
 import type { Box, CanvasNode } from './layout';
 import { SNAP_PIXELS, snapCenter, type Guide } from './snap';
+import { ShapeMenu } from './ShapePicker';
 import { alignGroupsWithReport, alignMessage, canAlign, isAlignGroup, visibleParent } from '../core/alignGroups';
 import { arrangeByPositions, isFreeLayout, toggleFreeLayout, type Point, type Positions } from '../core/positions';
 import { absoluteBoxes, layoutCanvas } from './layoutEngine';
@@ -42,8 +43,12 @@ import {
   toggleClassOn,
   updateEdge,
   updateNode,
+  addImageNode,
+  isImageNode,
+  addTextNode,
   updateSubgraph,
   type FlowModel,
+  type Shape,
   type QuickAdd,
 } from '../core/model';
 import { EditRequestContext, QuickAddContext, RenameContext, ShapeNodeView, type QuickAddActions } from './ShapeNodeView';
@@ -485,9 +490,21 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
     pendingSelect.current = nextSubgraphId(model);
     onChange(addSubgraph(model, 'System', null));
   };
-  const onAddNode = (): void => {
+  const onAddNode = (shape: Shape = 'rect'): void => {
     pendingSelect.current = nextNodeId(model);
-    onChange(stateDiagram ? addNode(model, 'New state', 'round', targetParent()) : addNode(model, 'New node', 'rect', targetParent()));
+    onChange(stateDiagram ? addNode(model, 'New state', 'round', targetParent()) : addNode(model, 'New node', shape, targetParent()));
+  };
+  /** The dock's Node tile while its menu of shapes is open. */
+  const [nodeMenu, setNodeMenu] = useState<HTMLElement | null>(null);
+  /** An image node with Mermaid's placeholder image; its panel opens, to put in the image's URL. */
+  const onAddImage = (): void => {
+    pendingSelect.current = nextNodeId(model);
+    onChange(addImageNode(model, targetParent()));
+  };
+  /** A text block: a label without a box. */
+  const onAddText = (): void => {
+    pendingSelect.current = nextNodeId(model);
+    onChange(addTextNode(model, targetParent()));
   };
   /** State diagrams: `[*]` of the selected composite (or the top level). */
   const onAddPseudo = (kind: 'start' | 'end'): void => onChange(addPseudoState(model, targetParent(), kind));
@@ -694,8 +711,11 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
   };
 
   /** The node, subgraph or edge under a drag, as its React Flow element. */
-  const classDropTarget = (target: EventTarget | null): HTMLElement | null =>
-    target instanceof Element ? (target.closest('.react-flow__node, .react-flow__edge') as HTMLElement | null) : null;
+  const classDropTarget = (target: EventTarget | null): HTMLElement | null => {
+    const el = target instanceof Element ? (target.closest('.react-flow__node, .react-flow__edge') as HTMLElement | null) : null;
+    // An image node takes no class.
+    return el?.dataset.id && isImageNode(model, el.dataset.id) ? null : el;
+  };
   const classDropHover = useRef<HTMLElement | null>(null);
   const setClassDropHover = (el: HTMLElement | null): void => {
     if (classDropHover.current === el) return;
@@ -759,7 +779,27 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
             <DockItem icon={DockIcons.note} label="Note" hint="For the selected actor or use case" add onClick={() => node?.usecase && onChange(addUseCaseNote(model, node.id))} disabled={readOnly || !node?.usecase} />
           </>
         )}
-        {!usecaseDiagram && <DockItem icon={stateDiagram ? DockIcons.state : DockIcons.node} label={stateDiagram ? 'State' : 'Node'} add onClick={onAddNode} disabled={readOnly} />}
+        {stateDiagram && <DockItem icon={DockIcons.state} label="State" add onClick={() => onAddNode()} disabled={readOnly} />}
+        {!usecaseDiagram && !stateDiagram && (
+          <DockItem
+            icon={DockIcons.node}
+            label="Node"
+            hint="Pick its shape"
+            add
+            menu={nodeMenu !== null}
+            onClick={(e) => {
+              const tile = e.currentTarget;
+              setNodeMenu((open) => (open ? null : tile));
+            }}
+            disabled={readOnly}
+          />
+        )}
+        {!usecaseDiagram && !stateDiagram && (
+          <>
+            <DockItem icon={DockIcons.image} label="Image" hint="An image node (@{ img }); put its URL in the panel" add onClick={onAddImage} disabled={readOnly} />
+            <DockItem icon={DockIcons.text} label="Text" hint="A text block without a box (@{ shape: text })" add onClick={onAddText} disabled={readOnly} />
+          </>
+        )}
         {stateDiagram && (
           <>
             <DockItem icon={DockIcons.start} label="Start" hint="[*] start of the selected composite state, or of the diagram" add onClick={() => onAddPseudo('start')} disabled={readOnly} />
@@ -826,6 +866,19 @@ export function Canvas({ model, readOnly, onChange, panels, onPanelsChange }: Ca
         />
         <ClassStrip model={model} selection={selection} readOnly={readOnly} onChange={onChange} />
       </Dock>
+      {nodeMenu && (
+        <ShapeMenu
+          anchor={nodeMenu}
+          value={null}
+          minWidth={340}
+          label="Add a node of this shape"
+          onChoose={(shape) => {
+            setNodeMenu(null);
+            onAddNode(shape);
+          }}
+          onClose={() => setNodeMenu(null)}
+        />
+      )}
       {alignNotice && (
         <div className="canvas-notice" role="status" onClick={() => setAlignNotice(null)} title="Click to close">
           {alignNotice.text}

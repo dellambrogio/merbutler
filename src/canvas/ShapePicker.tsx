@@ -29,43 +29,61 @@ function searchText(shape: Shape): string {
   return [info.title, info.at, ...info.aliases, ...(info.brackets ?? []), info.group].join(' ').toLowerCase();
 }
 
-export function ShapePicker({ value, onChange }: { value: Shape | null; onChange: (shape: Shape) => void }): JSX.Element {
-  const [open, setOpen] = useState(false);
+/**
+ * Every shape in a popup: a search field and the shapes by group, each with its preview and name.
+ * It floats over the page next to `anchor` (below it, or above when there is more room there) and
+ * closes on Escape or a click elsewhere. `value` marks the current shape.
+ */
+export function ShapeMenu({ anchor, value, minWidth = 240, label = 'Shapes', onChoose, onClose }: {
+  anchor: HTMLElement;
+  value: Shape | null;
+  minWidth?: number;
+  label?: string;
+  onChoose: (shape: Shape) => void;
+  onClose: () => void;
+}): JSX.Element {
   const [query, setQuery] = useState('');
-  const root = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' });
   const words = query.toLowerCase().split(/\s+/).filter((w) => w !== '');
   const shown = SHAPES.filter((s) => words.every((w) => searchText(s).includes(w)));
 
+  /** The latest onClose, so the listeners below need not change with it. */
+  const close = useRef(onClose);
+  close.current = onClose;
+  // Focus the search once the popup is placed: a hidden field takes no focus.
+  const placed = place.visibility !== 'hidden';
   useEffect(() => {
-    if (!open) return;
-    search.current?.focus();
+    if (placed) search.current?.focus();
+  }, [placed]);
+  useEffect(() => {
     const onDown = (e: PointerEvent): void => {
       const target = e.target as Node;
-      if (!root.current?.contains(target) && !popup.current?.contains(target)) setOpen(false);
+      // A click on the anchor is left to the anchor (it toggles the menu).
+      if (!anchor.contains(target) && !popup.current?.contains(target)) close.current();
+    };
+    // Escape closes it wherever the focus is (inside, it is handled below).
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key === 'Escape' && !popup.current?.contains(e.target as Node)) close.current();
     };
     document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [open]);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [anchor]);
 
-  /**
-   * The popup floats over the page (in a portal, since the inspector scrolls and would clip it),
-   * under the button, or above it when there is more room there. It follows the button when the
-   * inspector scrolls or the window resizes.
-   */
+  /** It follows the anchor when a panel scrolls or the window resizes. */
   useLayoutEffect(() => {
-    if (!open) return;
     const update = (): void => {
-      const r = button.current?.getBoundingClientRect();
-      if (!r) return;
+      const r = anchor.getBoundingClientRect();
       const margin = 8;
       const below = window.innerHeight - r.bottom - margin;
       const above = r.top - margin;
-      const width = Math.max(r.width, 240);
-      const left = Math.max(margin, Math.min(r.left, window.innerWidth - width - margin));
+      const width = Math.min(Math.max(r.width, minWidth), window.innerWidth - 2 * margin);
+      const left = Math.max(margin, Math.min(r.left + r.width / 2 - (r.width >= minWidth ? r.width / 2 : width / 2), window.innerWidth - width - margin));
       const style: CSSProperties = { left, width };
       if (below >= 300 || below >= above) Object.assign(style, { top: r.bottom + 2, maxHeight: below });
       else Object.assign(style, { bottom: window.innerHeight - r.top + 2, maxHeight: above });
@@ -78,21 +96,15 @@ export function ShapePicker({ value, onChange }: { value: Shape | null; onChange
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open]);
-
-  const choose = (shape: Shape): void => {
-    onChange(shape);
-    setOpen(false);
-    setQuery('');
-  };
+  }, [anchor, minWidth]);
 
   /** Arrow keys move through the grid (three columns); Escape closes. */
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      setOpen(false);
-      button.current?.focus();
+      close.current();
+      anchor.focus();
       return;
     }
     const tiles = [...(popup.current?.querySelectorAll<HTMLElement>('.shape-tile') ?? [])];
@@ -109,10 +121,58 @@ export function ShapePicker({ value, onChange }: { value: Shape | null; onChange
     tiles[Math.max(0, Math.min(tiles.length - 1, index + step))]?.focus();
   };
 
+  return createPortal(
+    <div ref={popup} className="shape-picker-popup" style={place} onKeyDown={onKeyDown}>
+      <input
+        ref={search}
+        className="shape-picker-search"
+        type="search"
+        placeholder="Search: diamond, db, doc, ( …"
+        aria-label="Search shapes"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <div className="shape-picker-list" role="listbox" aria-label={label}>
+        {SHAPE_GROUPS.map((group) => {
+          const shapes = shown.filter((s) => SHAPE_INFO[s].group === group);
+          if (shapes.length === 0) return null;
+          return (
+            <div key={group} className="shape-picker-group" role="group" aria-label={group}>
+              <div className="shape-picker-heading">{group}</div>
+              <div className="shape-picker-grid">
+                {shapes.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="option"
+                    aria-selected={s === value}
+                    className={`shape-tile${s === value ? ' selected' : ''}`}
+                    title={`${SHAPE_INFO[s].title}: @{ shape: ${SHAPE_INFO[s].at} }${SHAPE_INFO[s].brackets ? ` or ${SHAPE_INFO[s].brackets!.join('…')}` : ''}`}
+                    onClick={() => onChoose(s)}
+                  >
+                    <ShapeIcon shape={s} width={52} height={32} />
+                    <span className="shape-tile-name">{SHAPE_INFO[s].title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {shown.length === 0 && <p className="muted shape-picker-empty">No shape matches.</p>}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** The shape of a node, in a panel: a button with the current shape that opens the ShapeMenu. */
+export function ShapePicker({ value, onChange }: { value: Shape | null; onChange: (shape: Shape) => void }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
   // null: several nodes with different shapes.
   const info = value ? SHAPE_INFO[value] : null;
   return (
-    <div className="shape-picker" ref={root} onKeyDown={onKeyDown}>
+    <div className="shape-picker">
       <span className="color-field-label">Shape</span>
       <button ref={button} type="button" className="shape-picker-button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} title={info ? `${info.title} (${info.at})` : 'The selected nodes have different shapes'}>
         {value ? <ShapeIcon shape={value} /> : <span className="shape-icon" aria-hidden="true" />}
@@ -121,49 +181,17 @@ export function ShapePicker({ value, onChange }: { value: Shape | null; onChange
           {open ? '▴' : '▾'}
         </span>
       </button>
-      {open &&
-        createPortal(
-          <div ref={popup} className="shape-picker-popup" style={place}>
-            <input
-              ref={search}
-              className="shape-picker-search"
-              type="search"
-              placeholder="Search: diamond, db, doc, ( …"
-              aria-label="Search shapes"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="shape-picker-list" role="listbox" aria-label="Shapes">
-              {SHAPE_GROUPS.map((group) => {
-                const shapes = shown.filter((s) => SHAPE_INFO[s].group === group);
-                if (shapes.length === 0) return null;
-                return (
-                  <div key={group} className="shape-picker-group" role="group" aria-label={group}>
-                    <div className="shape-picker-heading">{group}</div>
-                    <div className="shape-picker-grid">
-                      {shapes.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          role="option"
-                          aria-selected={s === value}
-                          className={`shape-tile${s === value ? ' selected' : ''}`}
-                          title={`${SHAPE_INFO[s].title}: @{ shape: ${SHAPE_INFO[s].at} }${SHAPE_INFO[s].brackets ? ` or ${SHAPE_INFO[s].brackets!.join('…')}` : ''}`}
-                          onClick={() => choose(s)}
-                        >
-                          <ShapeIcon shape={s} width={52} height={32} />
-                          <span className="shape-tile-name">{SHAPE_INFO[s].title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {shown.length === 0 && <p className="muted shape-picker-empty">No shape matches.</p>}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {open && button.current && (
+        <ShapeMenu
+          anchor={button.current}
+          value={value}
+          onChoose={(shape) => {
+            onChange(shape);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   );
 }

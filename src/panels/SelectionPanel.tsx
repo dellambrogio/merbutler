@@ -91,10 +91,13 @@ export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onCh
     .filter(Boolean)
     .join(', ');
 
-  /** Changes every selected box (node or subgraph). */
+  /** The boxes that take a class and a style: an image node has neither. */
+  const styledNodes = nodes.filter((n) => n.asset?.kind !== 'image');
+  const styledBoxes: Array<FlowNode | FlowSubgraph> = [...styledNodes, ...subgraphs];
+  /** Changes the class or style of every selected box (node or subgraph) that has one. */
   const eachBox = (m: FlowModel, patch: (item: Styled) => Styled): FlowModel => {
     let next = m;
-    for (const n of nodes) next = updateNode(next, n.id, patch(next.nodes.find((x) => x.id === n.id) ?? n));
+    for (const n of styledNodes) next = updateNode(next, n.id, patch(next.nodes.find((x) => x.id === n.id) ?? n));
     for (const s of subgraphs) next = updateSubgraph(next, s.id, patch(next.subgraphs.find((x) => x.id === s.id) ?? s));
     return next;
   };
@@ -117,10 +120,10 @@ export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onCh
     onChange(next);
   };
 
-  const boxStyles = sharedDeclarations(boxes.map((b) => b.styles));
+  const boxStyles = sharedDeclarations(styledBoxes.map((b) => b.styles));
   const edgeStyles = sharedDeclarations(edges.map((e) => e.styles));
   const styledEdges = flowchart ? edges : [];
-  const all: Styled[] = [...boxes, ...styledEdges];
+  const all: Styled[] = [...styledBoxes, ...styledEdges];
   const classes = shared(all.map((x) => classKey(x.classes)));
 
   const stroke = shared(edges.map((e) => e.stroke));
@@ -187,18 +190,19 @@ export function SelectionPanel({ model, nodes, subgraphs, edges, flowchart, onCh
               onChange(m);
             }}
           />
-          {boxes.length > 0 && (
+          {styledBoxes.length > 0 && (
             <OwnStyleSection
               heading={edges.length > 0 ? 'Own style of the nodes' : 'Own style'}
               title="Written as: style id … for each element"
               styles={boxStyles}
-              mixed={differ(boxes.map((b) => b.styles))}
-              onReset={boxes.some((b) => (b.styles?.length ?? 0) > 0) ? () => onChange(eachBox(model, () => ({ styles: [] }))) : undefined}
+              mixed={differ(styledBoxes.map((b) => b.styles))}
+              onReset={styledBoxes.some((b) => (b.styles?.length ?? 0) > 0) ? () => onChange(eachBox(model, () => ({ styles: [] }))) : undefined}
             >
               <AppearanceFields
                 key={boxStyles.join(';')}
                 styles={boxStyles}
-                kind="box"
+                // Only text blocks: no box, so only their text.
+                kind={styledBoxes.every((b) => 'shape' in b && b.shape === 'text' && !b.asset) ? 'text' : 'box'}
                 sameSwatches
                 onChange={(after) => onChange(eachBox(model, (b) => ({ styles: applyDeclarationChange(b.styles, boxStyles, after) })))}
               />
